@@ -1,0 +1,13 @@
+{
+  "name": "myworth-root",
+  "version": "1.0.0",
+  "description": "Root orchestrator for MyWorth local net worth tracker",
+  "scripts": {
+    "install-all": "cd backend && npm install && cd ../frontend && npm install --legacy-peer-deps",
+    "backend": "cd backend && npm run dev",
+    "frontend": "cd frontend && npm run dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

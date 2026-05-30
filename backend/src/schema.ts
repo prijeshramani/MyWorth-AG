@@ -8,6 +8,7 @@ export const AssetTypeSchema = z.enum([
   'BOND',
   'PROPERTY',
   'BANK_ACCOUNT',
+  'EPF',
   'OTHER'
 ]);
 

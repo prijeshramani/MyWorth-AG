@@ -23,6 +23,7 @@ interface Transaction {
   asset_name: string;
   asset_type: string;
   asset_category: string;
+  identifier?: string | null;
 }
 
 interface Asset {
@@ -226,7 +227,7 @@ export default function Transactions() {
     setNewAssetType(type);
     if (type === 'BANK_ACCOUNT') setNewAssetCat('Cash');
     else if (type === 'STOCK' || type === 'MUTUAL_FUND') setNewAssetCat('Equity');
-    else if (type === 'BOND') setNewAssetCat('Debt');
+    else if (type === 'BOND' || type === 'EPF') setNewAssetCat('Debt');
     else if (type === 'NPS') setNewAssetCat('Hybrid');
     else setNewAssetCat('Alternative');
   };
@@ -246,6 +247,7 @@ export default function Transactions() {
     MUTUAL_FUND: 'Mutual Fund',
     STOCK: 'Stock',
     NPS: 'NPS Pension',
+    EPF: 'EPF (Provident Fund)',
     GOLD: 'Gold Metal',
     BOND: 'Bond',
     PROPERTY: 'Real Estate',

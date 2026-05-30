@@ -62,10 +62,49 @@ router.get('/', (req: Request, res: Response) => {
     
     // Initialize map
     for (const asset of assets) {
-      currentAssetHoldings.set(asset.id, { units: 0, cost: 0, lastTxPrice: 0 });
+      if (asset.type === 'BANK_ACCOUNT') {
+        const latestPriceInfo = latestPriceMap.get(asset.id);
+        const balance = latestPriceInfo ? latestPriceInfo.price : 0;
+        currentAssetHoldings.set(asset.id, { units: balance > 0 ? 1.0 : 0, cost: 0, lastTxPrice: balance });
+      } else if (asset.type === 'EPF') {
+        const latestPriceInfo = db.prepare(`
+          SELECT price, date FROM asset_prices 
+          WHERE asset_id = ? AND price > 1.0
+          ORDER BY date DESC LIMIT 1
+        `).get(asset.id) as { price: number; date: string } | undefined;
+
+        // Sum transactions
+        const assetTxs = transactions.filter(t => t.asset_id === asset.id);
+        let txSum = 0;
+        let lastTxDate = '';
+        for (const tx of assetTxs) {
+          if (tx.type === 'BUY' || tx.type === 'REINVEST') {
+            txSum += tx.amount;
+          } else if (tx.type === 'SELL') {
+            txSum -= tx.amount;
+          }
+          if (tx.date > lastTxDate) {
+            lastTxDate = tx.date;
+          }
+        }
+
+        let balance = 0;
+        if (latestPriceInfo && (!lastTxDate || latestPriceInfo.date >= lastTxDate)) {
+          balance = latestPriceInfo.price;
+        } else {
+          balance = txSum;
+        }
+
+        currentAssetHoldings.set(asset.id, { units: balance > 0 ? 1.0 : 0, cost: 0, lastTxPrice: balance });
+      } else {
+        currentAssetHoldings.set(asset.id, { units: 0, cost: 0, lastTxPrice: 0 });
+      }
     }
 
     for (const tx of transactions) {
+      const asset = assets.find(a => a.id === tx.asset_id);
+      if (!asset || asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF') continue; // Skip bank account and EPF transaction accumulation in loop
+
       const holding = currentAssetHoldings.get(tx.asset_id);
       if (!holding) continue;
 
@@ -158,31 +197,97 @@ router.get('/', (req: Request, res: Response) => {
 
       // Value each asset on date D
       for (const asset of assets) {
-        const units = assetUnitsOnDate.get(asset.id) || 0;
-        if (units === 0) continue;
-
-        // Try to get price on date D or preceding dates
+        let units = 0;
         let assetPrice = 0;
-        
-        // Scan backwards from date D to find a price in priceMap
-        let foundPrice = false;
-        let scanDate = new Date(dStr);
-        for (let s = 0; s < 15; s++) { // check up to 15 days in past for price points
-          const scanDateStr = scanDate.toISOString().split('T')[0];
-          const priceKey = `${asset.id}_${scanDateStr}`;
-          const cachedPrice = priceMap.get(priceKey);
-          
-          if (cachedPrice !== undefined) {
-            assetPrice = cachedPrice;
-            foundPrice = true;
-            break;
-          }
-          scanDate.setDate(scanDate.getDate() - 1);
-        }
 
-        // If no historical price point, fallback to last transaction price before/on D
-        if (!foundPrice) {
-          assetPrice = assetLastPriceOnDate.get(asset.id) || 0;
+        if (asset.type === 'BANK_ACCOUNT') {
+          // Find running balance on or before date D
+          let foundPrice = false;
+          let scanDate = new Date(dStr);
+          for (let s = 0; s < 30; s++) { // check up to 30 days in past for bank balance
+            const scanDateStr = scanDate.toISOString().split('T')[0];
+            const priceKey = `${asset.id}_${scanDateStr}`;
+            const cachedPrice = priceMap.get(priceKey);
+            
+            if (cachedPrice !== undefined) {
+              assetPrice = cachedPrice;
+              foundPrice = true;
+              break;
+            }
+            scanDate.setDate(scanDate.getDate() - 1);
+          }
+
+          if (foundPrice) {
+            units = 1.0;
+          }
+        } else if (asset.type === 'EPF') {
+          // Find manual balance on or before date D
+          let manualBalance = 0;
+          let manualBalanceDate = '';
+          let scanDate = new Date(dStr);
+          for (let s = 0; s < 60; s++) { // check up to 60 days in past for manual balance
+            const scanDateStr = scanDate.toISOString().split('T')[0];
+            const priceKey = `${asset.id}_${scanDateStr}`;
+            const cachedPrice = priceMap.get(priceKey);
+            if (cachedPrice !== undefined && cachedPrice > 1.0) {
+              manualBalance = cachedPrice;
+              manualBalanceDate = scanDateStr;
+              break;
+            }
+            scanDate.setDate(scanDate.getDate() - 1);
+          }
+
+          // Running sum of transactions up to date D
+          let txSum = 0;
+          let lastTxDate = '';
+          for (const tx of transactions) {
+            if (tx.asset_id === asset.id && tx.date <= dStr) {
+              if (tx.type === 'BUY' || tx.type === 'REINVEST') {
+                txSum += tx.amount;
+              } else if (tx.type === 'SELL') {
+                txSum -= tx.amount;
+              }
+              if (tx.date > lastTxDate) {
+                lastTxDate = tx.date;
+              }
+            }
+          }
+
+          let balance = 0;
+          if (manualBalance > 0 && (!lastTxDate || manualBalanceDate >= lastTxDate)) {
+            balance = manualBalance;
+          } else {
+            balance = txSum;
+          }
+
+          if (balance > 0) {
+            units = 1.0;
+            assetPrice = balance;
+          }
+        } else {
+          units = assetUnitsOnDate.get(asset.id) || 0;
+          if (units === 0) continue;
+
+          // Try to get price on date D or preceding dates
+          let foundPrice = false;
+          let scanDate = new Date(dStr);
+          for (let s = 0; s < 15; s++) { // check up to 15 days in past for price points
+            const scanDateStr = scanDate.toISOString().split('T')[0];
+            const priceKey = `${asset.id}_${scanDateStr}`;
+            const cachedPrice = priceMap.get(priceKey);
+            
+            if (cachedPrice !== undefined) {
+              assetPrice = cachedPrice;
+              foundPrice = true;
+              break;
+            }
+            scanDate.setDate(scanDate.getDate() - 1);
+          }
+
+          // If no historical price point, fallback to last transaction price before/on D
+          if (!foundPrice) {
+            assetPrice = assetLastPriceOnDate.get(asset.id) || 0;
+          }
         }
 
         dateWorth += units * assetPrice;

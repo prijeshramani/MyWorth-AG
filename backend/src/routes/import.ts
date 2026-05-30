@@ -11,6 +11,21 @@ import {
   exchangeKiteToken, 
   syncKiteHoldingsWithStoredToken 
 } from '../services/kiteService';
+import {
+  getBankInsightsPath,
+  saveBankInsightsPath,
+  syncBankInsightsTransactions
+} from '../services/bankinsightsService';
+import {
+  getAngelOneCredentials,
+  saveAngelOneCredentials,
+  syncAngelOneHoldings
+} from '../services/angeloneService';
+import {
+  saveIndMoneyAccessToken,
+  getIndMoneyCredentials,
+  fetchIndMoneyHoldings
+} from '../services/indmoneyService';
 import { db } from '../db';
 
 const router = Router();
@@ -309,6 +324,131 @@ router.post('/kite/sync', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Kite Stored Token Sync Error:', error);
     res.status(500).json({ error: error.message || 'Failed to sync with stored Zerodha token.' });
+  }
+});
+
+// GET /api/import/angelone/config - Retrieve current AngelOne configuration status
+router.get('/angelone/config', (req: Request, res: Response) => {
+  try {
+    const creds = getAngelOneCredentials();
+    res.json(creds);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/import/angelone/config - Save AngelOne SmartAPI Credentials
+router.post('/angelone/config', (req: Request, res: Response) => {
+  try {
+    const { clientCode, password, apiKey, totpSecret } = req.body;
+    if (!clientCode || !password || !apiKey || !totpSecret) {
+      return res.status(400).json({ error: 'All credentials (Client Code, Password, API Key, and TOTP Secret) are required.' });
+    }
+    saveAngelOneCredentials(clientCode, password, apiKey, totpSecret);
+    res.json({ success: true, message: 'AngelOne SmartAPI credentials saved locally.' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/import/angelone/sync - Perform holdings sync with SmartAPI
+router.post('/angelone/sync', async (req: Request, res: Response) => {
+  try {
+    const transactions = await syncAngelOneHoldings();
+    const enriched = enrichAndMapTransactions(transactions);
+    
+    res.json({
+      success: true,
+      statementType: 'ANGELONE_HOLDINGS',
+      transactions: enriched,
+      rawText: `AngelOne SmartAPI Sync - Success\nTotal Holdings: ${transactions.length}`
+    });
+  } catch (error: any) {
+    console.error('AngelOne Sync Ingestion Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to sync with AngelOne SmartAPI.' });
+  }
+});
+
+// GET /api/import/bankinsights/config - Get configured BankInsights database path
+router.get('/bankinsights/config', (req: Request, res: Response) => {
+  try {
+    const dbPath = getBankInsightsPath();
+    res.json({ dbPath });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/import/bankinsights/config - Save custom BankInsights database path
+router.post('/bankinsights/config', (req: Request, res: Response) => {
+  try {
+    const { dbPath } = req.body;
+    if (!dbPath) {
+      return res.status(400).json({ error: 'Database path is required.' });
+    }
+    saveBankInsightsPath(dbPath);
+    res.json({ success: true, message: 'BankInsights database path updated successfully.' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/import/bankinsights/sync - Trigger high-speed local database sync
+router.post('/bankinsights/sync', async (req: Request, res: Response) => {
+  try {
+    const stats = await syncBankInsightsTransactions();
+    res.json(stats);
+  } catch (error: any) {
+    console.error('BankInsights Sync Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to sync with BankInsights database.' });
+  }
+});
+
+// GET /api/import/indmoney/config - Get INDMoney configuration status
+router.get('/indmoney/config', (req: Request, res: Response) => {
+  try {
+    const creds = getIndMoneyCredentials();
+    res.json(creds);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/import/indmoney/config - Save INDMoney access token
+router.post('/indmoney/config', (req: Request, res: Response) => {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) {
+      return res.status(400).json({ error: 'Access token is required.' });
+    }
+    saveIndMoneyAccessToken(accessToken);
+    res.json({ success: true, message: 'INDMoney access token saved locally.' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/import/indmoney/sync - Sync holdings from INDstocks API
+router.post('/indmoney/sync', async (req: Request, res: Response) => {
+  try {
+    // Get stored token from credentials table
+    const row = db.prepare('SELECT value FROM credentials WHERE key = ?').get('indmoney_access_token') as { value: string } | undefined;
+    if (!row?.value) {
+      return res.status(400).json({ error: 'INDMoney access token is not configured. Please save your API token first.' });
+    }
+    
+    const transactions = await fetchIndMoneyHoldings(row.value);
+    const enriched = enrichAndMapTransactions(transactions);
+    
+    res.json({
+      success: true,
+      statementType: 'INDMONEY_HOLDINGS',
+      transactions: enriched,
+      rawText: `INDMoney programmatic sync - Success\nTotal Holdings: ${transactions.length}`
+    });
+  } catch (error: any) {
+    console.error('INDMoney Sync Ingestion Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to sync with INDMoney API.' });
   }
 });
 

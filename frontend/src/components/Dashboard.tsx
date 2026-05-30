@@ -28,16 +28,22 @@ interface DashboardProps {
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const [data, setData] = useState<any>(null);
+  const [cashflowData, setCashflowData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
-  const fetchDashboard = async () => {
+  const fetchDashboardAndCashflow = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/dashboard');
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
+      const [dashRes, cfRes] = await Promise.all([
+        fetch('http://localhost:5000/api/dashboard'),
+        fetch('http://localhost:5000/api/cashflow')
+      ]);
+      if (dashRes.ok && cfRes.ok) {
+        const dashJson = await dashRes.json();
+        const cfJson = await cfRes.json();
+        setData(dashJson);
+        setCashflowData(cfJson);
       } else {
         setError('Failed to fetch dashboard statistics.');
       }
@@ -49,7 +55,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   };
 
   useEffect(() => {
-    fetchDashboard();
+    fetchDashboardAndCashflow();
   }, []);
 
   if (loading) {
@@ -66,7 +72,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       <div className="p-6 bg-red-950/20 border border-red-900/40 text-red-400 rounded-2xl">
         <h3 className="font-semibold text-lg">Error Loading Dashboard</h3>
         <p className="text-sm mt-1">{error}</p>
-        <button onClick={fetchDashboard} className="mt-4 px-4 py-2 bg-red-900/50 hover:bg-red-900/70 text-white rounded-xl text-xs font-semibold transition-all">
+        <button onClick={fetchDashboardAndCashflow} className="mt-4 px-4 py-2 bg-red-900/50 hover:bg-red-900/70 text-white rounded-xl text-xs font-semibold transition-all">
           Try Again
         </button>
       </div>
@@ -147,6 +153,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     MUTUAL_FUND: '#6366f1', // Indigo
     STOCK: '#10b981',       // Emerald
     NPS: '#f59e0b',         // Amber
+    EPF: '#8b5cf6',         // Violet/Indigo
     GOLD: '#eab308',        // Yellow
     BOND: '#3b82f6',        // Blue
     PROPERTY: '#ec4899',    // Pink
@@ -167,6 +174,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     MUTUAL_FUND: 'Mutual Funds',
     STOCK: 'Stocks',
     NPS: 'National Pension Scheme',
+    EPF: "Employees' Provident Fund (EPF)",
     GOLD: 'Gold',
     BOND: 'Bonds',
     PROPERTY: 'Real Estate',
@@ -359,6 +367,128 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         </div>
       </div>
 
+      {/* Cash Flow & Liquidity Insights Section */}
+      {cashflowData && cashflowData.hasData && (
+        <div className="card-glass p-6 rounded-2xl">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-800/40 pb-4 mb-6 gap-3">
+            <div>
+              <h4 className="font-bold text-lg text-slate-100 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Cash Flow & Liquidity Insights
+              </h4>
+              <span className="text-xs text-slate-400">Aggregated real-time cash inflows, outflows, and savings performance</span>
+            </div>
+            <button 
+              onClick={() => onNavigate('cashflow')}
+              className="text-xs px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 rounded-xl font-bold transition-all shadow-md"
+            >
+              Open Cash Flow Hub
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* mini kpi split */}
+            <div className="space-y-4 flex flex-col justify-between">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-900/40 border border-slate-800/60 p-4 rounded-xl">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Total Inflow</span>
+                  <span className="text-lg font-bold text-emerald-400 mt-1 block">
+                    {formatCurrency(cashflowData.summary.totalIncome)}
+                  </span>
+                </div>
+                <div className="bg-slate-900/40 border border-slate-800/60 p-4 rounded-xl">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Total Outflow</span>
+                  <span className="text-lg font-bold text-red-400 mt-1 block">
+                    {formatCurrency(cashflowData.summary.totalExpense)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-indigo-950/20 to-slate-900/40 border border-indigo-900/30 p-4 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-indigo-400 uppercase block tracking-wider">Net Savings</span>
+                  <span className="text-xl font-extrabold text-white mt-1 block">
+                    {formatCurrency(cashflowData.summary.netSavings)}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">Savings Rate</span>
+                  <span className="text-lg font-extrabold text-indigo-300 mt-1 block">
+                    {cashflowData.summary.savingsRate.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-400 leading-relaxed italic bg-slate-950/20 p-3 rounded-lg border border-slate-900">
+                💡 Your savings rate of <strong className="text-indigo-400">{cashflowData.summary.savingsRate.toFixed(1)}%</strong> indicates that you are accumulating cash at a solid pace. Keep expenses controlled to maximize investment bandwidth.
+              </div>
+            </div>
+
+            {/* mini inflow vs outflow chart */}
+            <div className="md:col-span-2 h-48 pr-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={cashflowData.monthlyTimeline.slice(-6)}>
+                  <defs>
+                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis 
+                    dataKey="month" 
+                    stroke="#475569" 
+                    fontSize={10} 
+                    tickLine={false}
+                    tickFormatter={(str) => {
+                      const [year, month] = str.split('-');
+                      const date = new Date(Number(year), Number(month) - 1, 1);
+                      return date.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+                    }}
+                  />
+                  <YAxis 
+                    stroke="#475569" 
+                    fontSize={9} 
+                    tickLine={false} 
+                    axisLine={false}
+                    tickFormatter={(val) => {
+                      if (val >= 100000) return `${(val/100000).toFixed(1)}L`;
+                      if (val >= 1000) return `${(val/1000).toFixed(0)}k`;
+                      return val;
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#0f172a',
+                      border: '1px solid #1e293b',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      color: '#f8fafc'
+                    }}
+                    formatter={(value: any, name: string) => [formatCurrency(Number(value)), name === 'income' ? 'Earnings' : 'Expenses']}
+                  />
+                  <Area type="monotone" dataKey="income" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorIncome)" name="income" />
+                  <Area type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorExpense)" name="expense" />
+                </AreaChart>
+              </ResponsiveContainer>
+              <div className="flex justify-center gap-6 mt-2 text-[10px] font-semibold">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
+                  <span className="text-slate-400">Monthly Earnings</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 bg-rose-500 rounded-full"></span>
+                  <span className="text-slate-400">Monthly Expenses</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Row 3: Diversification & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Category breakdown (Equity vs Debt) */}
@@ -434,7 +564,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 No recent activity recorded.
               </div>
             ) : (
-              recentActivity.map((act) => {
+              recentActivity.map((act: any) => {
                 const isBuy = act.type === 'BUY' || act.type === 'REINVEST';
                 const assetTypeLabel = assetLabels[act.asset_type] || act.asset_type;
                 return (

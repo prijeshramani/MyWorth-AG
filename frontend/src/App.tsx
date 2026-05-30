@@ -4,6 +4,7 @@ import Dashboard from './components/Dashboard';
 import Portfolio from './components/Portfolio';
 import Transactions from './components/Transactions';
 import ImportCenter from './components/ImportCenter';
+import CashFlowDashboard from './components/CashFlowDashboard';
 
 function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -31,6 +32,8 @@ function App() {
         return <Portfolio />;
       case 'transactions':
         return <Transactions />;
+      case 'cashflow':
+        return <CashFlowDashboard />;
       case 'import':
         return (
           <ImportCenter 

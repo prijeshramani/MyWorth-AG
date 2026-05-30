@@ -6,6 +6,7 @@ import assetsRouter from './routes/assets';
 import transactionsRouter from './routes/transactions';
 import importRouter from './routes/import';
 import dashboardRouter from './routes/dashboard';
+import cashflowRouter from './routes/cashflow';
 import { syncAllAssets } from './services/marketSync';
 
 dotenv.config();
@@ -32,6 +33,7 @@ app.use('/api/assets', assetsRouter);
 app.use('/api/transactions', transactionsRouter);
 app.use('/api/import', importRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/cashflow', cashflowRouter);
 
 // Sync Market Data Trigger Route
 app.post('/api/sync', async (req, res) => {

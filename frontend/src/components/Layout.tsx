@@ -70,6 +70,7 @@ export default function Layout({ activeTab, setActiveTab, children }: LayoutProp
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
     { id: 'transactions', label: 'Ledger', icon: History },
+    { id: 'cashflow', label: 'Cash Flow', icon: Activity },
     { id: 'import', label: 'Import Statement', icon: FileUp },
   ];
 

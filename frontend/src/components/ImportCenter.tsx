@@ -9,13 +9,14 @@ import {
   Copy, 
   RefreshCw, 
   CheckSquare, 
-  Square 
+  Square,
+  PlusCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ParsedTx {
   assetName: string;
-  assetType: 'MUTUAL_FUND' | 'STOCK' | 'NPS';
+  assetType: 'MUTUAL_FUND' | 'STOCK' | 'NPS' | 'EPF';
   category: 'Equity' | 'Debt' | 'Cash' | 'Hybrid' | 'Alternative';
   identifier: string;
   type: 'BUY' | 'SELL' | 'REINVEST' | 'DIVIDEND' | 'INTEREST';
@@ -34,10 +35,16 @@ interface ImportCenterProps {
 }
 
 export default function ImportCenter({ initialKiteRequestToken, clearKiteRequestToken }: ImportCenterProps = {}) {
-  const [importMethod, setImportMethod] = useState<'file' | 'kite'>('file');
+  const [importMethod, setImportMethod] = useState<'file' | 'kite' | 'angelone' | 'indmoney' | 'epf'>('file');
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState<string>('');
   const [parsing, setParsing] = useState<boolean>(false);
+  
+  // INDMoney API configuration states
+  const [indMoneyToken, setIndMoneyToken] = useState<string>('');
+  const [isIndMoneyConfigured, setIsIndMoneyConfigured] = useState<boolean>(false);
+  const [showIndMoneyConfigForm, setShowIndMoneyConfigForm] = useState<boolean>(false);
+  const [savingIndMoneyConfig, setSavingIndMoneyConfig] = useState<boolean>(false);
   
   // Kite Connect configuration states
   const [apiKey, setApiKey] = useState<string>('');
@@ -45,6 +52,22 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
   const [isConfigured, setIsConfigured] = useState<boolean>(false);
   const [showConfigForm, setShowConfigForm] = useState<boolean>(false);
   const [savingConfig, setSavingConfig] = useState<boolean>(false);
+
+  // AngelOne SmartAPI configuration states
+  const [angelClientCode, setAngelClientCode] = useState<string>('');
+  const [angelPassword, setAngelPassword] = useState<string>('');
+  const [angelApiKey, setAngelApiKey] = useState<string>('');
+  const [angelTotpSecret, setAngelTotpSecret] = useState<string>('');
+  const [isAngelConfigured, setIsAngelConfigured] = useState<boolean>(false);
+  const [showAngelConfigForm, setShowAngelConfigForm] = useState<boolean>(false);
+  const [savingAngelConfig, setSavingAngelConfig] = useState<boolean>(false);
+
+  // EPF Sync states
+  const [epfAsset, setEpfAsset] = useState<{ id: number; name: string } | null>(null);
+  const [manualEpfBalance, setManualEpfBalance] = useState<string>('');
+  const [manualEpfDate, setManualEpfDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [bootstrappingEpf, setBootstrappingEpf] = useState<boolean>(false);
+  const [updatingEpfBalance, setUpdatingEpfBalance] = useState<boolean>(false);
 
   // Results
   const [statementType, setStatementType] = useState<string>('');
@@ -63,6 +86,9 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
 
   useEffect(() => {
     fetchKiteConfig();
+    fetchAngelConfig();
+    fetchIndMoneyConfig();
+    fetchEpfAsset();
   }, []);
 
   useEffect(() => {
@@ -71,6 +97,94 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
       handleKiteTokenExchange(initialKiteRequestToken);
     }
   }, [initialKiteRequestToken]);
+
+  const fetchEpfAsset = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/assets');
+      if (res.ok) {
+        const assets = await res.json();
+        const found = assets.find((a: any) => a.type === 'EPF');
+        if (found) {
+          setEpfAsset({ id: found.id, name: found.name });
+        } else {
+          setEpfAsset(null);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch EPF asset:', err);
+    }
+  };
+
+  const handleBootstrapEpf = async () => {
+    setBootstrappingEpf(true);
+    setError('');
+    try {
+      const res = await fetch('http://localhost:5000/api/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'TCS Employees Provident Fund',
+          type: 'EPF',
+          category: 'Debt'
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEpfAsset({ id: data.id, name: data.name });
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.8 }
+        });
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to bootstrap EPF asset.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error communicating with server.');
+    } finally {
+      setBootstrappingEpf(false);
+    }
+  };
+
+  const handleSyncEpfBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!epfAsset) return;
+    const balanceVal = parseFloat(manualEpfBalance);
+    if (isNaN(balanceVal) || balanceVal < 0) {
+      return alert('Please enter a valid balance.');
+    }
+    setUpdatingEpfBalance(true);
+    setError('');
+    try {
+      const res = await fetch(`http://localhost:5000/api/assets/${epfAsset.id}/prices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: manualEpfDate,
+          price: balanceVal
+        })
+      });
+      if (res.ok) {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.7 }
+        });
+        setManualEpfBalance('');
+        alert('EPF balance successfully updated.');
+        // Trigger a background market sync to update timeline
+        fetch('http://localhost:5000/api/sync', { method: 'POST' }).catch(e => console.error(e));
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to update EPF balance.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error connecting to local server.');
+    } finally {
+      setUpdatingEpfBalance(false);
+    }
+  };
 
   const fetchKiteConfig = async () => {
     try {
@@ -82,6 +196,170 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
       }
     } catch (err) {
       console.error('Failed to fetch Kite Connect settings:', err);
+    }
+  };
+
+  const fetchAngelConfig = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/import/angelone/config');
+      if (res.ok) {
+        const data = await res.json();
+        setIsAngelConfigured(data.hasPassword && data.hasTotpSecret && !!data.apiKey && !!data.clientCode);
+        setAngelClientCode(data.clientCode);
+        setAngelApiKey(data.apiKey);
+      }
+    } catch (err) {
+      console.error('Failed to fetch AngelOne settings:', err);
+    }
+  };
+
+  const handleSaveAngelConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingAngelConfig(true);
+    setError('');
+    try {
+      const res = await fetch('http://localhost:5000/api/import/angelone/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientCode: angelClientCode,
+          password: angelPassword,
+          apiKey: angelApiKey,
+          totpSecret: angelTotpSecret
+        })
+      });
+      if (res.ok) {
+        setIsAngelConfigured(true);
+        setAngelPassword('');
+        setAngelTotpSecret('');
+        setShowAngelConfigForm(false);
+        alert('AngelOne SmartAPI credentials saved locally!');
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to save AngelOne credentials.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error communicating with local server.');
+    } finally {
+      setSavingAngelConfig(false);
+    }
+  };
+
+  const handleAngelSync = async () => {
+    setParsing(true);
+    setError('');
+    setImportSummary(null);
+    try {
+      const res = await fetch('http://localhost:5000/api/import/angelone/sync', {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStatementType(data.statementType);
+        setParsedTxs(data.transactions);
+        setRawText(data.rawText);
+
+        const selectionMap: Record<number, boolean> = {};
+        data.transactions.forEach((tx: ParsedTx, idx: number) => {
+          selectionMap[idx] = !tx.isDuplicate;
+        });
+        setSelectedTxs(selectionMap);
+
+        if (data.transactions.length === 0) {
+          setError('AngelOne SmartAPI synced successfully, but returned 0 active stock holdings.');
+        } else {
+          confetti({
+            particleCount: 50,
+            spread: 60,
+            origin: { y: 0.8 }
+          });
+        }
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to sync with AngelOne SmartAPI. Verify your credentials and TOTP secret.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error communicating with local server.');
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const fetchIndMoneyConfig = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/import/indmoney/config');
+      if (res.ok) {
+        const data = await res.json();
+        setIsIndMoneyConfigured(data.configured);
+      }
+    } catch (err) {
+      console.error('Failed to fetch INDMoney settings:', err);
+    }
+  };
+
+  const handleSaveIndMoneyConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingIndMoneyConfig(true);
+    setError('');
+    try {
+      const res = await fetch('http://localhost:5000/api/import/indmoney/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken: indMoneyToken })
+      });
+      if (res.ok) {
+        setIsIndMoneyConfigured(true);
+        setIndMoneyToken('');
+        setShowIndMoneyConfigForm(false);
+        alert('INDMoney Access Token saved locally!');
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to save INDMoney Access Token.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error communicating with local server.');
+    } finally {
+      setSavingIndMoneyConfig(false);
+    }
+  };
+
+  const handleIndMoneySync = async () => {
+    setParsing(true);
+    setError('');
+    setImportSummary(null);
+    try {
+      const res = await fetch('http://localhost:5000/api/import/indmoney/sync', {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStatementType(data.statementType);
+        setParsedTxs(data.transactions);
+        setRawText(data.rawText);
+
+        const selectionMap: Record<number, boolean> = {};
+        data.transactions.forEach((tx: ParsedTx, idx: number) => {
+          selectionMap[idx] = !tx.isDuplicate;
+        });
+        setSelectedTxs(selectionMap);
+
+        if (data.transactions.length === 0) {
+          setError('INDMoney synced successfully, but returned 0 active stock holdings.');
+        } else {
+          confetti({
+            particleCount: 50,
+            spread: 60,
+            origin: { y: 0.8 }
+          });
+        }
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to fetch holdings from INDMoney API.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error connecting to backend server.');
+    } finally {
+      setParsing(false);
     }
   };
 
@@ -333,6 +611,8 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     ZERODHA_XML: 'Zerodha Contract Note (XML Stocks)',
     ZERODHA_HOLDINGS: 'Zerodha Console Holdings (Excel Stocks)',
     ANGELONE: 'AngelOne Contract Note (Stocks)',
+    ANGELONE_HOLDINGS: 'AngelOne SmartAPI Portfolio (Stocks)',
+    TCS_EPF: 'TCS Employees Provident Fund Statement (EPF)',
     UNKNOWN: 'Unrecognized Statement Template'
   };
 
@@ -353,30 +633,66 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
       {parsedTxs.length === 0 ? (
         <div className="max-w-3xl mx-auto card-glass p-8 rounded-3xl">
           {/* Method Selector Tabs */}
-          <div className="flex p-1 bg-slate-950/60 border border-slate-900 rounded-xl mb-6 max-w-md mx-auto">
+          <div className="flex flex-wrap p-1 bg-slate-950/60 border border-slate-900 rounded-xl mb-6 max-w-3xl mx-auto">
             <button
               type="button"
               onClick={() => setImportMethod('file')}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 min-w-[80px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 importMethod === 'file' 
                   ? 'bg-indigo-600 text-white shadow shadow-indigo-600/10' 
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <FileUp className="w-4 h-4" />
-              Offline Statements
+              Offline
             </button>
             <button
               type="button"
               onClick={() => setImportMethod('kite')}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 min-w-[80px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 importMethod === 'kite' 
                   ? 'bg-indigo-600 text-white shadow shadow-indigo-600/10' 
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <RefreshCw className="w-4 h-4" />
-              Zerodha Kite API
+              Zerodha API
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportMethod('angelone')}
+              className={`flex-1 min-w-[80px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                importMethod === 'angelone' 
+                  ? 'bg-indigo-600 text-white shadow shadow-indigo-600/10' 
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <RefreshCw className="w-4 h-4" />
+              AngelOne API
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportMethod('indmoney')}
+              className={`flex-1 min-w-[80px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                importMethod === 'indmoney' 
+                  ? 'bg-indigo-600 text-white shadow shadow-indigo-600/10' 
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <RefreshCw className="w-4 h-4" />
+              INDMoney API
+            </button>
+            <button
+              type="button"
+              onClick={() => { setImportMethod('epf'); fetchEpfAsset(); }}
+              className={`flex-1 min-w-[80px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                importMethod === 'epf' 
+                  ? 'bg-indigo-600 text-white shadow shadow-indigo-600/10' 
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <RefreshCw className="w-4 h-4" />
+              EPF (Provident Fund)
             </button>
           </div>
 
@@ -442,7 +758,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
                 </button>
               </div>
             </form>
-          ) : (
+          ) : importMethod === 'kite' ? (
             /* ZERODHA KITE API CONTROL BOARD */
             <div className="space-y-6 text-xs max-w-lg mx-auto py-2">
               <div className="p-4 bg-slate-950/40 border border-slate-900/60 rounded-2xl flex gap-3 text-slate-400 leading-relaxed">
@@ -530,6 +846,350 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
                   </div>
                 </form>
               )}
+            </div>
+          ) : importMethod === 'angelone' ? (
+            /* ANGELONE SMARTAPI CONTROL BOARD */
+            <div className="space-y-6 text-xs max-w-lg mx-auto py-2">
+              <div className="p-4 bg-slate-950/40 border border-slate-900/60 rounded-2xl flex gap-3 text-slate-400 leading-relaxed">
+                <AlertCircle className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h5 className="font-bold text-slate-300">AngelOne SmartAPI Developer Setup</h5>
+                  <p className="mt-1">
+                    SmartAPI is completely free for retail clients. Create a developer account at <a href="https://smartapi.angelone.in" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline font-bold">smartapi.angelone.in</a>, register a retail app, and enable TOTP on your AngelOne trading account.
+                  </p>
+                </div>
+              </div>
+
+              {isAngelConfigured && !showAngelConfigForm ? (
+                <div className="space-y-4 text-center">
+                  <div className="p-4 bg-indigo-950/10 border border-indigo-900/30 rounded-2xl inline-block w-full text-left space-y-1">
+                    <span className="font-bold text-slate-300 block">SmartAPI Active Setup</span>
+                    <span className="text-slate-500 block">Client Code: <code className="text-slate-300 bg-slate-900/50 px-1.5 py-0.5 rounded font-mono">{angelClientCode}</code></span>
+                    <span className="text-slate-500 block">API Key: <code className="text-slate-300 bg-slate-900/50 px-1.5 py-0.5 rounded font-mono">{angelApiKey}</code></span>
+                  </div>
+                  
+                  <div className="flex justify-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAngelConfigForm(true)}
+                      className="px-4 py-2 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-xl font-semibold transition-all"
+                    >
+                      Edit Credentials
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAngelSync}
+                      disabled={parsing}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      {parsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                      {parsing ? 'Contacting SmartAPI...' : 'Sync Stock Holdings'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Credentials Settings Form */
+                <form onSubmit={handleSaveAngelConfig} className="space-y-4 border border-slate-900/40 bg-slate-950/20 p-5 rounded-2xl">
+                  <h5 className="font-bold text-slate-200 text-sm">Configure AngelOne SmartAPI Credentials</h5>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold block">Client Code (AngelOne Login ID)</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. A123456"
+                      value={angelClientCode}
+                      onChange={(e) => setAngelClientCode(e.target.value)}
+                      className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold block">Password / Account PIN</label>
+                    <input 
+                      type="password" 
+                      placeholder="Enter your AngelOne Password or PIN"
+                      value={angelPassword}
+                      onChange={(e) => setAngelPassword(e.target.value)}
+                      className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium"
+                      required={!isAngelConfigured}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold block">SmartAPI API Key</label>
+                    <input 
+                      type="text" 
+                      placeholder="Paste your SmartAPI API Key"
+                      value={angelApiKey}
+                      onChange={(e) => setAngelApiKey(e.target.value)}
+                      className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold block">2FA TOTP Secret Key</label>
+                    <input 
+                      type="password" 
+                      placeholder="Paste your 2FA TOTP Secret Key (from Google Authenticator setup)"
+                      value={angelTotpSecret}
+                      onChange={(e) => setAngelTotpSecret(e.target.value)}
+                      className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                      required={!isAngelConfigured}
+                    />
+                    <span className="text-[9px] text-slate-500 block leading-tight mt-1">
+                      To get this, enable TOTP in AngelOne app. AngelOne will display a secret code alongside the QR code. Enter that alphanumeric key here to allow MyWorth to compute dynamic 2FA tokens offline.
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2.5 pt-2">
+                    {isAngelConfigured && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAngelConfigForm(false)}
+                        className="flex-1 py-2.5 border border-slate-800 text-slate-400 rounded-xl font-semibold hover:bg-slate-800/40 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={savingAngelConfig}
+                      className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold disabled:opacity-50 transition-all"
+                    >
+                      {savingAngelConfig ? 'Saving Settings...' : 'Save Credentials locally'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          ) : importMethod === 'indmoney' ? (
+            /* INDMONEY API CONTROL BOARD */
+            <div className="space-y-6 text-xs max-w-lg mx-auto py-2">
+              <div className="p-4 bg-slate-950/40 border border-slate-900/60 rounded-2xl flex gap-3 text-slate-400 leading-relaxed">
+                <AlertCircle className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h5 className="font-bold text-slate-300">INDMoney Developer Token Setup</h5>
+                  <p className="mt-1">
+                    INDMoney offers programmatic access via the INDstocks API. 
+                    To retrieve your token:
+                    <br />
+                    1. Log in to your account at <a href="https://www.indstocks.com/app/api-trading" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline font-bold">indstocks.com/app/api-trading</a>.
+                    <br />
+                    2. Navigate to the API section to generate an active Access Token.
+                    <br />
+                    3. Save the token locally here to sync your complete Demat Indian equities and US fractional stock holdings!
+                  </p>
+                </div>
+              </div>
+
+              {isIndMoneyConfigured && !showIndMoneyConfigForm ? (
+                <div className="space-y-4 text-center">
+                  <div className="p-4 bg-indigo-950/10 border border-indigo-900/30 rounded-2xl inline-block w-full text-left space-y-1">
+                    <span className="font-bold text-slate-300 block">INDMoney Sync Status</span>
+                    <span className="text-emerald-400 font-bold block flex items-center gap-1.5 mt-0.5">
+                      <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+                      Configured & Programmatically Linked
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowIndMoneyConfigForm(true)}
+                      className="px-4 py-2 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-xl font-semibold transition-all"
+                    >
+                      Update Token
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleIndMoneySync}
+                      disabled={parsing}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      {parsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                      {parsing ? 'Contacting INDMoney API...' : 'Sync INDMoney Holdings'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Credentials Settings Form */
+                <form onSubmit={handleSaveIndMoneyConfig} className="space-y-4 border border-slate-900/40 bg-slate-950/20 p-5 rounded-2xl">
+                  <h5 className="font-bold text-slate-200 text-sm">Configure INDMoney Access Token</h5>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold block">Developer Access Token</label>
+                    <input 
+                      type="password" 
+                      placeholder="Paste your INDstocks Developer Access Token"
+                      value={indMoneyToken}
+                      onChange={(e) => setIndMoneyToken(e.target.value)}
+                      className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex gap-2.5 pt-2">
+                    {isIndMoneyConfigured && (
+                      <button
+                        type="button"
+                        onClick={() => setShowIndMoneyConfigForm(false)}
+                        className="flex-1 py-2.5 border border-slate-800 text-slate-400 rounded-xl font-semibold hover:bg-slate-800/40 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={savingIndMoneyConfig}
+                      className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold disabled:opacity-50 transition-all"
+                    >
+                      {savingIndMoneyConfig ? 'Saving Settings...' : 'Save Token locally'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          ) : (
+            /* EPF (PROVIDENT FUND) SYNC BOARD */
+            <div className="space-y-8 max-w-4xl mx-auto py-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Method A: Upload Statement PDF */}
+                <div className="card-glass border border-slate-800/60 p-6 rounded-2xl flex flex-col justify-between space-y-4">
+                  <div>
+                    <h5 className="font-bold text-slate-200 text-sm flex items-center gap-1.5">
+                      <FileUp className="w-4 h-4 text-indigo-400" />
+                      Option A: Upload TCS EPF Statement
+                    </h5>
+                    <p className="text-slate-400 text-[11px] mt-1.5 leading-relaxed">
+                      Upload your official TCS Employees' Provident Fund statement PDF. The secure local parser will automatically read the financial year, opening balance, monthly contributions, and credited interest.
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleParse} className="space-y-4 pt-2">
+                    {/* File picker */}
+                    <div 
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      onClick={handleUploadClick}
+                      className={`border border-dashed rounded-xl py-6 px-3 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+                        file && file.name.toLowerCase().endsWith('.pdf')
+                          ? 'border-indigo-500/80 bg-indigo-500/5' 
+                          : 'border-slate-800 hover:border-slate-700 bg-slate-900/10 hover:bg-slate-900/20'
+                      }`}
+                    >
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleFileChange}
+                        accept=".pdf"
+                        className="hidden"
+                      />
+                      <FileUp className="w-5 h-5 text-indigo-400" />
+                      <span className="font-bold text-[11px] text-slate-300 block truncate max-w-[200px]">
+                        {file && file.name.toLowerCase().endsWith('.pdf') ? file.name : 'Select or drag TCS EPF statement PDF'}
+                      </span>
+                    </div>
+
+                    {/* PDF Password */}
+                    <div className="space-y-1 text-[11px]">
+                      <label className="text-slate-400 font-semibold flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-indigo-400" /> PDF Password (usually TCS birthdate/email or PAN)
+                      </label>
+                      <input 
+                        type="password" 
+                        placeholder="Enter PDF password if locked"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-3.5 py-2 outline-none font-medium text-[11px]"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={parsing || !file}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[11px] font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      {parsing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : null}
+                      {parsing ? 'Parsing EPF PDF...' : 'Ingest EPF PDF Statement'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Method B: Manual Balance Sync */}
+                <div className="card-glass border border-slate-800/60 p-6 rounded-2xl flex flex-col justify-between space-y-4">
+                  <div>
+                    <h5 className="font-bold text-slate-200 text-sm flex items-center gap-1.5">
+                      <RefreshCw className="w-4 h-4 text-indigo-400" />
+                      Option B: Manual Balance Sync
+                    </h5>
+                    <p className="text-slate-400 text-[11px] mt-1.5 leading-relaxed">
+                      If you do not have a statement PDF, you can bootstrap a manual EPF account and periodically sync your balance to reflect your EPFO assets on your net worth timeline.
+                    </p>
+                  </div>
+
+                  {!epfAsset ? (
+                    <div className="space-y-4 pt-2 text-center flex-1 flex flex-col justify-center">
+                      <div className="p-3 bg-indigo-950/20 border border-indigo-900/30 rounded-xl text-left text-slate-400 text-[10px] leading-relaxed">
+                        No active EPF holding has been registered in your local database. Click below to bootstrap a secure portfolio entry for your provident fund.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleBootstrapEpf}
+                        disabled={bootstrappingEpf}
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[11px] font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        {bootstrappingEpf ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <PlusCircle className="w-3.5 h-3.5" />}
+                        {bootstrappingEpf ? 'Bootstrapping...' : 'Bootstrap EPF Asset Ledger'}
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSyncEpfBalance} className="space-y-4 pt-2 flex-1 flex flex-col justify-between">
+                      <div className="space-y-3">
+                        <div className="p-2.5 bg-emerald-950/10 border border-emerald-900/20 rounded-xl text-[10px] text-slate-400">
+                          Linked Holding: <strong className="text-emerald-400">{epfAsset.name}</strong> (ID: {epfAsset.id})
+                        </div>
+
+                        <div className="space-y-1 text-[11px]">
+                          <label className="text-slate-400 font-semibold block">Current EPF Balance (Rs.)</label>
+                          <input 
+                            type="number" 
+                            step="any"
+                            placeholder="e.g. 1741353"
+                            value={manualEpfBalance}
+                            onChange={(e) => setManualEpfBalance(e.target.value)}
+                            required
+                            className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-3.5 py-2 outline-none font-bold text-[11px]"
+                          />
+                        </div>
+
+                        <div className="space-y-1 text-[11px]">
+                          <label className="text-slate-400 font-semibold block">Balance Record Date</label>
+                          <input 
+                            type="date" 
+                            value={manualEpfDate}
+                            onChange={(e) => setManualEpfDate(e.target.value)}
+                            required
+                            className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-3.5 py-2 outline-none font-medium text-[11px]"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={updatingEpfBalance}
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[11px] font-bold disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        {updatingEpfBalance ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        {updatingEpfBalance ? 'Syncing...' : 'Sync EPF Balance'}
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+              </div>
             </div>
           )}
 

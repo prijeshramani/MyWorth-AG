@@ -40,7 +40,7 @@ function normalizeDate(rawDate: string): string {
 
 export interface ParsedTransaction {
   assetName: string;
-  assetType: 'MUTUAL_FUND' | 'STOCK' | 'NPS';
+  assetType: 'MUTUAL_FUND' | 'STOCK' | 'NPS' | 'EPF';
   category: 'Equity' | 'Debt' | 'Cash' | 'Hybrid' | 'Alternative';
   identifier: string; // ISIN, PRAN, Ticker
   type: 'BUY' | 'SELL' | 'REINVEST' | 'DIVIDEND' | 'INTEREST';
@@ -51,7 +51,7 @@ export interface ParsedTransaction {
 }
 
 export interface ParseResult {
-  statementType: 'CAMS_CAS' | 'NPS_PROTEAN' | 'ZERODHA' | 'ANGELONE' | 'UNKNOWN';
+  statementType: 'CAMS_CAS' | 'NPS_PROTEAN' | 'ZERODHA' | 'ANGELONE' | 'TCS_EPF' | 'UNKNOWN';
   transactions: ParsedTransaction[];
   rawText: string;
 }
@@ -98,6 +98,8 @@ export async function parsePdfStatement(pdfBuffer: Buffer, password?: string): P
     statementType = 'ZERODHA';
   } else if (rawTextUpper.includes('ANGEL') || rawTextUpper.includes('ANGELONE') || rawTextUpper.includes('ANGEL BROKING')) {
     statementType = 'ANGELONE';
+  } else if (rawTextUpper.includes('TATA CONSULTANCY SERVICES EMPLOYEES') && rawTextUpper.includes('PROVIDENT FUND')) {
+    statementType = 'TCS_EPF';
   }
 
   console.log(`Detected PDF Statement Type: ${statementType}`);
@@ -282,6 +284,107 @@ export async function parsePdfStatement(pdfBuffer: Buffer, password?: string): P
         quantity,
         price,
         amount
+      });
+    }
+  }
+
+  // 5. TCS Employees Provident Fund Statement Ingestion
+  if (statementType === 'TCS_EPF') {
+    const parseVal = (str: string): number => parseFloat(str.replace(/,/g, '')) || 0;
+
+    // 1. Detect UAN
+    const uanMatch = rawText.match(/UAN\s+PF\s+Account\s+No\s+Member\s+ID\s*(\d{12})/i) ||
+                     rawText.match(/UAN\b.*?(\d{12})/i);
+    const uan = uanMatch ? uanMatch[1] : '100432083045';
+
+    // 2. Parse Financial Year
+    const fyMatch = rawText.match(/PF\s+Statement\s+for\s+the\s+Financial\s+year\s*(\d{4})\s*(\d{4})/i) ||
+                    rawText.match(/PF\s+Statement\s+for\s+the\s+Financial\s+year\s*(\d{8})/i);
+    let startYear = 2025;
+    if (fyMatch) {
+      if (fyMatch[1].length === 8) {
+        startYear = parseInt(fyMatch[1].slice(0, 4));
+      } else {
+        startYear = parseInt(fyMatch[1]);
+      }
+    }
+
+    // 3. Parse Opening Balance
+    let opnBalMatch = rawText.match(/(?:OPN\s*-\s*BAL\(A\)|Opening\s+Balance)[^]*?Taxable\s+Non\s*Taxable\s+Taxable\s+Non\s*Taxable\s+Taxable\s+Non\s*Taxable\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)/i);
+    if (!opnBalMatch) {
+      opnBalMatch = rawText.match(/OPN\s*-\s*BAL\(A\)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/i);
+    }
+    
+    if (opnBalMatch) {
+      const opnBal = parseVal(opnBalMatch[1]) + parseVal(opnBalMatch[2]) + parseVal(opnBalMatch[3]) + parseVal(opnBalMatch[4]) + parseVal(opnBalMatch[5]) + parseVal(opnBalMatch[6]);
+      transactions.push({
+        assetName: 'TCS Employees Provident Fund',
+        assetType: 'EPF',
+        category: 'Debt',
+        identifier: uan,
+        type: 'BUY',
+        date: `${startYear}-04-01`,
+        quantity: opnBal,
+        price: 1.0,
+        amount: opnBal
+      });
+    }
+
+    // 4. Parse Monthly Contributions
+    const monthRegex = /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*-\s*(\d{4})\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)/gi;
+    let match;
+    const monthsMap: Record<string, string> = {
+      JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12'
+    };
+    const monthEnds: Record<string, string> = {
+      '01': '31', '02': '28', '03': '31', '04': '30', '05': '31', '06': '30', '07': '31', '08': '31', '09': '30', '10': '31', '11': '30', '12': '31'
+    };
+
+    while ((match = monthRegex.exec(rawText)) !== null) {
+      const monthWord = match[1].toUpperCase();
+      const year = match[2];
+      const monthNum = monthsMap[monthWord];
+      const day = monthEnds[monthNum] || '30';
+      const txDate = `${year}-${monthNum}-${day}`;
+
+      const monthVal = parseVal(match[3]) + parseVal(match[4]) + parseVal(match[5]) + parseVal(match[6]) + parseVal(match[7]) + parseVal(match[8]);
+      
+      transactions.push({
+        assetName: 'TCS Employees Provident Fund',
+        assetType: 'EPF',
+        category: 'Debt',
+        identifier: uan,
+        type: 'BUY',
+        date: txDate,
+        quantity: monthVal,
+        price: 1.0,
+        amount: monthVal
+      });
+    }
+
+    // 5. Parse Credited Interest
+    const interestMatch6 = rawText.match(/Interest\s*\((?:A|IV)\)\s*\*?\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)/i);
+    let interestVal = 0;
+    if (interestMatch6) {
+      interestVal = parseVal(interestMatch6[1]) + parseVal(interestMatch6[2]) + parseVal(interestMatch6[3]) + parseVal(interestMatch6[4]) + parseVal(interestMatch6[5]) + parseVal(interestMatch6[6]);
+    } else {
+      const interestMatch1 = rawText.match(/Interest\s*\((?:A|IV)\):?\s*\*?\s*([\d,]+(?:\.\d{2})?)/i);
+      if (interestMatch1) {
+        interestVal = parseVal(interestMatch1[1]);
+      }
+    }
+
+    if (interestVal > 0) {
+      transactions.push({
+        assetName: 'TCS Employees Provident Fund',
+        assetType: 'EPF',
+        category: 'Debt',
+        identifier: uan,
+        type: 'BUY', // Mapped as BUY so cost aggregates perfectly into worth
+        date: `${startYear + 1}-03-31`,
+        quantity: interestVal,
+        price: 1.0,
+        amount: interestVal
       });
     }
   }

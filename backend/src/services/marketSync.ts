@@ -141,10 +141,29 @@ export async function syncMutualFunds(): Promise<{ success: boolean; updated: nu
   }
 }
 
+// Helper to get live exchange rate for stocks sync
+async function getUsdInrRateForSync(): Promise<number> {
+  try {
+    const response = await axios.get('https://query1.finance.yahoo.com/v8/finance/chart/USDINR=X?interval=1d&range=1d', {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0'
+      }
+    });
+    const price = response.data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+    if (price && typeof price === 'number') {
+      return price;
+    }
+  } catch (err: any) {
+    console.error('Failed to fetch dynamic exchange rate for stock sync:', err.message);
+  }
+  return 83.5;
+}
+
 // 2. Sync Stock Prices from Yahoo Finance
 export async function syncStocks(): Promise<{ success: boolean; updated: number; message: string }> {
   try {
-    // Get all stocks from DB with an identifier (e.g. RELIANCE.NS, TCS.NS)
+    // Get all stocks from DB with an identifier (e.g. RELIANCE.NS, TCS.NS, AAPL)
     const stocks = db.prepare(`
       SELECT id, identifier, name FROM assets 
       WHERE type = 'STOCK' AND identifier IS NOT NULL AND identifier != ''
@@ -157,6 +176,9 @@ export async function syncStocks(): Promise<{ success: boolean; updated: number;
     console.log(`Syncing ${stocks.length} stocks via Yahoo Finance...`);
     let updatedCount = 0;
     const todayStr = new Date().toISOString().split('T')[0];
+    
+    // We fetch the USDINR rate once per sync cycle if needed
+    let usdInrRate: number | null = null;
 
     const insertPrice = db.prepare(`
       INSERT OR REPLACE INTO asset_prices (asset_id, date, price)
@@ -166,36 +188,81 @@ export async function syncStocks(): Promise<{ success: boolean; updated: number;
     for (const stock of stocks) {
       try {
         let ticker = stock.identifier.trim();
-        // Indian stocks usually need an exchange suffix, e.g. .NS (NSE) or .BO (BSE).
-        // If it's a numeric code or doesn't have suffix, the user can provide it, but we can default to .NS
-        if (!ticker.includes('.') && !/^\d+$/.test(ticker)) {
-          ticker = `${ticker}.NS`;
+        let price = 0;
+        let currency = 'INR';
+        let dateVal = todayStr;
+        let fetched = false;
+
+        // Try direct ticker fetch first (ideal for US stocks like AAPL, TSLA or tickers with existing suffixes)
+        try {
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+          const response = await axios.get(url, {
+            timeout: 5000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0'
+            }
+          });
+          
+          const meta = response.data?.chart?.result?.[0]?.meta;
+          if (meta && typeof meta.regularMarketPrice === 'number') {
+            price = meta.regularMarketPrice;
+            currency = meta.currency || 'INR';
+            if (meta.regularMarketTime) {
+              dateVal = new Date(meta.regularMarketTime * 1000).toISOString().split('T')[0];
+            }
+            fetched = true;
+            console.log(`Yahoo direct lookup success for: ${ticker} | Price: ${price} | Currency: ${currency}`);
+          }
+        } catch (e) {
+          // Direct fetch failed (expected for Indian stocks without a suffix like INFY, TCS)
         }
 
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
-        const response = await axios.get(url, {
-          timeout: 5000,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        // If direct fetch failed, try standard Indian stock ticker format with .NS suffix
+        if (!fetched) {
+          try {
+            let nsTicker = ticker;
+            if (!nsTicker.includes('.') && !/^\d+$/.test(nsTicker)) {
+              nsTicker = `${nsTicker}.NS`;
+            }
+            
+            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${nsTicker}?interval=1d&range=1d`;
+            const response = await axios.get(url, {
+              timeout: 5000,
+              headers: {
+                'User-Agent': 'Mozilla/5.0'
+              }
+            });
+            
+            const meta = response.data?.chart?.result?.[0]?.meta;
+            if (meta && typeof meta.regularMarketPrice === 'number') {
+              price = meta.regularMarketPrice;
+              currency = meta.currency || 'INR';
+              if (meta.regularMarketTime) {
+                dateVal = new Date(meta.regularMarketTime * 1000).toISOString().split('T')[0];
+              }
+              fetched = true;
+              console.log(`Yahoo .NS suffix lookup success for: ${nsTicker} | Price: ${price} | Currency: ${currency}`);
+            }
+          } catch (innerError: any) {
+            console.error(`Failed to fetch Yahoo price for stock ticker after fallback: ${stock.identifier}`, innerError.message);
           }
-        });
+        }
 
-        const meta = response.data?.chart?.result?.[0]?.meta;
-        if (meta && typeof meta.regularMarketPrice === 'number') {
-          const price = meta.regularMarketPrice;
+        if (fetched) {
+          // Dynamic conversion: if stock is traded in USD, multiply by exchange rate
+          if (currency === 'USD') {
+            if (usdInrRate === null) {
+              usdInrRate = await getUsdInrRateForSync();
+            }
+            price = price * usdInrRate;
+            console.log(`Dynamic conversion: ${stock.identifier} is denominated in USD. Converted to INR ${price} (rate: ${usdInrRate})`);
+          }
           
-          // Get regularMarketTime to extract the correct trading date
-          let dateVal = todayStr;
-          if (meta.regularMarketTime) {
-            const unixTimeMs = meta.regularMarketTime * 1000;
-            dateVal = new Date(unixTimeMs).toISOString().split('T')[0];
-          }
-
           insertPrice.run(stock.id, dateVal, price);
           updatedCount++;
         }
-      } catch (innerError: any) {
-        console.error(`Failed to fetch Yahoo price for stock ticker: ${stock.identifier}`, innerError.message);
+      } catch (err: any) {
+        console.error(`Unexpected error syncing stock ${stock.identifier}:`, err.message);
       }
     }
 

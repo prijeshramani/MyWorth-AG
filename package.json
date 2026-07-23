@@ -4,10 +4,16 @@
   "description": "Root orchestrator for MyWorth local net worth tracker",
   "scripts": {
     "install-all": "cd backend && npm install && cd ../frontend && npm install --legacy-peer-deps",
+    "dev": "npx concurrently -k -p \"[{name}]\" -n \"backend,frontend\" -c \"yellow,cyan\" \"npm run backend\" \"npm run frontend\"",
+    "start": "npx concurrently -k -p \"[{name}]\" -n \"backend,frontend\" -c \"yellow,cyan\" \"npm run backend\" \"npm run frontend\"",
     "backend": "cd backend && npm run dev",
-    "frontend": "cd frontend && npm run dev"
+    "frontend": "cd frontend && npm run dev",
+    "build": "cd backend && npm run build && cd ../frontend && npm run build"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
 }

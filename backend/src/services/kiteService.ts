@@ -1,32 +1,32 @@
 import axios from 'axios';
 import crypto from 'crypto';
-import { db } from '../db';
+import { credentialRepository } from '../repositories/SQLiteCredentialRepository';
 import { ParsedTransaction } from './pdfParser';
 
 // Helper to encrypt/store in credentials
 export function saveKiteCredentials(apiKey: string, apiSecret: string): void {
-  db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('kite_api_key', apiKey);
-  db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('kite_api_secret', apiSecret);
+  credentialRepository.saveCredential('kite_api_key', apiKey);
+  credentialRepository.saveCredential('kite_api_secret', apiSecret);
 }
 
 // Mask secret for safety
 export function getKiteCredentials(): { configured: boolean; apiKey: string } {
-  const apiKeyRow = db.prepare('SELECT value FROM credentials WHERE key = ?').get('kite_api_key') as { value: string } | undefined;
-  const apiSecretRow = db.prepare('SELECT value FROM credentials WHERE key = ?').get('kite_api_secret') as { value: string } | undefined;
+  const apiKey = credentialRepository.getCredential('kite_api_key');
+  const apiSecret = credentialRepository.getCredential('kite_api_secret');
   
   return {
-    configured: !!(apiKeyRow?.value && apiSecretRow?.value),
-    apiKey: apiKeyRow?.value || ''
+    configured: !!(apiKey && apiSecret),
+    apiKey: apiKey || ''
   };
 }
 
 // Generate authentication login URL
 export function getKiteLoginUrl(): string {
-  const apiKeyRow = db.prepare('SELECT value FROM credentials WHERE key = ?').get('kite_api_key') as { value: string } | undefined;
-  if (!apiKeyRow?.value) {
+  const apiKey = credentialRepository.getCredential('kite_api_key');
+  if (!apiKey) {
     throw new Error('Zerodha API Key is not configured. Please enter your API Key and Secret first.');
   }
-  return `https://kite.zerodha.com/connect/login?v=3&api_key=${apiKeyRow.value}`;
+  return `https://kite.zerodha.com/connect/login?v=3&api_key=${apiKey}`;
 }
 
 // Compute SHA-256 Checksum
@@ -38,15 +38,13 @@ function computeChecksum(apiKey: string, requestToken: string, apiSecret: string
 
 // Exchange Request Token for Access Token and fetch holdings
 export async function exchangeKiteToken(requestToken: string): Promise<ParsedTransaction[]> {
-  const apiKeyRow = db.prepare('SELECT value FROM credentials WHERE key = ?').get('kite_api_key') as { value: string } | undefined;
-  const apiSecretRow = db.prepare('SELECT value FROM credentials WHERE key = ?').get('kite_api_secret') as { value: string } | undefined;
+  const apiKey = credentialRepository.getCredential('kite_api_key');
+  const apiSecret = credentialRepository.getCredential('kite_api_secret');
   
-  if (!apiKeyRow?.value || !apiSecretRow?.value) {
+  if (!apiKey || !apiSecret) {
     throw new Error('Kite credentials are not configured. Please enter API Key and Secret first.');
   }
   
-  const apiKey = apiKeyRow.value;
-  const apiSecret = apiSecretRow.value;
   const checksum = computeChecksum(apiKey, requestToken, apiSecret);
   
   console.log(`Exchanging request token with Kite Connect: requestToken=${requestToken.slice(0, 5)}...`);
@@ -71,8 +69,8 @@ export async function exchangeKiteToken(requestToken: string): Promise<ParsedTra
     
     // Save access token and token date (today's date in YYYY-MM-DD)
     const todayStr = new Date().toISOString().split('T')[0];
-    db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('kite_access_token', accessToken);
-    db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('kite_token_date', todayStr);
+    credentialRepository.saveCredential('kite_access_token', accessToken);
+    credentialRepository.saveCredential('kite_token_date', todayStr);
     
     console.log('Kite Access Token obtained and stored successfully.');
     
@@ -144,20 +142,20 @@ export async function fetchKiteHoldings(apiKey: string, accessToken: string): Pr
 
 // Try to fetch holdings using stored session token if valid for today
 export async function syncKiteHoldingsWithStoredToken(): Promise<ParsedTransaction[] | null> {
-  const apiKeyRow = db.prepare('SELECT value FROM credentials WHERE key = ?').get('kite_api_key') as { value: string } | undefined;
-  const accessTokenRow = db.prepare('SELECT value FROM credentials WHERE key = ?').get('kite_access_token') as { value: string } | undefined;
-  const tokenDateRow = db.prepare('SELECT value FROM credentials WHERE key = ?').get('kite_token_date') as { value: string } | undefined;
+  const apiKey = credentialRepository.getCredential('kite_api_key');
+  const accessToken = credentialRepository.getCredential('kite_access_token');
+  const tokenDate = credentialRepository.getCredential('kite_token_date');
   
-  if (!apiKeyRow?.value || !accessTokenRow?.value || !tokenDateRow?.value) {
+  if (!apiKey || !accessToken || !tokenDate) {
     return null;
   }
   
   const todayStr = new Date().toISOString().split('T')[0];
-  if (tokenDateRow.value !== todayStr) {
+  if (tokenDate !== todayStr) {
     console.log('Stored access token has expired (was generated on a different day).');
     return null;
   }
   
   console.log('Stored Kite access token is valid for today. Direct fetching...');
-  return await fetchKiteHoldings(apiKeyRow.value, accessTokenRow.value);
+  return await fetchKiteHoldings(apiKey, accessToken);
 }

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as crypto from 'crypto';
-import { db } from '../db';
+import { credentialRepository } from '../repositories/SQLiteCredentialRepository';
 import { ParsedTransaction } from './pdfParser';
 
 // Helper: Decode Base32 to hex string
@@ -54,12 +54,10 @@ export function generateTOTP(secret: string): string {
 
 // Save AngelOne credentials securely in local sqlite db
 export function saveAngelOneCredentials(clientCode: string, passwordSec: string, apiKey: string, totpSecret: string): void {
-  db.transaction(() => {
-    db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('angelone_client_code', clientCode);
-    db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('angelone_password', passwordSec);
-    db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('angelone_api_key', apiKey);
-    db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('angelone_totp_secret', totpSecret);
-  })();
+  credentialRepository.saveCredential('angelone_client_code', clientCode);
+  credentialRepository.saveCredential('angelone_password', passwordSec);
+  credentialRepository.saveCredential('angelone_api_key', apiKey);
+  credentialRepository.saveCredential('angelone_totp_secret', totpSecret);
 }
 
 // Get AngelOne credentials metadata (with masked passwords for security)
@@ -70,19 +68,14 @@ export function getAngelOneCredentials(): {
   hasTotpSecret: boolean;
   hasSession: boolean;
 } {
-  const getVal = (key: string) => {
-    const row = db.prepare('SELECT value FROM credentials WHERE key = ?').get(key) as { value: string } | undefined;
-    return row?.value || '';
-  };
-
-  const clientCode = getVal('angelone_client_code');
-  const password = getVal('angelone_password');
-  const apiKey = getVal('angelone_api_key');
-  const totpSecret = getVal('angelone_totp_secret');
+  const clientCode = credentialRepository.getCredential('angelone_client_code') || '';
+  const password = credentialRepository.getCredential('angelone_password') || '';
+  const apiKey = credentialRepository.getCredential('angelone_api_key') || '';
+  const totpSecret = credentialRepository.getCredential('angelone_totp_secret') || '';
   
   // Check session token validity
-  const sessionToken = getVal('angelone_session_token');
-  const sessionDate = getVal('angelone_session_date');
+  const sessionToken = credentialRepository.getCredential('angelone_session_token');
+  const sessionDate = credentialRepository.getCredential('angelone_session_date');
   const todayStr = new Date().toISOString().split('T')[0];
   const hasSession = !!sessionToken && sessionDate === todayStr;
 
@@ -97,15 +90,10 @@ export function getAngelOneCredentials(): {
 
 // Full authentication exchange flow with SmartAPI
 export async function authenticateAngelOne(): Promise<string> {
-  const getVal = (key: string) => {
-    const row = db.prepare('SELECT value FROM credentials WHERE key = ?').get(key) as { value: string } | undefined;
-    return row?.value || '';
-  };
-
-  const clientCode = getVal('angelone_client_code');
-  const password = getVal('angelone_password');
-  const apiKey = getVal('angelone_api_key');
-  const totpSecret = getVal('angelone_totp_secret');
+  const clientCode = credentialRepository.getCredential('angelone_client_code') || '';
+  const password = credentialRepository.getCredential('angelone_password') || '';
+  const apiKey = credentialRepository.getCredential('angelone_api_key') || '';
+  const totpSecret = credentialRepository.getCredential('angelone_totp_secret') || '';
 
   if (!clientCode || !password || !apiKey || !totpSecret) {
     throw new Error('AngelOne SmartAPI credentials are incomplete. Please configure Client Code, Password, API Key, and TOTP Secret.');
@@ -147,10 +135,8 @@ export async function authenticateAngelOne(): Promise<string> {
     const todayStr = new Date().toISOString().split('T')[0];
 
     // Save session in credentials DB
-    db.transaction(() => {
-      db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('angelone_session_token', jwtToken);
-      db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('angelone_session_date', todayStr);
-    })();
+    credentialRepository.saveCredential('angelone_session_token', jwtToken);
+    credentialRepository.saveCredential('angelone_session_date', todayStr);
 
     console.log('AngelOne SmartAPI authentication successful, stored daily session token.');
     return jwtToken;
@@ -164,8 +150,7 @@ export async function authenticateAngelOne(): Promise<string> {
 // Fetch and map holdings from AngelOne SmartAPI
 export async function syncAngelOneHoldings(): Promise<ParsedTransaction[]> {
   const getVal = (key: string) => {
-    const row = db.prepare('SELECT value FROM credentials WHERE key = ?').get(key) as { value: string } | undefined;
-    return row?.value || '';
+    return credentialRepository.getCredential(key) || '';
   };
 
   let jwtToken = getVal('angelone_session_token');
@@ -240,8 +225,8 @@ export async function syncAngelOneHoldings(): Promise<ParsedTransaction[]> {
     
     // If it failed with 401/Invalid Token, clear stored token and re-throw with suggestion
     if (err.response?.status === 401 || errorMsg.toLowerCase().includes('token')) {
-      db.prepare('DELETE FROM credentials WHERE key IN (?, ?)')
-        .run('angelone_session_token', 'angelone_session_date');
+      credentialRepository.saveCredential('angelone_session_token', '');
+      credentialRepository.saveCredential('angelone_session_date', '');
       throw new Error(`AngelOne Session expired. Please try syncing again to re-authenticate.`);
     }
 

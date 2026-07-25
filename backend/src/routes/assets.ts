@@ -1,23 +1,21 @@
 import { Router, Request, Response } from 'express';
-import { db } from '../db';
 import { CreateAssetSchema } from '../schema';
+import { assetRepository } from '../repositories/SQLiteAssetRepository';
+import { transactionRepository } from '../repositories/SQLiteTransactionRepository';
+import { priceRepository } from '../repositories/SQLitePriceRepository';
+import { ValidationError, NotFoundError } from '../errors/AppError';
 
 const router = Router();
 
 // GET /api/assets - Retrieve all assets with current valuation metrics
-router.get('/', (req: Request, res: Response) => {
+router.get('/', (req: Request, res: Response, next) => {
   try {
-    // 1. Get all assets
-    const assets = db.prepare(`SELECT * FROM assets ORDER BY type, name`).all() as any[];
+    // 1. Get all assets via Repository
+    const assets = assetRepository.findAll();
 
     const result = assets.map(asset => {
-      // 2. Compute current units
-      // BUY, REINVEST add to quantity; SELL subtracts
-      const transactions = db.prepare(`
-        SELECT type, quantity, price, amount, date FROM transactions 
-        WHERE asset_id = ?
-        ORDER BY date ASC
-      `).all(asset.id) as Array<{ type: string; quantity: number; price: number; amount: number; date: string }>;
+      // 2. Compute current units via Repository
+      const transactions = transactionRepository.findByAssetId(asset.id);
 
       let currentUnits = 0;
       let totalCost = 0;
@@ -25,23 +23,12 @@ router.get('/', (req: Request, res: Response) => {
       let bankEpfBalance = 0;
 
       if (asset.type === 'BANK_ACCOUNT') {
-        // For bank accounts, we fetch the latest running balance from asset_prices
-        const latestPriceRow = db.prepare(`
-          SELECT price FROM asset_prices 
-          WHERE asset_id = ? 
-          ORDER BY date DESC LIMIT 1
-        `).get(asset.id) as { price: number } | undefined;
-        
+        const latestPriceRow = priceRepository.findLatestPrice(asset.id);
         bankEpfBalance = latestPriceRow ? latestPriceRow.price : 0;
         currentUnits = bankEpfBalance > 0 ? 1.0 : 0;
-        totalCost = 0; // Treated as pure worth/savings, no investment cost basis
+        totalCost = 0;
       } else if (asset.type === 'EPF') {
-        // For EPF, we check the latest price row that is a manual balance (price > 1.0)
-        const latestPriceRow = db.prepare(`
-          SELECT price, date FROM asset_prices 
-          WHERE asset_id = ? AND price > 1.0
-          ORDER BY date DESC LIMIT 1
-        `).get(asset.id) as { price: number; date: string } | undefined;
+        const latestPriceRow = priceRepository.findLatestPriceAbove(asset.id, 1.0);
 
         let txSum = 0;
         let lastTxDate = '';
@@ -63,7 +50,7 @@ router.get('/', (req: Request, res: Response) => {
         }
 
         currentUnits = bankEpfBalance > 0 ? 1.0 : 0;
-        totalCost = 0; // Treated as pure worth/savings, no investment cost basis
+        totalCost = 0;
       } else {
         for (const tx of transactions) {
           if (tx.type === 'BUY' || tx.type === 'REINVEST') {
@@ -71,9 +58,7 @@ router.get('/', (req: Request, res: Response) => {
             totalCost += tx.amount;
             totalUnitsBought += tx.quantity;
           } else if (tx.type === 'SELL') {
-            // Weighted cost reduction or simple subtraction
             currentUnits -= tx.quantity;
-            // Standard cost basis calculation: reduce cost proportionally
             if (totalUnitsBought > 0) {
               const avgCostPerUnit = totalCost / totalUnitsBought;
               totalCost -= tx.quantity * avgCostPerUnit;
@@ -83,30 +68,20 @@ router.get('/', (req: Request, res: Response) => {
         }
       }
 
-      // Ensure units and cost don't drop below 0 due to rounding
       currentUnits = Math.max(0, currentUnits);
       totalCost = Math.max(0, totalCost);
 
       const avgBuyPrice = currentUnits > 0 ? (totalCost / currentUnits) : 0;
 
-      // 3. Get latest price from asset_prices
       let currentPrice = 0;
       let priceDate = '';
 
       if (asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF') {
-        currentPrice = bankEpfBalance; // Valuation is exactly the balance (bankEpfBalance)
-        const latestPriceRow = db.prepare(`
-          SELECT date FROM asset_prices 
-          WHERE asset_id = ? 
-          ORDER BY date DESC LIMIT 1
-        `).get(asset.id) as { date: string } | undefined;
+        currentPrice = bankEpfBalance;
+        const latestPriceRow = priceRepository.findLatestPrice(asset.id);
         priceDate = latestPriceRow ? latestPriceRow.date : (transactions.length > 0 ? transactions[transactions.length - 1].date : '');
       } else {
-        const latestPriceRow = db.prepare(`
-          SELECT price, date FROM asset_prices 
-          WHERE asset_id = ? 
-          ORDER BY date DESC LIMIT 1
-        `).get(asset.id) as { price: number; date: string } | undefined;
+        const latestPriceRow = priceRepository.findLatestPrice(asset.id);
 
         if (latestPriceRow) {
           currentPrice = latestPriceRow.price;
@@ -137,113 +112,85 @@ router.get('/', (req: Request, res: Response) => {
     });
 
     res.json(result);
-  } catch (error: any) {
-    console.error('Error fetching assets:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 });
 
 // GET /api/assets/:id/prices - Retrieve historical pricing entries for a single asset
-router.get('/:id/prices', (req: Request, res: Response) => {
+router.get('/:id/prices', (req: Request, res: Response, next) => {
   try {
     const assetId = parseInt(req.params.id);
     if (isNaN(assetId)) {
-      return res.status(400).json({ error: 'Invalid Asset ID' });
+      throw new ValidationError('Invalid Asset ID');
     }
 
-    // Retrieve historical prices chronologically
-    const prices = db.prepare(`
-      SELECT date, price FROM asset_prices
-      WHERE asset_id = ?
-      ORDER BY date ASC
-    `).all(assetId) as Array<{ date: string; price: number }>;
-
+    const prices = priceRepository.findPricesForAsset(assetId);
     res.json(prices);
-  } catch (error: any) {
-    console.error('Error fetching asset price history:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 });
 
-// POST /api/assets - Create a new asset (e.g. manual asset, or preset)
-router.post('/', (req: Request, res: Response) => {
+// POST /api/assets - Create a new asset
+router.post('/', (req: Request, res: Response, next) => {
   try {
     const parseResult = CreateAssetSchema.safeParse(req.body);
     if (!parseResult.success) {
-      return res.status(400).json({ error: parseResult.error.format() });
+      throw new ValidationError('Invalid asset payload', parseResult.error.errors);
     }
 
     const { name, type, category, identifier } = parseResult.data;
 
-    // Check if asset already exists with same identifier (if identifier is specified)
     if (identifier) {
-      const existing = db.prepare(`
-        SELECT id FROM assets WHERE identifier = ? AND type = ?
-      `).get(identifier, type);
-      
+      const existing = assetRepository.findByIdentifierAndType(identifier, type);
       if (existing) {
-        return res.status(400).json({ error: `Asset with identifier '${identifier}' already exists.` });
+        throw new ValidationError(`Asset with identifier '${identifier}' already exists.`);
       }
     }
 
-    const result = db.prepare(`
-      INSERT INTO assets (name, type, category, identifier)
-      VALUES (?, ?, ?, ?)
-    `).run(name, type, category, identifier || null);
-
-    res.status(201).json({
-      id: Number(result.lastInsertRowid),
-      name,
-      type,
-      category,
-      identifier: identifier || null
-    });
-  } catch (error: any) {
-    console.error('Error creating asset:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    const createdAsset = assetRepository.create({ name, type, category, identifier });
+    res.status(201).json(createdAsset);
+  } catch (error) {
+    next(error);
   }
 });
 
 // DELETE /api/assets/:id - Remove an asset (cascades transactions and prices)
-router.delete('/:id', (req: Request, res: Response) => {
+router.delete('/:id', (req: Request, res: Response, next) => {
   try {
     const assetId = parseInt(req.params.id);
     if (isNaN(assetId)) {
-      return res.status(400).json({ error: 'Invalid Asset ID' });
+      throw new ValidationError('Invalid Asset ID');
     }
 
-    const info = db.prepare('DELETE FROM assets WHERE id = ?').run(assetId);
-    
-    if (info.changes === 0) {
-      return res.status(404).json({ error: 'Asset not found' });
+    const deleted = assetRepository.delete(assetId);
+    if (!deleted) {
+      throw new NotFoundError('Asset not found');
     }
 
     res.json({ message: 'Asset successfully deleted.' });
-  } catch (error: any) {
-    console.error('Error deleting asset:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 });
 
-// POST /api/assets/:id/prices - Record a manual price update (e.g. balance update)
-router.post('/:id/prices', (req: Request, res: Response) => {
+// POST /api/assets/:id/prices - Record a manual price update
+router.post('/:id/prices', (req: Request, res: Response, next) => {
   try {
     const assetId = parseInt(req.params.id);
     if (isNaN(assetId)) {
-      return res.status(400).json({ error: 'Invalid Asset ID' });
+      throw new ValidationError('Invalid Asset ID');
     }
     const { date, price } = req.body;
     if (!date || isNaN(price) || price < 0) {
-      return res.status(400).json({ error: 'Valid Date and Price are required' });
+      throw new ValidationError('Valid Date and Price are required');
     }
-    db.prepare(`
-      INSERT OR REPLACE INTO asset_prices (asset_id, date, price)
-      VALUES (?, ?, ?)
-    `).run(assetId, date, price);
+
+    priceRepository.upsertPrice(assetId, date, price);
     res.json({ success: true, message: 'Price recorded successfully' });
-  } catch (error: any) {
-    console.error('Error posting price update:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 });
 

@@ -1,29 +1,49 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { initDb, db } from './db';
+import { initDb } from './db';
 import assetsRouter from './routes/assets';
 import transactionsRouter from './routes/transactions';
 import importRouter from './routes/import';
 import dashboardRouter from './routes/dashboard';
 import cashflowRouter from './routes/cashflow';
+import familiesRouter from './routes/v1/families';
+import familyMembersRouter from './routes/v1/familyMembers';
+import entitiesRouter from './routes/v1/entities';
+import accountsRouter from './routes/v1/accounts';
 import { syncAllAssets } from './services/marketSync';
+import { syncLogRepository } from './repositories/SQLiteSyncLogRepository';
+import { correlationMiddleware } from './middleware/correlationMiddleware';
+import { errorHandlerMiddleware } from './middleware/errorHandlerMiddleware';
+import { logger } from './utils/logger';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
+const HOST = '127.0.0.1'; // Restrict Express binding strictly to localhost
 
-// Enable CORS
+// Hardened CORS Origin Policy
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+
 app.use(cors({
-  origin: '*', // Allows connections from local frontend on any port
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID']
 }));
 
 // Express Middlewares
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(correlationMiddleware);
 
 // Initialize Database Tables
 initDb();
@@ -35,9 +55,15 @@ app.use('/api/import', importRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/cashflow', cashflowRouter);
 
+// Mount Domain v1 Routes
+app.use('/api/v1/families', familiesRouter);
+app.use('/api/v1/family-members', familyMembersRouter);
+app.use('/api/v1/entities', entitiesRouter);
+app.use('/api/v1/accounts', accountsRouter);
+
 // Sync Market Data Trigger Route
-app.post('/api/sync', async (req, res) => {
-  console.log('Manual sync triggered via REST API...');
+app.post('/api/sync', async (req, res, next) => {
+  logger.info('Manual sync triggered via REST API...');
   try {
     const results = await syncAllAssets();
     res.json({
@@ -45,26 +71,18 @@ app.post('/api/sync', async (req, res) => {
       message: 'Sync completed successfully.',
       details: results
     });
-  } catch (error: any) {
-    console.error('Manual sync failure:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Synchronization failed.'
-    });
+  } catch (error) {
+    next(error);
   }
 });
 
 // GET /api/sync/logs - Fetch sync logs to verify activities
-app.get('/api/sync/logs', (req, res) => {
+app.get('/api/sync/logs', (req, res, next) => {
   try {
-    const logs = db.prepare(`
-      SELECT * FROM sync_logs 
-      ORDER BY timestamp DESC 
-      LIMIT 20
-    `).all();
+    const logs = syncLogRepository.getRecentLogs(20);
     res.json(logs);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    next(error);
   }
 });
 
@@ -73,11 +91,14 @@ app.get('/health', (req, res) => {
   res.json({ status: 'healthy', database: 'online', time: new Date().toISOString() });
 });
 
-// Start listening
-app.listen(PORT, () => {
-  console.log(`===================================================`);
-  console.log(` MyWorth Server is successfully running locally! `);
-  console.log(` Port: http://localhost:${PORT}                      `);
-  console.log(` Time: ${new Date().toLocaleString()}              `);
-  console.log(`===================================================`);
+// Register Centralized Error Handling Middleware
+app.use(errorHandlerMiddleware);
+
+// Start listening strictly on loopback interface (127.0.0.1)
+app.listen(PORT, HOST, () => {
+  logger.info(`===================================================`);
+  logger.info(` Family Wealth OS Server listening on 127.0.0.1    `);
+  logger.info(` Port: http://127.0.0.1:${PORT}                      `);
+  logger.info(` Time: ${new Date().toLocaleString()}              `);
+  logger.info(`===================================================`);
 });

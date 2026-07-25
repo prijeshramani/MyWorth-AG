@@ -21,11 +21,9 @@ import {
   saveAngelOneCredentials,
   syncAngelOneHoldings
 } from '../services/angeloneService';
-import {
-  saveIndMoneyAccessToken,
-  getIndMoneyCredentials,
-  fetchIndMoneyHoldings
-} from '../services/indmoneyService';
+import { saveIndMoneyAccessToken, getIndMoneyCredentials, fetchIndMoneyHoldings } from '../services/indmoneyService';
+import { assetRepository } from '../repositories/SQLiteAssetRepository';
+import { transactionRepository } from '../repositories/SQLiteTransactionRepository';
 import { db } from '../db';
 
 const router = Router();
@@ -61,43 +59,23 @@ router.post('/parse', upload.single('file'), async (req: Request, res: Response)
       result = await parsePdfStatement(req.file.buffer, password);
     }
 
-    // Securely dump the extracted plain text to a local file for diagnostic regex refining
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const debugTextPath = path.resolve(__dirname, '../../../data/raw_cams_text.txt');
-      fs.writeFileSync(debugTextPath, result.rawText, 'utf8');
-      console.log(`Successfully dumped ${result.rawText.length} characters to local diagnostic log: data/raw_cams_text.txt`);
-    } catch (writeErr) {
-      console.error('Failed to write diagnostic raw text:', writeErr);
-    }
-
-    // Dry run matching against existing DB assets
+    // Dry run matching against existing DB assets via Repositories
     const enrichedTransactions = result.transactions.map(tx => {
       // Find asset by identifier or name
       let existingAsset = null;
       
       if (tx.identifier) {
-        existingAsset = db.prepare(`
-          SELECT id, name, category FROM assets 
-          WHERE name = ? AND identifier = ? AND type = ?
-        `).get(tx.assetName, tx.identifier, tx.assetType) as { id: number; name: string; category: string } | undefined;
+        existingAsset = assetRepository.findByNameIdentifierType(tx.assetName, tx.identifier, tx.assetType);
       }
 
       if (!existingAsset) {
-        existingAsset = db.prepare(`
-          SELECT id, name, category FROM assets 
-          WHERE name = ? AND type = ?
-        `).get(tx.assetName, tx.assetType) as { id: number; name: string; category: string } | undefined;
+        existingAsset = assetRepository.findByNameAndType(tx.assetName, tx.assetType);
       }
 
       // Check if this identical transaction is already in DB
       let isDuplicate = false;
       if (existingAsset) {
-        const txDuplicate = db.prepare(`
-          SELECT id FROM transactions 
-          WHERE asset_id = ? AND type = ? AND date = ? AND quantity = ? AND price = ? AND amount = ?
-        `).get(
+        const txDuplicate = transactionRepository.findDuplicate(
           existingAsset.id,
           tx.type,
           tx.date,

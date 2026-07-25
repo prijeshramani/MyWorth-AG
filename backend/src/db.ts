@@ -1,6 +1,8 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { runMigrations } from './db/migrationRunner';
+import { migration001 } from './db/migrations/001_domain_foundation';
 
 // Resolve database path
 const dbDir = path.resolve(__dirname, '../../data');
@@ -208,6 +210,9 @@ export function initDb() {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+
+  // Execute Versioned Database Migrations
+  runMigrations(db, [migration001], dbPath);
 
   console.log('Database tables successfully verified/created.');
 }

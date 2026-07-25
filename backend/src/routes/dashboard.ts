@@ -1,48 +1,21 @@
 import { Router, Request, Response } from 'express';
-import { db } from '../db';
+import { assetRepository } from '../repositories/SQLiteAssetRepository';
+import { transactionRepository } from '../repositories/SQLiteTransactionRepository';
+import { priceRepository } from '../repositories/SQLitePriceRepository';
 
 const router = Router();
 
-interface AssetHolding {
-  id: number;
-  name: string;
-  type: string;
-  category: string;
-  identifier: string | null;
-}
-
-interface PricePoint {
-  asset_id: number;
-  date: string;
-  price: number;
-}
-
-interface Transaction {
-  asset_id: number;
-  type: 'BUY' | 'SELL' | 'REINVEST' | 'DIVIDEND' | 'INTEREST' | 'BONUS';
-  date: string;
-  quantity: number;
-  price: number;
-  amount: number;
-}
-
 // GET /api/dashboard - Aggregated stats for the local dashboard
-router.get('/', (req: Request, res: Response) => {
+router.get('/', (req: Request, res: Response, next) => {
   try {
-    // 1. Fetch all assets
-    const assets = db.prepare(`SELECT * FROM assets`).all() as AssetHolding[];
+    // 1. Fetch all assets via Repository
+    const assets = assetRepository.findAll();
 
-    // 2. Fetch all transactions chronologically
-    const transactions = db.prepare(`
-      SELECT asset_id, type, date, quantity, price, amount FROM transactions
-      ORDER BY date ASC, id ASC
-    `).all() as Transaction[];
+    // 2. Fetch all transactions chronologically via Repository
+    const transactions = transactionRepository.findAll({ limit: 100000 });
 
-    // 3. Fetch all historical prices
-    const prices = db.prepare(`
-      SELECT asset_id, date, price FROM asset_prices
-      ORDER BY date ASC
-    `).all() as PricePoint[];
+    // 3. Fetch all historical prices via Repository
+    const prices = priceRepository.findAllPrices();
 
     // Map to group prices by asset_id and date for O(1) lookups
     const priceMap = new Map<string, number>();
@@ -67,11 +40,7 @@ router.get('/', (req: Request, res: Response) => {
         const balance = latestPriceInfo ? latestPriceInfo.price : 0;
         currentAssetHoldings.set(asset.id, { units: balance > 0 ? 1.0 : 0, cost: 0, lastTxPrice: balance });
       } else if (asset.type === 'EPF') {
-        const latestPriceInfo = db.prepare(`
-          SELECT price, date FROM asset_prices 
-          WHERE asset_id = ? AND price > 1.0
-          ORDER BY date DESC LIMIT 1
-        `).get(asset.id) as { price: number; date: string } | undefined;
+        const latestPriceInfo = priceRepository.findLatestPriceAbove(asset.id, 1.0);
 
         // Sum transactions
         const assetTxs = transactions.filter(t => t.asset_id === asset.id);
@@ -103,7 +72,7 @@ router.get('/', (req: Request, res: Response) => {
 
     for (const tx of transactions) {
       const asset = assets.find(a => a.id === tx.asset_id);
-      if (!asset || asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF') continue; // Skip bank account and EPF transaction accumulation in loop
+      if (!asset || asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF') continue;
 
       const holding = currentAssetHoldings.get(tx.asset_id);
       if (!holding) continue;
@@ -112,10 +81,8 @@ router.get('/', (req: Request, res: Response) => {
         holding.units += tx.quantity;
         holding.cost += tx.amount;
       } else if (tx.type === 'SELL') {
-        // Reduce units
         const unitsBefore = holding.units;
         holding.units = Math.max(0, holding.units - tx.quantity);
-        // Reduce cost proportionally based on average cost per unit
         if (unitsBefore > 0) {
           const avgCost = holding.cost / unitsBefore;
           holding.cost = Math.max(0, holding.cost - (tx.quantity * avgCost));
@@ -134,7 +101,6 @@ router.get('/', (req: Request, res: Response) => {
       const holding = currentAssetHoldings.get(asset.id);
       if (!holding || holding.units === 0) continue;
 
-      // Get latest price
       const latestPriceInfo = latestPriceMap.get(asset.id);
       const currentPrice = latestPriceInfo ? latestPriceInfo.price : holding.lastTxPrice;
       const currentValue = holding.units * currentPrice;
@@ -142,7 +108,6 @@ router.get('/', (req: Request, res: Response) => {
       totalWorth += currentValue;
       totalCost += holding.cost;
 
-      // Class breakdowns
       typeBreakdown[asset.type] = (typeBreakdown[asset.type] || 0) + currentValue;
       categoryBreakdown[asset.category] = (categoryBreakdown[asset.category] || 0) + currentValue;
     }
@@ -151,21 +116,13 @@ router.get('/', (req: Request, res: Response) => {
     const profitPercent = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
 
     // 6. Fetch recent activity (5 items)
-    const recentActivity = db.prepare(`
-      SELECT t.*, a.name as asset_name, a.type as asset_type 
-      FROM transactions t
-      JOIN assets a ON t.asset_id = a.id
-      ORDER BY t.date DESC, t.id DESC
-      LIMIT 5
-    `).all() as any[];
+    const recentActivity = transactionRepository.findAll({ limit: 5 });
 
-    // 7. Calculate historical timeline growth (e.g. last 30 days)
-    // We generate data points for the timeline
+    // 7. Calculate historical timeline growth
     const timelineData: Array<{ date: string; value: number }> = [];
     const today = new Date();
-    const daysToSync = 30; // Last 30 days of net worth trend
+    const daysToSync = 30;
 
-    // Generate date keys
     const dates: string[] = [];
     for (let i = daysToSync; i >= 0; i--) {
       const d = new Date(today);
@@ -173,15 +130,12 @@ router.get('/', (req: Request, res: Response) => {
       dates.push(d.toISOString().split('T')[0]);
     }
 
-    // For each date, calculate valuation
     for (const dStr of dates) {
       let dateWorth = 0;
       
-      // Calculate units of each asset on this date D
       const assetUnitsOnDate = new Map<number, number>();
       const assetLastPriceOnDate = new Map<number, number>();
 
-      // Filter transactions up to date D
       for (const tx of transactions) {
         if (tx.date > dStr) continue;
 
@@ -191,20 +145,17 @@ router.get('/', (req: Request, res: Response) => {
         } else if (tx.type === 'SELL') {
           assetUnitsOnDate.set(tx.asset_id, Math.max(0, currentUnits - tx.quantity));
         }
-        // Remember last transaction price before or on D
         assetLastPriceOnDate.set(tx.asset_id, tx.price);
       }
 
-      // Value each asset on date D
       for (const asset of assets) {
         let units = 0;
         let assetPrice = 0;
 
         if (asset.type === 'BANK_ACCOUNT') {
-          // Find running balance on or before date D
           let foundPrice = false;
           let scanDate = new Date(dStr);
-          for (let s = 0; s < 30; s++) { // check up to 30 days in past for bank balance
+          for (let s = 0; s < 30; s++) {
             const scanDateStr = scanDate.toISOString().split('T')[0];
             const priceKey = `${asset.id}_${scanDateStr}`;
             const cachedPrice = priceMap.get(priceKey);
@@ -221,11 +172,10 @@ router.get('/', (req: Request, res: Response) => {
             units = 1.0;
           }
         } else if (asset.type === 'EPF') {
-          // Find manual balance on or before date D
           let manualBalance = 0;
           let manualBalanceDate = '';
           let scanDate = new Date(dStr);
-          for (let s = 0; s < 60; s++) { // check up to 60 days in past for manual balance
+          for (let s = 0; s < 60; s++) {
             const scanDateStr = scanDate.toISOString().split('T')[0];
             const priceKey = `${asset.id}_${scanDateStr}`;
             const cachedPrice = priceMap.get(priceKey);
@@ -237,7 +187,6 @@ router.get('/', (req: Request, res: Response) => {
             scanDate.setDate(scanDate.getDate() - 1);
           }
 
-          // Running sum of transactions up to date D
           let txSum = 0;
           let lastTxDate = '';
           for (const tx of transactions) {
@@ -268,10 +217,9 @@ router.get('/', (req: Request, res: Response) => {
           units = assetUnitsOnDate.get(asset.id) || 0;
           if (units === 0) continue;
 
-          // Try to get price on date D or preceding dates
           let foundPrice = false;
           let scanDate = new Date(dStr);
-          for (let s = 0; s < 15; s++) { // check up to 15 days in past for price points
+          for (let s = 0; s < 15; s++) {
             const scanDateStr = scanDate.toISOString().split('T')[0];
             const priceKey = `${asset.id}_${scanDateStr}`;
             const cachedPrice = priceMap.get(priceKey);
@@ -284,7 +232,6 @@ router.get('/', (req: Request, res: Response) => {
             scanDate.setDate(scanDate.getDate() - 1);
           }
 
-          // If no historical price point, fallback to last transaction price before/on D
           if (!foundPrice) {
             assetPrice = assetLastPriceOnDate.get(asset.id) || 0;
           }
@@ -293,7 +240,6 @@ router.get('/', (req: Request, res: Response) => {
         dateWorth += units * assetPrice;
       }
 
-      // Only push dates that actually have wealth (skip initial empty days for better chart look)
       if (dateWorth > 0 || timelineData.length > 0) {
         timelineData.push({
           date: dStr,
@@ -302,7 +248,6 @@ router.get('/', (req: Request, res: Response) => {
       }
     }
 
-    // Default to at least one data point if empty
     if (timelineData.length === 0) {
       timelineData.push({ date: today.toISOString().split('T')[0], value: totalWorth });
     }
@@ -319,9 +264,8 @@ router.get('/', (req: Request, res: Response) => {
       recentActivity,
       timelineData
     });
-  } catch (error: any) {
-    console.error('Error fetching dashboard summary:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+  } catch (error) {
+    next(error);
   }
 });
 

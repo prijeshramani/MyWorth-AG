@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { db } from '../db';
+import { priceRepository } from '../repositories/SQLitePriceRepository';
+import { syncLogRepository } from '../repositories/SQLiteSyncLogRepository';
 
 // Helper to convert AMFI Date (e.g., "24-May-2026" or "24-05-2026") to YYYY-MM-DD
 function parseAmfiDate(dateStr: string): string {
@@ -61,8 +63,6 @@ export async function syncMutualFunds(): Promise<{ success: boolean; updated: nu
 
     const fileContent = response.data as string;
     const lines = fileContent.split('\n');
-
-    // Create a map of ISIN -> { NAV, Date }
     const navMap = new Map<string, { nav: number; date: string }>();
 
     for (const line of lines) {
@@ -92,10 +92,6 @@ export async function syncMutualFunds(): Promise<{ success: boolean; updated: nu
     }
 
     let updatedCount = 0;
-    const insertPrice = db.prepare(`
-      INSERT OR REPLACE INTO asset_prices (asset_id, date, price)
-      VALUES (?, ?, ?)
-    `);
 
     // Run in database transaction for maximum atomicity and speed
     const transaction = db.transaction(() => {
@@ -105,7 +101,7 @@ export async function syncMutualFunds(): Promise<{ success: boolean; updated: nu
         const latestData = navMap.get(isin);
         
         if (latestData) {
-          insertPrice.run(mf.id, latestData.date, latestData.nav);
+          priceRepository.upsertPrice(mf.id, latestData.date, latestData.nav);
           updatedCount++;
         } else {
           console.log(`Could not find NAV in AMFI feed for ISIN: ${isin} (${mf.name})`);
@@ -115,28 +111,21 @@ export async function syncMutualFunds(): Promise<{ success: boolean; updated: nu
 
     transaction();
 
-    // Log the sync activity
-    db.prepare(`
-      INSERT INTO sync_logs (sync_type, status, message)
-      VALUES ('AMFI', 'SUCCESS', ?)
-    `).run(`Successfully updated ${updatedCount}/${mfs.length} Mutual Fund prices.`);
+    syncLogRepository.addLog('AMFI', 'SUCCESS', `Successfully updated ${updatedCount}/${mfs.length} Mutual Funds.`);
 
     return {
       success: true,
       updated: updatedCount,
-      message: `Updated ${updatedCount}/${mfs.length} Mutual Fund NAVs.`
+      message: `Updated ${updatedCount}/${mfs.length} Mutual Funds.`
     };
   } catch (error: any) {
-    console.error('AMFI MF Sync Error:', error);
-    db.prepare(`
-      INSERT INTO sync_logs (sync_type, status, message)
-      VALUES ('AMFI', 'FAILED', ?)
-    `).run(`Error: ${error.message || 'Unknown error'}`);
+    console.error('AMFI Sync Error:', error);
+    syncLogRepository.addLog('AMFI', 'FAILED', `Error: ${error.message || 'Unknown error'}`);
 
     return {
       success: false,
       updated: 0,
-      message: error.message || 'AMFI request failed'
+      message: error.message || 'AMFI sync failed'
     };
   }
 }

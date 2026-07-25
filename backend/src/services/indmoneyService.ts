@@ -1,17 +1,17 @@
 import axios from 'axios';
-import { db } from '../db';
+import { credentialRepository } from '../repositories/SQLiteCredentialRepository';
 import { ParsedTransaction } from './pdfParser';
 
 // Save INDMoney access token securely in local sqlite db
 export function saveIndMoneyAccessToken(token: string): void {
-  db.prepare('INSERT OR REPLACE INTO credentials (key, value) VALUES (?, ?)').run('indmoney_access_token', token);
+  credentialRepository.saveCredential('indmoney_access_token', token);
 }
 
 // Get INDMoney credentials metadata (check configuration status)
 export function getIndMoneyCredentials(): { configured: boolean } {
-  const row = db.prepare('SELECT value FROM credentials WHERE key = ?').get('indmoney_access_token') as { value: string } | undefined;
+  const token = credentialRepository.getCredential('indmoney_access_token');
   return {
-    configured: !!row?.value
+    configured: !!token
   };
 }
 
@@ -134,9 +134,9 @@ export async function fetchIndMoneyHoldings(token: string): Promise<ParsedTransa
 
 // Automatically sync INDMoney using stored credentials token if configured
 export async function syncIndMoneyHoldingsWithStoredToken(): Promise<ParsedTransaction[] | null> {
-  const row = db.prepare('SELECT value FROM credentials WHERE key = ?').get('indmoney_access_token') as { value: string } | undefined;
-  if (!row?.value) {
+  const token = credentialRepository.getCredential('indmoney_access_token');
+  if (!token) {
     return null;
   }
-  return await fetchIndMoneyHoldings(row.value);
+  return await fetchIndMoneyHoldings(token);
 }

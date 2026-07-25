@@ -8,10 +8,14 @@ import { familyRepository } from '../repositories/SQLiteFamilyRepository';
 import { familyMemberRepository } from '../repositories/SQLiteFamilyMemberRepository';
 import { entityRepository } from '../repositories/SQLiteEntityRepository';
 import { accountRepository } from '../repositories/SQLiteAccountRepository';
+import { assetMasterRepository } from '../repositories/SQLiteAssetMasterRepository';
+import { holdingRepository } from '../repositories/SQLiteHoldingRepository';
 import { familyService } from '../services/FamilyService';
 import { entityService } from '../services/EntityService';
 import { accountService } from '../services/AccountService';
 import { ownershipService } from '../services/OwnershipService';
+import { assetMasterService } from '../services/AssetMasterService';
+import { holdingService } from '../services/HoldingService';
 import { runInTransaction } from '../db/transactionHelper';
 import { AppError, ValidationError, NotFoundError } from '../errors/AppError';
 
@@ -20,7 +24,7 @@ async function runTestSuite() {
   initDb();
 
   console.log('\n==================================================');
-  console.log('       RUNNING SPRINT 1A & 1B UNIT & REGRESSION TESTS  ');
+  console.log('    RUNNING SPRINT 1A, 1B & 1C UNIT & REGRESSION TESTS  ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -92,14 +96,12 @@ async function runTestSuite() {
   // 4. Sprint 1B Ownership Hierarchy & Repositories (Family -> Member -> Entity -> Account)
   console.log('\n--- 4. Testing Sprint 1B Ownership Hierarchy Repositories & Soft-Delete ---');
 
-  // Family CRUD
   const family = familyService.createFamily({ name: 'Sharma Family', currency: 'INR' });
   assert(family.id > 0 && family.name === 'Sharma Family', 'FamilyService creates Family');
 
   const fetchedFamily = familyService.getFamilyById(family.id);
   assert(fetchedFamily.currency === 'INR', 'FamilyService fetches Family by ID');
 
-  // Family Member CRUD with Extended Enum
   const member = familyService.createFamilyMember({
     family_id: family.id,
     name: 'Rajesh Sharma',
@@ -108,7 +110,6 @@ async function runTestSuite() {
   });
   assert(member.id > 0 && member.relationship === 'GRANDPARENT', 'FamilyService creates Family Member with extended Enum');
 
-  // Entity CRUD with Extended Enum & PAN
   const entity = entityService.createEntity({
     family_member_id: member.id,
     name: 'Rajesh Sharma HUF',
@@ -117,7 +118,6 @@ async function runTestSuite() {
   });
   assert(entity.id > 0 && entity.pan_number === 'ABCDE1234F', 'EntityService creates Entity with valid PAN');
 
-  // Test Duplicate PAN Rejection
   let duplicatePanCaught = false;
   try {
     entityService.createEntity({
@@ -131,7 +131,6 @@ async function runTestSuite() {
   }
   assert(duplicatePanCaught, 'EntityService rejects creation with duplicate active PAN');
 
-  // Account CRUD with Extended Fields & Automatic Masked Account Number
   const account = accountService.createAccount({
     entity_id: entity.id,
     account_name: 'HDFCBANK Wealth Account',
@@ -161,11 +160,9 @@ async function runTestSuite() {
   }
   assert(softDeletedAccountCaught, 'Soft-deleted Account is excluded from active repository queries');
 
-  // Verify database record still exists physically with deleted_at set
   const rawAccountRow = db.prepare('SELECT * FROM accounts WHERE id = ?').get(account.id) as any;
   assert(rawAccountRow !== undefined && rawAccountRow.deleted_at !== null, 'Soft-deleted Account record is preserved in database with deleted_at timestamp');
 
-  // Restore account
   accountRepository.restore(account.id);
   assert(accountService.getAccountById(account.id).id === account.id, 'Repository restores soft-deleted entity');
 
@@ -185,7 +182,69 @@ async function runTestSuite() {
   const tempFamilyCheck = familyRepository.findAll().find(f => f.name === 'Temp Family');
   assert(tempFamilyCheck === undefined, 'Atomic rollback leaves database state clean');
 
-  // Cleanup test ownership entities
+  // 8. Sprint 1C Asset Master & Holding Foundation Tests
+  console.log('\n--- 8. Testing Sprint 1C Asset Master & Holding Foundation ---');
+
+  // Master Asset Creation
+  const stockAsset = assetMasterService.createAsset({
+    asset_type: 'STOCK',
+    name: 'Reliance Industries Ltd',
+    display_name: 'Reliance Industries',
+    symbol: 'RELIANCE.NS',
+    isin: 'INE002A01018',
+    currency: 'INR',
+    metadata: { exchange: 'NSE', sector: 'Energy' }
+  });
+  assert(stockAsset.id > 0 && stockAsset.isin === 'INE002A01018', 'AssetMasterService creates Master Asset with metadata');
+
+  // 3-Tier Deduplication Tests
+  // Priority 1: ISIN match
+  const deduplicatedIsin = assetMasterService.getOrCreateAsset({
+    asset_type: 'STOCK',
+    name: 'Reliance Industries Limited Different Name',
+    display_name: 'RIL',
+    isin: 'INE002A01018'
+  });
+  assert(!deduplicatedIsin.created && deduplicatedIsin.asset.id === stockAsset.id, '3-Tier Deduplication Priority 1 matches by ISIN');
+
+  // Priority 2: Symbol + Asset Type match
+  const deduplicatedSymbol = assetMasterService.getOrCreateAsset({
+    asset_type: 'STOCK',
+    name: 'Reliance Stock Duplicate',
+    symbol: 'RELIANCE.NS'
+  });
+  assert(!deduplicatedSymbol.created && deduplicatedSymbol.asset.id === stockAsset.id, '3-Tier Deduplication Priority 2 matches by Symbol + Type');
+
+  // Priority 3: Name + Asset Type match
+  const deduplicatedName = assetMasterService.getOrCreateAsset({
+    asset_type: 'STOCK',
+    name: 'Reliance Industries Ltd'
+  });
+  assert(!deduplicatedName.created && deduplicatedName.asset.id === stockAsset.id, '3-Tier Deduplication Priority 3 matches by Name + Type');
+
+  // Holding Ownership Link Creation (Account -> Asset Master)
+  const holding = holdingService.createHolding({
+    account_id: account.id,
+    asset_id: stockAsset.id,
+    opened_at: '2026-01-01',
+    status: 'OPEN'
+  });
+  assert(holding.id > 0 && holding.account_id === account.id && holding.asset_id === stockAsset.id, 'HoldingService links Account to Master Asset');
+
+  // Verify Holding Listing & Asset Info Join
+  const accountHoldings = holdingService.getAllHoldings(account.id);
+  assert(accountHoldings.length === 1 && accountHoldings[0].asset_name === 'Reliance Industries Ltd', 'HoldingService queries holdings with joined Asset Master details');
+
+  // Test Soft-Delete on Holding & Master Asset
+  holdingService.softDeleteHolding(holding.id);
+  assert(holdingRepository.findById(holding.id) === null, 'Soft-deleted Holding is excluded from repository queries');
+
+  holdingRepository.restore(holding.id);
+  assert(holdingRepository.findById(holding.id) !== null, 'HoldingRepository restores soft-deleted holding');
+
+  // Cleanup test ownership entities & master assets
+  holdingRepository.softDelete(holding.id);
+  assetMasterRepository.softDelete(stockAsset.id);
   accountRepository.softDelete(account.id);
   entityRepository.softDelete(entity.id);
   familyMemberRepository.softDelete(member.id);

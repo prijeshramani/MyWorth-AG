@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { runMigrations } from './db/migrationRunner';
 import { migration001 } from './db/migrations/001_domain_foundation';
+import { migration002 } from './db/migrations/002_asset_master_and_holdings';
 
 // Resolve database path
 const dbDir = path.resolve(__dirname, '../../data');
@@ -212,7 +213,7 @@ export function initDb() {
   `).run();
 
   // Execute Versioned Database Migrations
-  runMigrations(db, [migration001], dbPath);
+  runMigrations(db, [migration001, migration002], dbPath);
 
   console.log('Database tables successfully verified/created.');
 }

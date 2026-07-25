@@ -11,6 +11,8 @@ import familiesRouter from './routes/v1/families';
 import familyMembersRouter from './routes/v1/familyMembers';
 import entitiesRouter from './routes/v1/entities';
 import accountsRouter from './routes/v1/accounts';
+import assetsMasterRouter from './routes/v1/assetsMaster';
+import holdingsRouter from './routes/v1/holdings';
 import { syncAllAssets } from './services/marketSync';
 import { syncLogRepository } from './repositories/SQLiteSyncLogRepository';
 import { correlationMiddleware } from './middleware/correlationMiddleware';
@@ -60,6 +62,8 @@ app.use('/api/v1/families', familiesRouter);
 app.use('/api/v1/family-members', familyMembersRouter);
 app.use('/api/v1/entities', entitiesRouter);
 app.use('/api/v1/accounts', accountsRouter);
+app.use('/api/v1/assets-master', assetsMasterRouter);
+app.use('/api/v1/holdings', holdingsRouter);
 
 // Sync Market Data Trigger Route
 app.post('/api/sync', async (req, res, next) => {

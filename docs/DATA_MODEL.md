@@ -1,0 +1,169 @@
+# 🗄 DATA_MODEL.md — Family Wealth OS Data Model Specification
+
+**System Name**: Family Wealth OS  
+**Author**: Lead Software Engineer & Software Architect  
+**Date**: July 25, 2026  
+**Status**: Canonical Data Reference (Sprint 1C)
+
+---
+
+## 1. Domain Ownership & Asset Architecture
+
+Family Wealth OS structures wealth management into a 5-tier entity-relationship model:
+
+```
+Family (Root Container)
+ └── Family Members (Self, Spouse, Child, Parent, Sibling, Grandparent, Grandchild, In-Law, Other)
+      └── Entities (Individual, HUF, Minor, Company, Trust, Partnership, LLP, Other)
+           └── Accounts (Demat, Bank, EPF, PPF, NPS, FD, Folio, Credit Card, Other)
+                └── Holdings (Account-to-Asset Ownership Links)
+                     └── Assets Master (Global Asset Definitions: Stock, Mutual Fund, Gold, FD, Real Estate, etc.)
+                          ├── Transactions (Authoritative Financial Source of Truth)
+                          └── Price History (Historical NAV / Market Prices)
+```
+
+---
+
+## 2. Table Schemas & Definitions
+
+### 2.1 Ownership Model Tables (Sprint 1B)
+
+#### `families`
+Root boundary for family units.
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT
+- `name`: TEXT NOT NULL
+- `currency`: TEXT NOT NULL DEFAULT 'INR'
+- `created_at`: TEXT DEFAULT CURRENT_TIMESTAMP
+- `updated_at`: TEXT DEFAULT CURRENT_TIMESTAMP
+- `deleted_at`: TEXT DEFAULT NULL (Soft-delete timestamp)
+
+#### `family_members`
+Individual members within a family.
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT
+- `family_id`: INTEGER NOT NULL (FK -> `families.id`)
+- `name`: TEXT NOT NULL
+- `relationship`: TEXT NOT NULL CHECK (`SELF`, `SPOUSE`, `CHILD`, `PARENT`, `SIBLING`, `GRANDPARENT`, `GRANDCHILD`, `IN_LAW`, `OTHER`)
+- `date_of_birth`: TEXT (YYYY-MM-DD)
+- `created_at`, `updated_at`, `deleted_at`: Standard timestamp audit columns
+
+#### `entities`
+Legal and tax entities owned by family members.
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT
+- `family_member_id`: INTEGER NOT NULL (FK -> `family_members.id`)
+- `name`: TEXT NOT NULL
+- `entity_type`: TEXT NOT NULL CHECK (`INDIVIDUAL`, `HUF`, `MINOR`, `COMPANY`, `TRUST`, `PARTNERSHIP`, `LLP`, `OTHER`)
+- `pan_number`: TEXT (Partial UNIQUE constraint where `deleted_at IS NULL AND pan_number IS NOT NULL AND pan_number != ''`)
+- `created_at`, `updated_at`, `deleted_at`: Standard timestamp audit columns
+
+#### `accounts`
+Financial institution accounts registered under an entity.
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT
+- `entity_id`: INTEGER NOT NULL (FK -> `entities.id`)
+- `account_name`: TEXT NOT NULL
+- `account_type`: TEXT NOT NULL CHECK (`DEMAT`, `BANK`, `EPF`, `PPF`, `NPS`, `FD`, `MUTUAL_FUND_FOLIO`, `CREDIT_CARD`, `OTHER`)
+- `provider`: TEXT (e.g., Zerodha, CAMS, Karvy)
+- `institution_name`: TEXT (e.g., HDFC Bank, ICICI Securities)
+- `account_number`: TEXT
+- `masked_account_number`: TEXT (e.g., `••••5678`)
+- `nickname`: TEXT
+- `is_active`: INTEGER NOT NULL DEFAULT 1 (1 = Active, 0 = Inactive)
+- `created_at`, `updated_at`, `deleted_at`: Standard timestamp audit columns
+
+---
+
+### 2.2 Asset Master & Holdings Tables (Sprint 1C)
+
+#### `assets_master`
+Global master definitions of financial instruments. Unique per security across all accounts.
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT
+- `asset_type`: TEXT NOT NULL CHECK (`STOCK`, `MUTUAL_FUND`, `ETF`, `BOND`, `FD`, `PPF`, `EPF`, `NPS`, `SSA`, `BANK`, `GOLD`, `REAL_ESTATE`, `CRYPTO`, `OTHER`)
+- `name`: TEXT NOT NULL
+- `display_name`: TEXT NOT NULL
+- `symbol`: TEXT (Nullable, e.g., Ticker `RELIANCE.NS`)
+- `isin`: TEXT (Nullable, Partial UNIQUE constraint where `deleted_at IS NULL AND isin IS NOT NULL AND isin != ''`)
+- `currency`: TEXT NOT NULL DEFAULT 'INR'
+- `status`: TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (`ACTIVE`, `INACTIVE`, `DELISTED`, `MATURED`)
+- `metadata`: TEXT (JSON text for asset-type specific attributes)
+- `created_at`, `updated_at`, `deleted_at`: Standard timestamp audit columns
+
+#### `holdings`
+Ownership link associating a specific `account_id` with an `asset_id`.
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT
+- `account_id`: INTEGER NOT NULL (FK -> `accounts.id`)
+- `asset_id`: INTEGER NOT NULL (FK -> `assets_master.id`)
+- `opened_at`: TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+- `closed_at`: TEXT (Nullable, timestamp when holding is fully liquidated)
+- `status`: TEXT NOT NULL DEFAULT 'OPEN' CHECK (`OPEN`, `CLOSED`)
+- `created_at`, `updated_at`, `deleted_at`: Standard timestamp audit columns
+- Partial UNIQUE constraint: `(account_id, asset_id)` WHERE `deleted_at IS NULL AND status = 'OPEN'`
+
+---
+
+## 3. Stored vs. Computed Fields Principle
+
+> [!IMPORTANT]
+> **Transactions are the Authoritative Source of Truth.**
+
+- **Stored State**: `assets_master` definitions, `holdings` ownership links, `accounts`, and `transactions` records (date, quantity, price, amount, type).
+- **Computed Projections**:
+  - `Quantity` = `SUM(BUY + REINVEST) - SUM(SELL)` from transactions.
+  - `Cost Basis` = Computed FIFO purchase lot costs.
+  - `Current Valuation` = Computed `Quantity * Latest Price` (from `asset_prices`).
+  - `Unrealized Gain / Loss` = `Current Valuation - Cost Basis`.
+- **Holdings Rule**: `holdings` DOES NOT store static quantity or valuation numbers as authoritative state. All metrics are computed dynamically at query time or exposed via read-model projections.
+
+---
+
+## 4. Asset Metadata Standards (JSON Schema Examples)
+
+### 4.1 Mutual Fund
+```json
+{
+  "amc": "HDFC Mutual Fund",
+  "category": "Equity - Large Cap",
+  "scheme_code": "101234",
+  "plan": "DIRECT",
+  "option": "GROWTH"
+}
+```
+
+### 4.2 Fixed Deposit (FD)
+```json
+{
+  "interest_rate": 7.25,
+  "compounding_frequency": "QUARTERLY",
+  "maturity_date": "2028-03-31",
+  "auto_renew": false
+}
+```
+
+### 4.3 Provident Fund (EPF / PPF)
+```json
+{
+  "uan": "100987654321",
+  "pf_number": "MH/BAN/0012345/000/0000123",
+  "interest_rate": 8.25
+}
+```
+
+### 4.4 Real Estate
+```json
+{
+  "property_type": "RESIDENTIAL_APARTMENT",
+  "area_sqft": 1450,
+  "location": "Bengaluru, KA",
+  "purchase_year": 2021
+}
+```
+
+---
+
+## 5. Asset Master Deduplication Rules
+
+When registering or ingesting a new asset, `AssetMasterService` matches existing master assets in order of priority:
+
+1. **Priority 1 (ISIN)**: If `isin` is provided, search `assets_master` WHERE `isin = input.isin` and `deleted_at IS NULL`.
+2. **Priority 2 (Symbol + Type)**: If `symbol` is provided, search `assets_master` WHERE `symbol = input.symbol AND asset_type = input.asset_type` and `deleted_at IS NULL`.
+3. **Priority 3 (Name + Type)**: Search `assets_master` WHERE `name = input.name AND asset_type = input.asset_type` and `deleted_at IS NULL`.
+
+If no match is found across all three priorities, a new master asset record is created.

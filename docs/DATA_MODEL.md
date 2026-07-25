@@ -3,7 +3,11 @@
 **System Name**: Family Wealth OS  
 **Author**: Lead Software Engineer & Software Architect  
 **Date**: July 25, 2026  
-**Status**: Canonical Data Reference (Pre-Sprint 1D Alignment)
+**Status**: APPROVED — DOMAIN ARCHITECTURE VERSION 1.0 (FROZEN)
+
+> [!IMPORTANT]
+> **Domain Architecture Version: 1.0 (Frozen)**  
+> The core domain hierarchy (`Family -> Family Member -> Entity -> Account -> Holding -> Asset Master / Transactions`) is architecturally frozen. Future development must extend system behavior and computational engines rather than modify the fundamental ownership hierarchy.
 
 ---
 
@@ -114,7 +118,37 @@ Activities and cashflows recorded against a specific `holding_id`.
 
 ---
 
-## 3. Holding Lifecycle & State Transitions
+## 3. Asset Identifier Strategy
+
+To prevent security record duplication across statement parsers, external APIs, and manual entries, `assets_master` adheres to the following identifier rules:
+
+1. **Internal Immutable Asset ID**: `assets_master.id` (INTEGER AUTOINCREMENT) serves as the internal primary key.
+2. **External Identifiers**:
+   - `isin`: International Securities Identification Number (e.g. `INE002A01018`).
+   - `symbol`: Ticker symbol (e.g. `RELIANCE.NS` or AMFI Scheme Code `101234`).
+   - `identifier`: Auxiliary external reference (e.g. CAMS Folio / Bank Account ID).
+3. **Business-Key Deduplication Precedence**:
+   - **Priority 1**: `ISIN` (if non-null and non-empty).
+   - **Priority 2**: `Symbol` + `Asset Type` (if symbol is non-null).
+   - **Priority 3**: `Name` + `Asset Type`.
+
+---
+
+## 4. Asset Classification Strategy (Future Extension)
+
+Reserved hierarchical structure for asset allocation and risk modeling without altering core table schemas:
+
+```
+Asset (assets_master)
+  └── Classification (e.g., Equity, Debt, Real Assets, Cash Equivalent)
+       └── Category (e.g., Large Cap Equity, Corporate Bond, Physical Real Estate)
+            └── Subcategory (e.g., Banking Sector, PSU Debt, Commercial Space)
+                 └── Region / Geography (e.g., India Domestic, US Overseas)
+```
+
+---
+
+## 5. Holding Lifecycle & State Transitions
 
 A `Holding` tracks account-level security ownership over time:
 
@@ -133,7 +167,7 @@ A `Holding` tracks account-level security ownership over time:
 
 ---
 
-## 4. Stored vs. Computed Fields Principle
+## 6. Stored vs. Computed Fields Principle
 
 > [!IMPORTANT]
 > **Transactions are the Authoritative Source of Truth.**
@@ -145,47 +179,3 @@ A `Holding` tracks account-level security ownership over time:
   - `Current Valuation` = Computed `Quantity * Latest Price` (from `asset_prices`).
   - `Unrealized Gain / Loss` = `Current Valuation - Cost Basis`.
 - **Holdings Rule**: `holdings` DOES NOT store static quantity or valuation numbers as authoritative state. All metrics are computed dynamically at query time or exposed via read-model projections.
-
----
-
-## 5. Asset Metadata Standards (JSON Schema Examples)
-
-### 5.1 Mutual Fund
-```json
-{
-  "amc": "HDFC Mutual Fund",
-  "category": "Equity - Large Cap",
-  "scheme_code": "101234",
-  "plan": "DIRECT",
-  "option": "GROWTH"
-}
-```
-
-### 5.2 Fixed Deposit (FD)
-```json
-{
-  "interest_rate": 7.25,
-  "compounding_frequency": "QUARTERLY",
-  "maturity_date": "2028-03-31",
-  "auto_renew": false
-}
-```
-
-### 5.3 Provident Fund (EPF / PPF)
-```json
-{
-  "uan": "100987654321",
-  "pf_number": "MH/BAN/0012345/000/0000123",
-  "interest_rate": 8.25
-}
-```
-
-### 5.4 Real Estate
-```json
-{
-  "property_type": "RESIDENTIAL_APARTMENT",
-  "area_sqft": 1450,
-  "location": "Bengaluru, KA",
-  "purchase_year": 2021
-}
-```

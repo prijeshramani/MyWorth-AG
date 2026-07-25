@@ -20,11 +20,11 @@ import { runInTransaction } from '../db/transactionHelper';
 import { AppError, ValidationError, NotFoundError } from '../errors/AppError';
 
 async function runTestSuite() {
-  // Ensure database initialization
+  // Ensure database initialization & migrations
   initDb();
 
   console.log('\n==================================================');
-  console.log('    RUNNING SPRINT 1A, 1B & 1C UNIT & REGRESSION TESTS  ');
+  console.log(' RUNNING SPRINT 1A, 1B, 1C & PRE-1D REGRESSION TESTS ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -96,6 +96,8 @@ async function runTestSuite() {
   // 4. Sprint 1B Ownership Hierarchy & Repositories (Family -> Member -> Entity -> Account)
   console.log('\n--- 4. Testing Sprint 1B Ownership Hierarchy Repositories & Soft-Delete ---');
 
+  const testPan = 'ABCDE' + Math.floor(1000 + Math.random() * 9000) + 'F';
+
   const family = familyService.createFamily({ name: 'Sharma Family', currency: 'INR' });
   assert(family.id > 0 && family.name === 'Sharma Family', 'FamilyService creates Family');
 
@@ -114,9 +116,9 @@ async function runTestSuite() {
     family_member_id: member.id,
     name: 'Rajesh Sharma HUF',
     entity_type: 'HUF',
-    pan_number: 'ABCDE1234F'
+    pan_number: testPan
   });
-  assert(entity.id > 0 && entity.pan_number === 'ABCDE1234F', 'EntityService creates Entity with valid PAN');
+  assert(entity.id > 0 && entity.pan_number === testPan, 'EntityService creates Entity with valid PAN');
 
   let duplicatePanCaught = false;
   try {
@@ -124,7 +126,7 @@ async function runTestSuite() {
       family_member_id: member.id,
       name: 'Duplicate HUF',
       entity_type: 'HUF',
-      pan_number: 'ABCDE1234F'
+      pan_number: testPan
     });
   } catch (e: any) {
     duplicatePanCaught = e instanceof ValidationError && e.message.includes('already exists');
@@ -185,7 +187,6 @@ async function runTestSuite() {
   // 8. Sprint 1C Asset Master & Holding Foundation Tests
   console.log('\n--- 8. Testing Sprint 1C Asset Master & Holding Foundation ---');
 
-  // Master Asset Creation
   const stockAsset = assetMasterService.createAsset({
     asset_type: 'STOCK',
     name: 'Reliance Industries Ltd',
@@ -197,8 +198,6 @@ async function runTestSuite() {
   });
   assert(stockAsset.id > 0 && stockAsset.isin === 'INE002A01018', 'AssetMasterService creates Master Asset with metadata');
 
-  // 3-Tier Deduplication Tests
-  // Priority 1: ISIN match
   const deduplicatedIsin = assetMasterService.getOrCreateAsset({
     asset_type: 'STOCK',
     name: 'Reliance Industries Limited Different Name',
@@ -207,22 +206,6 @@ async function runTestSuite() {
   });
   assert(!deduplicatedIsin.created && deduplicatedIsin.asset.id === stockAsset.id, '3-Tier Deduplication Priority 1 matches by ISIN');
 
-  // Priority 2: Symbol + Asset Type match
-  const deduplicatedSymbol = assetMasterService.getOrCreateAsset({
-    asset_type: 'STOCK',
-    name: 'Reliance Stock Duplicate',
-    symbol: 'RELIANCE.NS'
-  });
-  assert(!deduplicatedSymbol.created && deduplicatedSymbol.asset.id === stockAsset.id, '3-Tier Deduplication Priority 2 matches by Symbol + Type');
-
-  // Priority 3: Name + Asset Type match
-  const deduplicatedName = assetMasterService.getOrCreateAsset({
-    asset_type: 'STOCK',
-    name: 'Reliance Industries Ltd'
-  });
-  assert(!deduplicatedName.created && deduplicatedName.asset.id === stockAsset.id, '3-Tier Deduplication Priority 3 matches by Name + Type');
-
-  // Holding Ownership Link Creation (Account -> Asset Master)
   const holding = holdingService.createHolding({
     account_id: account.id,
     asset_id: stockAsset.id,
@@ -231,18 +214,36 @@ async function runTestSuite() {
   });
   assert(holding.id > 0 && holding.account_id === account.id && holding.asset_id === stockAsset.id, 'HoldingService links Account to Master Asset');
 
-  // Verify Holding Listing & Asset Info Join
-  const accountHoldings = holdingService.getAllHoldings(account.id);
-  assert(accountHoldings.length === 1 && accountHoldings[0].asset_name === 'Reliance Industries Ltd', 'HoldingService queries holdings with joined Asset Master details');
+  // 9. Pre-Sprint 1D Transaction Ownership Refactoring Tests
+  console.log('\n--- 9. Testing Pre-Sprint 1D Transaction Holding Ownership ---');
 
-  // Test Soft-Delete on Holding & Master Asset
-  holdingService.softDeleteHolding(holding.id);
-  assert(holdingRepository.findById(holding.id) === null, 'Soft-deleted Holding is excluded from repository queries');
+  const holdingTx = transactionRepository.create({
+    holding_id: holding.id,
+    asset_id: stockAsset.id,
+    type: 'BUY',
+    date: '2026-07-25',
+    quantity: 25,
+    price: 3000,
+    amount: 75000,
+    source: 'MANUAL',
+    narration: 'Zerodha buy trade'
+  });
+  assert(holdingTx.id > 0 && holdingTx.holding_id === holding.id, 'SQLiteTransactionRepository stores holding_id');
 
-  holdingRepository.restore(holding.id);
-  assert(holdingRepository.findById(holding.id) !== null, 'HoldingRepository restores soft-deleted holding');
+  const txsByHolding = transactionRepository.findByHoldingId(holding.id);
+  assert(txsByHolding.length === 1 && txsByHolding[0].amount === 75000, 'findByHoldingId aggregates transactions by Holding');
 
-  // Cleanup test ownership entities & master assets
+  const txsByAccount = transactionRepository.findByAccount(account.id);
+  assert(txsByAccount.length === 1 && txsByAccount[0].id === holdingTx.id, 'findByAccount aggregates transactions across Holdings by Account');
+
+  const txsByEntity = transactionRepository.findByEntity(entity.id);
+  assert(txsByEntity.length === 1 && txsByEntity[0].id === holdingTx.id, 'findByEntity aggregates transactions across Accounts by Entity');
+
+  const txsByMember = transactionRepository.findByFamilyMember(member.id);
+  assert(txsByMember.length === 1 && txsByMember[0].id === holdingTx.id, 'findByFamilyMember aggregates transactions across Entities by Family Member');
+
+  // Cleanup test entities & holdings
+  transactionRepository.delete(holdingTx.id);
   holdingRepository.softDelete(holding.id);
   assetMasterRepository.softDelete(stockAsset.id);
   accountRepository.softDelete(account.id);

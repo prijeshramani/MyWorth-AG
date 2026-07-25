@@ -3,7 +3,7 @@
 **System Name**: Family Wealth OS  
 **Author**: Lead Software Engineer & Software Architect  
 **Date**: July 25, 2026  
-**Status**: Architecture Blueprint (Sprint 1C)
+**Status**: Architecture Blueprint (Pre-Sprint 1D Alignment)
 
 ---
 
@@ -20,10 +20,10 @@ Family Wealth OS is a local-first, privacy-focused private wealth operating syst
   [Presentation / REST Controllers] (/api/v1/*)
            │
            ▼
-  [Domain Services] (FamilyService, EntityService, AccountService, OwnershipService, AssetMasterService, HoldingService)
+  [Domain Services] (FamilyService, EntityService, AccountService, OwnershipService, AssetMasterService, HoldingService, TransactionService)
            │
            ▼
-  [Repository Layer] (IFamilyRepository, IEntityRepository, IAccountRepository, IAssetMasterRepository, IHoldingRepository)
+  [Repository Layer] (IFamilyRepository, IEntityRepository, IAccountRepository, IAssetMasterRepository, IHoldingRepository, ITransactionRepository)
            │
            ▼
   [Database Infrastructure] (SQLite via better-sqlite3 with versioned migrationRunner)
@@ -54,12 +54,14 @@ Family Wealth OS is a local-first, privacy-focused private wealth operating syst
   - `AssetMasterService`: Executes 3-tier asset deduplication (ISIN -> Symbol+Type -> Name+Type).
   - `EntityService`: Enforces active PAN uniqueness checks.
   - `HoldingService`: Manages ownership links between accounts and master assets.
+  - `TransactionService`: Validates activities against holding instances.
 
 ### 2.3 Repository Layer
 - Located under `backend/src/repositories/*.ts`.
 - Decouples SQL queries from Express handlers.
 - Implements soft-delete filtering (`WHERE deleted_at IS NULL`).
 - Supports atomic transaction blocks (`runInTransaction`).
+- Provides aggregation points: `findByHoldingId`, `findByAccount`, `findByEntity`, `findByFamilyMember`.
 
 ### 2.4 Database Infrastructure
 - SQLite database (`data/myworth.db`) managed via `better-sqlite3`.
@@ -79,7 +81,8 @@ MyWorth/
 │   │   │   ├── transactionHelper.ts
 │   │   │   └── migrations/
 │   │   │       ├── 001_domain_foundation.ts
-│   │   │       └── 002_asset_master_and_holdings.ts
+│   │   │       ├── 002_asset_master_and_holdings.ts
+│   │   │       └── 003_transaction_holding_link.ts
 │   │   ├── errors/
 │   │   │   └── AppError.ts
 │   │   ├── middleware/
@@ -91,7 +94,8 @@ MyWorth/
 │   │   │   ├── IEntityRepository.ts / SQLiteEntityRepository.ts
 │   │   │   ├── IAccountRepository.ts / SQLiteAccountRepository.ts
 │   │   │   ├── IAssetMasterRepository.ts / SQLiteAssetMasterRepository.ts
-│   │   │   └── IHoldingRepository.ts / SQLiteHoldingRepository.ts
+│   │   │   ├── IHoldingRepository.ts / SQLiteHoldingRepository.ts
+│   │   │   └── ITransactionRepository.ts / SQLiteTransactionRepository.ts
 │   │   ├── schema/
 │   │   │   ├── domainSchemas.ts
 │   │   │   └── assetMasterSchemas.ts
@@ -116,6 +120,7 @@ MyWorth/
 │   ├── DATA_MODEL.md
 │   ├── SYSTEM_ARCHITECTURE.md
 │   ├── ER_DIAGRAM.md
+│   ├── Transaction_Ownership_Design.md
 │   └── AI_CHANGELOG.md
 └── prompts/
     └── summary/

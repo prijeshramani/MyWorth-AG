@@ -3,7 +3,7 @@
 **System Name**: Family Wealth OS  
 **Author**: Lead Software Engineer & Software Architect  
 **Date**: July 25, 2026  
-**Status**: Canonical Data Reference (Sprint 1C)
+**Status**: Canonical Data Reference (Pre-Sprint 1D Alignment)
 
 ---
 
@@ -17,9 +17,9 @@ Family (Root Container)
       └── Entities (Individual, HUF, Minor, Company, Trust, Partnership, LLP, Other)
            └── Accounts (Demat, Bank, EPF, PPF, NPS, FD, Folio, Credit Card, Other)
                 └── Holdings (Account-to-Asset Ownership Links)
-                     └── Assets Master (Global Asset Definitions: Stock, Mutual Fund, Gold, FD, Real Estate, etc.)
-                          ├── Transactions (Authoritative Financial Source of Truth)
-                          └── Price History (Historical NAV / Market Prices)
+                     ├── Assets Master (Global Asset Definitions: Stock, Mutual Fund, Gold, FD, Real Estate, etc.)
+                     └── Transactions (Activities against a Holding - Authoritative Source of Truth)
+                            └── Price History (via Asset Master)
 ```
 
 ---
@@ -71,7 +71,7 @@ Financial institution accounts registered under an entity.
 
 ---
 
-### 2.2 Asset Master & Holdings Tables (Sprint 1C)
+### 2.2 Asset Master, Holdings & Transactions Tables (Sprint 1C & Pre-Sprint 1D)
 
 #### `assets_master`
 Global master definitions of financial instruments. Unique per security across all accounts.
@@ -97,16 +97,50 @@ Ownership link associating a specific `account_id` with an `asset_id`.
 - `created_at`, `updated_at`, `deleted_at`: Standard timestamp audit columns
 - Partial UNIQUE constraint: `(account_id, asset_id)` WHERE `deleted_at IS NULL AND status = 'OPEN'`
 
+#### `transactions`
+Activities and cashflows recorded against a specific `holding_id`.
+- `id`: INTEGER PRIMARY KEY AUTOINCREMENT
+- `holding_id`: INTEGER (FK -> `holdings.id`, Primary ownership relationship)
+- `asset_id`: INTEGER (FK -> `assets.id` / `assets_master.id`, Legacy fallback during Phase 1 transition)
+- `type`: TEXT NOT NULL CHECK (`BUY`, `SELL`, `DIVIDEND`, `INTEREST`, `DEPOSIT`, `WITHDRAWAL`, `SPLIT`, `BONUS`, `MERGER`, `FEE`, `TAX`, `OTHER`)
+- `date`: TEXT NOT NULL (YYYY-MM-DD)
+- `quantity`: REAL NOT NULL DEFAULT 0
+- `price`: REAL NOT NULL DEFAULT 0
+- `amount`: REAL NOT NULL DEFAULT 0
+- `source`: TEXT (e.g., Zerodha, CAMS, Manual)
+- `narration`: TEXT
+- `tx_category`: TEXT
+- `created_at`: TEXT DEFAULT CURRENT_TIMESTAMP
+
 ---
 
-## 3. Stored vs. Computed Fields Principle
+## 3. Holding Lifecycle & State Transitions
+
+A `Holding` tracks account-level security ownership over time:
+
+```
+[OPEN] ──(Additional Buys / Reinvest / Dividends)──> [OPEN] (Active Holding)
+  │
+  ├──(Corporate Actions: Bonus, Split, Merger)─────> [OPEN] (Adjusted Lot Units)
+  │
+  ├──(Partial Sell / Exit)────────────────────────> [OPEN] (Reduced Quantity)
+  │
+  └──(Full Sell / Liquidate / Maturity)───────────> [CLOSED] (closed_at set)
+```
+
+- **OPEN**: Active holding ownership link. Quantity > 0 or active position.
+- **CLOSED**: Position fully liquidated (Quantity = 0). `closed_at` set to final sell/exit transaction date.
+
+---
+
+## 4. Stored vs. Computed Fields Principle
 
 > [!IMPORTANT]
 > **Transactions are the Authoritative Source of Truth.**
 
 - **Stored State**: `assets_master` definitions, `holdings` ownership links, `accounts`, and `transactions` records (date, quantity, price, amount, type).
 - **Computed Projections**:
-  - `Quantity` = `SUM(BUY + REINVEST) - SUM(SELL)` from transactions.
+  - `Quantity` = `SUM(BUY + REINVEST + BONUS + SPLIT) - SUM(SELL)` from transactions.
   - `Cost Basis` = Computed FIFO purchase lot costs.
   - `Current Valuation` = Computed `Quantity * Latest Price` (from `asset_prices`).
   - `Unrealized Gain / Loss` = `Current Valuation - Cost Basis`.
@@ -114,9 +148,9 @@ Ownership link associating a specific `account_id` with an `asset_id`.
 
 ---
 
-## 4. Asset Metadata Standards (JSON Schema Examples)
+## 5. Asset Metadata Standards (JSON Schema Examples)
 
-### 4.1 Mutual Fund
+### 5.1 Mutual Fund
 ```json
 {
   "amc": "HDFC Mutual Fund",
@@ -127,7 +161,7 @@ Ownership link associating a specific `account_id` with an `asset_id`.
 }
 ```
 
-### 4.2 Fixed Deposit (FD)
+### 5.2 Fixed Deposit (FD)
 ```json
 {
   "interest_rate": 7.25,
@@ -137,7 +171,7 @@ Ownership link associating a specific `account_id` with an `asset_id`.
 }
 ```
 
-### 4.3 Provident Fund (EPF / PPF)
+### 5.3 Provident Fund (EPF / PPF)
 ```json
 {
   "uan": "100987654321",
@@ -146,7 +180,7 @@ Ownership link associating a specific `account_id` with an `asset_id`.
 }
 ```
 
-### 4.4 Real Estate
+### 5.4 Real Estate
 ```json
 {
   "property_type": "RESIDENTIAL_APARTMENT",
@@ -155,15 +189,3 @@ Ownership link associating a specific `account_id` with an `asset_id`.
   "purchase_year": 2021
 }
 ```
-
----
-
-## 5. Asset Master Deduplication Rules
-
-When registering or ingesting a new asset, `AssetMasterService` matches existing master assets in order of priority:
-
-1. **Priority 1 (ISIN)**: If `isin` is provided, search `assets_master` WHERE `isin = input.isin` and `deleted_at IS NULL`.
-2. **Priority 2 (Symbol + Type)**: If `symbol` is provided, search `assets_master` WHERE `symbol = input.symbol AND asset_type = input.asset_type` and `deleted_at IS NULL`.
-3. **Priority 3 (Name + Type)**: Search `assets_master` WHERE `name = input.name AND asset_type = input.asset_type` and `deleted_at IS NULL`.
-
-If no match is found across all three priorities, a new master asset record is created.

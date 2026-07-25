@@ -11,12 +11,24 @@ import { CreateAssetInput } from './IAssetRepository';
 export class SQLiteTransactionRepository implements ITransactionRepository {
   public findAll(filters?: TransactionFilters): TransactionWithAssetInfo[] {
     let query = `
-      SELECT t.*, a.name as asset_name, a.type as asset_type, a.category as asset_category 
+      SELECT t.*, a.name as asset_name, a.type as asset_type, a.category as asset_category,
+             h.account_id
       FROM transactions t
-      JOIN assets a ON t.asset_id = a.id
+      LEFT JOIN assets a ON t.asset_id = a.id
+      LEFT JOIN holdings h ON t.holding_id = h.id
     `;
     const params: any[] = [];
     const conditions: string[] = [];
+
+    if (filters?.holdingId && !isNaN(filters.holdingId)) {
+      conditions.push('t.holding_id = ?');
+      params.push(filters.holdingId);
+    }
+
+    if (filters?.accountId && !isNaN(filters.accountId)) {
+      conditions.push('h.account_id = ?');
+      params.push(filters.accountId);
+    }
 
     if (filters?.assetId && !isNaN(filters.assetId)) {
       conditions.push('t.asset_id = ?');
@@ -45,10 +57,48 @@ export class SQLiteTransactionRepository implements ITransactionRepository {
 
   public findByAssetId(assetId: number): Transaction[] {
     return db.prepare(`
-      SELECT type, quantity, price, amount, date, narration, tx_category FROM transactions 
+      SELECT * FROM transactions 
       WHERE asset_id = ?
       ORDER BY date ASC, id ASC
     `).all(assetId) as Transaction[];
+  }
+
+  public findByHoldingId(holdingId: number): Transaction[] {
+    return db.prepare(`
+      SELECT * FROM transactions 
+      WHERE holding_id = ?
+      ORDER BY date ASC, id ASC
+    `).all(holdingId) as Transaction[];
+  }
+
+  public findByAccount(accountId: number): Transaction[] {
+    return db.prepare(`
+      SELECT t.* FROM transactions t
+      JOIN holdings h ON t.holding_id = h.id
+      WHERE h.account_id = ? AND h.deleted_at IS NULL
+      ORDER BY t.date ASC, t.id ASC
+    `).all(accountId) as Transaction[];
+  }
+
+  public findByEntity(entityId: number): Transaction[] {
+    return db.prepare(`
+      SELECT t.* FROM transactions t
+      JOIN holdings h ON t.holding_id = h.id
+      JOIN accounts acc ON h.account_id = acc.id
+      WHERE acc.entity_id = ? AND acc.deleted_at IS NULL AND h.deleted_at IS NULL
+      ORDER BY t.date ASC, t.id ASC
+    `).all(entityId) as Transaction[];
+  }
+
+  public findByFamilyMember(familyMemberId: number): Transaction[] {
+    return db.prepare(`
+      SELECT t.* FROM transactions t
+      JOIN holdings h ON t.holding_id = h.id
+      JOIN accounts acc ON h.account_id = acc.id
+      JOIN entities ent ON acc.entity_id = ent.id
+      WHERE ent.family_member_id = ? AND ent.deleted_at IS NULL AND acc.deleted_at IS NULL AND h.deleted_at IS NULL
+      ORDER BY t.date ASC, t.id ASC
+    `).all(familyMemberId) as Transaction[];
   }
 
   public findDuplicate(
@@ -68,10 +118,24 @@ export class SQLiteTransactionRepository implements ITransactionRepository {
   }
 
   public create(input: CreateTransactionInput): Transaction {
+    if (input.asset_id) {
+      const legacyCheck = db.prepare('SELECT id FROM assets WHERE id = ?').get(input.asset_id);
+      if (!legacyCheck) {
+        const masterAsset = db.prepare('SELECT * FROM assets_master WHERE id = ?').get(input.asset_id) as any;
+        if (masterAsset) {
+          db.prepare(`
+            INSERT OR IGNORE INTO assets (id, name, type, category, identifier)
+            VALUES (?, ?, 'OTHER', 'Other', ?)
+          `).run(masterAsset.id, masterAsset.name, masterAsset.symbol || null);
+        }
+      }
+    }
+
     const result = db.prepare(`
-      INSERT INTO transactions (asset_id, type, date, quantity, price, amount, source, narration, tx_category)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO transactions (holding_id, asset_id, type, date, quantity, price, amount, source, narration, tx_category)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
+      input.holding_id || null,
       input.asset_id, 
       input.type, 
       input.date, 
@@ -121,9 +185,10 @@ export class SQLiteTransactionRepository implements ITransactionRepository {
       // 2. Add transaction if provided
       if (transactionInput) {
         db.prepare(`
-          INSERT INTO transactions (asset_id, type, date, quantity, price, amount, source)
-          VALUES (?, ?, ?, ?, ?, ?, 'MANUAL')
+          INSERT INTO transactions (holding_id, asset_id, type, date, quantity, price, amount, source)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'MANUAL')
         `).run(
+          transactionInput.holding_id || null,
           assetId, 
           transactionInput.type, 
           transactionInput.date, 

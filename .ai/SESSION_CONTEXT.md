@@ -1,82 +1,59 @@
 # Current Sprint
-- **Sprint Number**: Sprint 1B (Domain Foundation)
-- **Sprint Goal**: Introduce ownership model (Family -> Family Members -> Entities -> Accounts). Non-destructive versioned schema migration, soft-delete strategy, full CRUD APIs, Zod validation, OwnershipService, and automated tests.
+- **Sprint Name**: Pre-Sprint 1D (Architecture Alignment: Transaction Ownership Refactoring)
+- **Sprint Goal**: Perform architectural refactoring to establish that Transactions belong to a Holding (`Account -> Holding -> Transactions`) rather than directly to a generic global `Asset Master`.
 - **Current Status**: Complete
 - **Completion Percentage**: 100%
 
 # Current Branch
 - **Git Branch**: main
-- **Last Commit**: Sprint 1B Domain Foundation Implementation
+- **Last Commit**: Pre-Sprint 1D Architecture Alignment Implementation
 - **Pending Pull Requests**: None
 
 # Current Feature
-- **Feature Name**: Ownership Domain Hierarchy & Versioned Database Migration Framework
-- **Specification Document**: `prompts/Sprint 1B (Domain Foundation).md` & `prompts/Sprints/Sprint1B/Implementation_Plan_Review_Updated.md`
-- **Implementation Status**: Production Code, Migrations & Unit Tests Complete
-- **Dependencies**: Sprint 1A Foundation Hardening
+- **Feature Name**: Transaction Ownership Refactoring & Multi-Level Aggregations
+- **Specification Document**: `prompts/Sprints/Pre-Sprint1D/Pre_Sprint_1D_Architecture_Alignment.md`, `prompts/Sprints/Pre-Sprint1D/implementation_plan2_reviewed.md` & `docs/Transaction_Ownership_Design.md`
+- **Implementation Status**: Production Code, Migrations, Architecture Specifications & Unit Tests Complete
+- **Dependencies**: Sprint 1C Asset Master & Holdings Foundation
 
 # Files Modified
-- `backend/src/db/migrationRunner.ts`: Versioned migration runner engine with `schema_migrations` tracking and timestamped database backups (`data/backups/myworth_backup_<timestamp>.db`).
-- `backend/src/db/migrations/001_domain_foundation.ts`: Versioned migration script establishing `families`, `family_members`, `entities`, `accounts`, soft-delete columns (`deleted_at`), and partial UNIQUE index on `entities(pan_number)`.
-- `backend/src/db/transactionHelper.ts`: Synchronous atomic transaction execution helper (`runInTransaction`).
-- `backend/src/db.ts`: Integrated versioned migration execution into startup (`initDb`).
-- `backend/src/repositories/IFamilyRepository.ts` & `SQLiteFamilyRepository.ts`: Interface and SQLite implementation with soft-delete filtering (`WHERE deleted_at IS NULL`).
-- `backend/src/repositories/IFamilyMemberRepository.ts` & `SQLiteFamilyMemberRepository.ts`: Interface and SQLite implementation supporting extended relationship enums (`GRANDPARENT`, `GRANDCHILD`, `IN_LAW`).
-- `backend/src/repositories/IEntityRepository.ts` & `SQLiteEntityRepository.ts`: Interface and SQLite implementation with PAN lookup and soft-delete filtering.
-- `backend/src/repositories/IAccountRepository.ts` & `SQLiteAccountRepository.ts`: Interface and SQLite implementation supporting extended account fields (`institution_name`, `masked_account_number`, `nickname`, `is_active`).
-- `backend/src/schema/domainSchemas.ts`: Zod validation schemas for all domain DTOs with extended Enums and PAN regex.
-- `backend/src/services/FamilyService.ts`: Domain service for Family & Family Member management.
-- `backend/src/services/EntityService.ts`: Domain service with duplicate PAN validation.
-- `backend/src/services/AccountService.ts`: Domain service for Account management.
-- `backend/src/services/OwnershipService.ts`: Specialized service validating complete 4-tier ownership hierarchy (`Family -> Family Member -> Entity -> Account`).
-- `backend/src/routes/v1/families.ts`: REST controller with full CRUD (GET, POST, PUT, DELETE).
-- `backend/src/routes/v1/familyMembers.ts`: REST controller with full CRUD (GET, POST, PUT, DELETE).
-- `backend/src/routes/v1/entities.ts`: REST controller with full CRUD (GET, POST, PUT, DELETE).
-- `backend/src/routes/v1/accounts.ts`: REST controller with full CRUD (GET, POST, PUT, DELETE) and ownership chain resolution (`/api/v1/accounts/:id/ownership-chain`).
-- `backend/src/index.ts`: Mounted `/api/v1/*` domain routers.
-- `backend/src/__tests__/runTests.ts`: Expanded automated unit test suite covering versioned migrations, soft-delete, PAN uniqueness, transactions, and ownership resolution (26 tests).
-- `docs/Sprint_1B_Retrospective.md`: Retrospective report for Sprint 1B.
-- `prompts/summary/Sprint 1B - Implementation Summary.md`: Comprehensive Sprint 1B summary report.
+- `docs/Transaction_Ownership_Design.md`: Canonical architectural design specification for transaction holding ownership and 3-phase deprecation roadmap.
+- `docs/DATA_MODEL.md`: Updated entity-relationship standards, stored vs. computed principles, and Holding lifecycle state transition rules.
+- `docs/SYSTEM_ARCHITECTURE.md`: Updated system architecture blueprint reflecting `Transaction -> Holding -> Account` flow.
+- `docs/ER_DIAGRAM.md`: Updated Mermaid ER diagram showing `holdings ||--|{ transactions : "contains"`.
+- `backend/src/db/migrations/003_transaction_holding_link.ts`: Versioned migration adding `holding_id` to `transactions` with deterministic backfilling for legacy unlinked transactions.
+- `backend/src/db.ts`: Registered `migration003` in startup execution chain.
+- `backend/src/repositories/ITransactionRepository.ts` & `SQLiteTransactionRepository.ts`: Added `holding_id` support and multi-level aggregation query methods (`findByHoldingId`, `findByAccount`, `findByEntity`, `findByFamilyMember`).
+- `backend/src/__tests__/runTests.ts`: Expanded automated unit test suite to 34 passing tests covering versioned migrations, holding transaction ownership, and multi-level aggregations.
+- `docs/AI_CHANGELOG.md`: Updated AI changelog.
 
 # Architecture Decisions
 - **New ADRs**:
-  - ADR-009: Versioned Migration Framework with `schema_migrations` tracking and atomic file backups.
-  - ADR-010: Soft-delete strategy (`deleted_at TIMESTAMP`) for financial ownership records.
-  - ADR-011: Strict 4-tier ownership hierarchy validation via `OwnershipService`.
-
-# Business Rules Added
-- Rejection of active duplicate PAN numbers in `EntityService`.
-- Extended relationship types: `GRANDPARENT`, `GRANDCHILD`, `IN_LAW`.
-- Extended entity types: `PARTNERSHIP`, `LLP`.
+  - ADR-014: Transactions belong to a Holding instance (`holding_id`), establishing clear ownership boundaries for XIRR, Tax lot matching, and Net Worth engines.
+  - ADR-015: 3-Phase deprecation strategy for legacy `asset_id` column coexisting during migration.
 
 # Database Changes
-- **New Tables**: `schema_migrations`, `families`, `family_members`, `entities`, `accounts`.
-- **New Indexes**: Partial UNIQUE index `idx_entities_pan_unique` on `entities(pan_number)` WHERE `deleted_at IS NULL AND pan_number IS NOT NULL AND pan_number != ''`.
+- **New Migration**: `003_transaction_holding_link.ts`
+- **Schema Updates**: Added `holding_id INTEGER REFERENCES holdings(id)` to `transactions` table.
+- **New Indexes**: `idx_transactions_holding_id` on `transactions(holding_id)`.
 
 # API Changes
-- **New Endpoints**:
-  - `/api/v1/families` (GET, POST, PUT, DELETE)
-  - `/api/v1/family-members` (GET, POST, PUT, DELETE)
-  - `/api/v1/entities` (GET, POST, PUT, DELETE)
-  - `/api/v1/accounts` (GET, POST, PUT, DELETE, GET `/ownership-chain`)
-
-# UI Changes
-- Zero UI code modified per explicit Sprint 1B constraints.
+- **New Repository Aggregation Methods**:
+  - `findByHoldingId(holdingId)`
+  - `findByAccount(accountId)`
+  - `findByEntity(entityId)`
+  - `findByFamilyMember(familyMemberId)`
 
 # Technical Debt
-- **Debt Removed**: Established versioned migration framework and soft-delete infrastructure.
-
-# Known Issues
-- None.
+- **Debt Removed**: Closed transaction ownership ambiguity for multi-account asset holdings.
 
 # Test Status
-- **Unit Tests**: 26 Passed, 0 Failed (`npm test`).
+- **Unit Tests**: 34 Passed, 0 Failed (`npm test`).
 - **Backend Build**: Passed cleanly (`tsc`).
 - **Frontend Build**: Passed cleanly (`vite build`).
 
 # Next Recommended Task
-- **Recommended Action**: Proceed to **Sprint 1C - Portfolio & Asset Linkage**.
-- **Rationale**: With the ownership model established (`Family -> Member -> Entity -> Account`), Sprint 1C will non-destructively link existing `assets` and `transactions` to portfolios and accounts, completing the data migration phase.
+- **Recommended Action**: Proceed to **Sprint 1D / Phase 2 (Portfolio & Account Transaction Integration)**.
+- **Rationale**: With the full domain hierarchy (`Family -> Family Member -> Entity -> Account -> Holding -> Asset Master / Transactions`) established, documented, and tested, the system is fully prepared to execute Sprint 1D implementation without architectural ambiguity.
 
 # Blockers
 - None.

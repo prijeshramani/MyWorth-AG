@@ -3,7 +3,7 @@
 **System Name**: Family Wealth OS  
 **Author**: Lead Software Engineer & Software Architect  
 **Date**: July 25, 2026  
-**Status**: Architecture Diagram (Sprint 1C)
+**Status**: Architecture Diagram (Pre-Sprint 1D Alignment)
 
 ---
 
@@ -17,7 +17,7 @@ erDiagram
     accounts ||--|{ holdings : "links"
     assets_master ||--|{ holdings : "held in"
     assets_master ||--|{ asset_prices : "tracks historical NAV/prices"
-    assets_master ||--|{ transactions : "logs transactions"
+    holdings ||--|{ transactions : "logs transactions"
 
     families {
         INTEGER id PK
@@ -102,6 +102,7 @@ erDiagram
 
     transactions {
         INTEGER id PK
+        INTEGER holding_id FK
         INTEGER asset_id FK
         TEXT type
         TEXT date

@@ -19,12 +19,18 @@ import { holdingService } from '../services/HoldingService';
 import { runInTransaction } from '../db/transactionHelper';
 import { AppError, ValidationError, NotFoundError } from '../errors/AppError';
 
+// Sprint 1D Engines & Infrastructure
+import { FinancialMath } from '../engines/common/FinancialMath';
+import { engineRegistry } from '../engines/common/EngineRegistry';
+import { transactionEngine, TransactionEngine } from '../engines/TransactionEngine';
+import { RawTransactionInput } from '../engines/validators/TransactionValidator';
+
 async function runTestSuite() {
   // Ensure database initialization & migrations
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING SPRINT 1A, 1B, 1C & PRE-1D REGRESSION TESTS ');
+  console.log(' RUNNING SPRINT 1A, 1B, 1C, PRE-1D & 1D REGRESSION TESTS ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -241,6 +247,66 @@ async function runTestSuite() {
 
   const txsByMember = transactionRepository.findByFamilyMember(member.id);
   assert(txsByMember.length === 1 && txsByMember[0].id === holdingTx.id, 'findByFamilyMember aggregates transactions across Entities by Family Member');
+
+  // 10. Sprint 1D Transaction Engine Foundation Tests & ARB Quality Gates
+  console.log('\n--- 10. Testing Sprint 1D Transaction Engine & Financial Infrastructure ---');
+
+  // FinancialMath Tests
+  assert(FinancialMath.roundMoney(100.456) === 100.46, 'FinancialMath.roundMoney rounds to 2 decimal places');
+  assert(FinancialMath.roundUnits(10.123456) === 10.1235, 'FinancialMath.roundUnits rounds to 4 decimal places');
+  assert(FinancialMath.safeDiv(100, 0, 0) === 0, 'FinancialMath.safeDiv handles zero denominator safely');
+
+  // EngineRegistry Tests
+  const registeredEngine = engineRegistry.getEngine('TRANSACTION_ENGINE');
+  assert(registeredEngine !== undefined && registeredEngine.metadata.id === 'TRANSACTION_ENGINE', 'EngineRegistry retrieves registered TRANSACTION_ENGINE');
+  assert(registeredEngine?.metadata.deterministic === true, 'Engine Metadata exposes deterministic flag');
+
+  // TransactionEngine Running Quantity & Average Cost Calculation
+  const testTxs: RawTransactionInput[] = [
+    { id: 1, holding_id: holding.id, type: 'BUY', date: '2026-01-10', quantity: 100, price: 100, amount: 10000 },
+    { id: 2, holding_id: holding.id, type: 'BUY', date: '2026-02-15', quantity: 100, price: 200, amount: 20000 },
+    { id: 3, holding_id: holding.id, type: 'SELL', date: '2026-03-20', quantity: 50, price: 250, amount: 12500 },
+    { id: 4, holding_id: holding.id, type: 'SPLIT', date: '2026-04-01', quantity: 2, price: 0, amount: 0 },
+    { id: 5, holding_id: holding.id, type: 'BONUS', date: '2026-05-01', quantity: 100, price: 0, amount: 0 }
+  ];
+
+  const engineResult = transactionEngine.execute({
+    correlationId: 'test_corr_1001',
+    holdingId: holding.id,
+    data: testTxs
+  });
+
+  assert(engineResult.success === true, 'TransactionEngine executes cleanly without validation errors');
+  assert(engineResult.data?.summary.totalQuantity === 400, 'TransactionEngine tracks final quantity post buys, sell, split, and bonus (400 units)');
+  assert(engineResult.data?.summary.totalCostBasis === 22500, 'TransactionEngine maintains total cost basis (22500)');
+  assert(engineResult.data?.summary.averageCost === 56.25, 'TransactionEngine maintains average cost basis (56.25)');
+  assert(engineResult.auditTrail.length > 5, 'TransactionEngine produces detailed audit trail');
+
+  // Oversell Detection Test
+  const oversellTxs: RawTransactionInput[] = [
+    { id: 1, holding_id: holding.id, type: 'BUY', date: '2026-01-01', quantity: 10, price: 100, amount: 1000 },
+    { id: 2, holding_id: holding.id, type: 'SELL', date: '2026-01-02', quantity: 50, price: 150, amount: 7500 }
+  ];
+
+  const oversellResult = transactionEngine.execute({
+    holdingId: holding.id,
+    data: oversellTxs
+  });
+
+  assert(oversellResult.warnings.some(w => w.code === 'OVERSELL_CONDITION_DETECTED'), 'TransactionEngine detects oversell condition and logs OversellWarning');
+
+  // Quality Gate 1: Determinism (Same input produces identical output)
+  const execResultA = transactionEngine.execute({ holdingId: holding.id, data: testTxs });
+  const execResultB = transactionEngine.execute({ holdingId: holding.id, data: testTxs });
+  assert(JSON.stringify(execResultA.data) === JSON.stringify(execResultB.data), 'Quality Gate: TransactionEngine is strictly deterministic');
+
+  // Quality Gate 2: Sequence Ordering Stability (Unsorted transactions are ordered chronologically date ASC, id ASC)
+  const unsortedTxs: RawTransactionInput[] = [
+    { id: 2, holding_id: holding.id, type: 'BUY', date: '2026-02-01', quantity: 50, price: 200, amount: 10000 },
+    { id: 1, holding_id: holding.id, type: 'BUY', date: '2026-01-01', quantity: 50, price: 100, amount: 5000 }
+  ];
+  const sortedResult = transactionEngine.execute({ holdingId: holding.id, data: unsortedTxs });
+  assert(sortedResult.data?.normalizedTransactions[0].date === '2026-01-01' && sortedResult.data?.summary.averageCost === 150, 'Quality Gate: TransactionEngine enforces stable chronological ordering');
 
   // Cleanup test entities & holdings
   transactionRepository.delete(holdingTx.id);

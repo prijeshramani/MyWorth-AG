@@ -1,59 +1,48 @@
 # Current Sprint
-- **Sprint Name**: Pre-Sprint 1D (Architecture Alignment: Transaction Ownership Refactoring)
-- **Sprint Goal**: Perform architectural refactoring to establish that Transactions belong to a Holding (`Account -> Holding -> Transactions`) rather than directly to a generic global `Asset Master`.
+- **Sprint Name**: Sprint 1D (Transaction Engine Foundation)
+- **Sprint Goal**: Introduce the first Financial Engine (`TransactionEngine`) and shared computational engine infrastructure (`backend/src/engines/common/`) on top of stable Architecture v1.0.
 - **Current Status**: Complete
 - **Completion Percentage**: 100%
 
 # Current Branch
 - **Git Branch**: main
-- **Last Commit**: Pre-Sprint 1D Architecture Alignment Implementation
+- **Last Commit**: Sprint 1D Transaction Engine Foundation Implementation
 - **Pending Pull Requests**: None
 
 # Current Feature
-- **Feature Name**: Transaction Ownership Refactoring & Multi-Level Aggregations
-- **Specification Document**: `prompts/Sprints/Pre-Sprint1D/Pre_Sprint_1D_Architecture_Alignment.md`, `prompts/Sprints/Pre-Sprint1D/implementation_plan2_reviewed.md` & `docs/Transaction_Ownership_Design.md`
-- **Implementation Status**: Production Code, Migrations, Architecture Specifications & Unit Tests Complete
-- **Dependencies**: Sprint 1C Asset Master & Holdings Foundation
+- **Feature Name**: Shared Engine Infrastructure & TransactionEngine Foundation
+- **Specification Document**: `prompts/Sprints/Sprint1D/Sprint 1D – Transaction Engine Foundation.md`, `prompts/Sprints/Sprint1D/implementation_plan_reviewed (1).md` & `prompts/summary/Sprint 1D - Implementation Summary.md`
+- **Implementation Status**: Shared Infrastructure, Engine Code & Automated Test Suite Complete
+- **Dependencies**: Architecture Version 1.0 (Frozen)
 
-# Files Modified
-- `docs/Transaction_Ownership_Design.md`: Canonical architectural design specification for transaction holding ownership and 3-phase deprecation roadmap.
-- `docs/DATA_MODEL.md`: Updated entity-relationship standards, stored vs. computed principles, and Holding lifecycle state transition rules.
-- `docs/SYSTEM_ARCHITECTURE.md`: Updated system architecture blueprint reflecting `Transaction -> Holding -> Account` flow.
-- `docs/ER_DIAGRAM.md`: Updated Mermaid ER diagram showing `holdings ||--|{ transactions : "contains"`.
-- `backend/src/db/migrations/003_transaction_holding_link.ts`: Versioned migration adding `holding_id` to `transactions` with deterministic backfilling for legacy unlinked transactions.
-- `backend/src/db.ts`: Registered `migration003` in startup execution chain.
-- `backend/src/repositories/ITransactionRepository.ts` & `SQLiteTransactionRepository.ts`: Added `holding_id` support and multi-level aggregation query methods (`findByHoldingId`, `findByAccount`, `findByEntity`, `findByFamilyMember`).
-- `backend/src/__tests__/runTests.ts`: Expanded automated unit test suite to 34 passing tests covering versioned migrations, holding transaction ownership, and multi-level aggregations.
+# Files Modified / Created
+- `backend/src/engines/common/FinancialMath.ts`: Financial precision helper (`roundMoney`, `roundUnits`, `safeDiv`).
+- `backend/src/engines/common/IFinancialEngine.ts`: Engine contract interface & `EngineMetadata`.
+- `backend/src/engines/common/EngineContext.ts`: Standardized context wrapper with `correlationId`, `executionDate`, `userContext`, `featureFlags`.
+- `backend/src/engines/common/EngineResult.ts`: Standardized result envelope with `auditTrail`, `metrics`, `warnings`, `errors`.
+- `backend/src/engines/common/EngineErrors.ts`: Custom engine error classes (`FinancialEngineError`, `OversellError`, `InvalidSequenceError`).
+- `backend/src/engines/common/EngineRegistry.ts`: Singleton engine manager (`engineRegistry`).
+- `backend/src/engines/validators/TransactionValidator.ts`: Transaction sequence chronology and holding ownership validator.
+- `backend/src/engines/config/TransactionEngineConfig.ts`: Configurable business policy constants.
+- `backend/src/engines/TransactionEngine.ts`: Core $O(N)$ stateless computational engine computing running quantity, average cost basis, oversell detection, and corporate actions (`SPLIT`, `BONUS`).
+- `backend/src/__tests__/runTests.ts`: Expanded automated test suite to 47 passing tests covering quality gates (determinism, idempotency, sequence stability, precision).
+- `docs/Sprint_1D_Retrospective.md`: Retrospective report for Sprint 1D.
+- `prompts/summary/Sprint 1D - Implementation Summary.md`: Comprehensive summary report for Sprint 1D.
 - `docs/AI_CHANGELOG.md`: Updated AI changelog.
 
 # Architecture Decisions
 - **New ADRs**:
-  - ADR-014: Transactions belong to a Holding instance (`holding_id`), establishing clear ownership boundaries for XIRR, Tax lot matching, and Net Worth engines.
-  - ADR-015: 3-Phase deprecation strategy for legacy `asset_id` column coexisting during migration.
-
-# Database Changes
-- **New Migration**: `003_transaction_holding_link.ts`
-- **Schema Updates**: Added `holding_id INTEGER REFERENCES holdings(id)` to `transactions` table.
-- **New Indexes**: `idx_transactions_holding_id` on `transactions(holding_id)`.
-
-# API Changes
-- **New Repository Aggregation Methods**:
-  - `findByHoldingId(holdingId)`
-  - `findByAccount(accountId)`
-  - `findByEntity(entityId)`
-  - `findByFamilyMember(familyMemberId)`
-
-# Technical Debt
-- **Debt Removed**: Closed transaction ownership ambiguity for multi-account asset holdings.
+  - ADR-016: Shared Financial Engine Infrastructure (`IFinancialEngine`, `EngineContext`, `EngineResult`, `EngineRegistry`).
+  - ADR-017: Pure stateless `TransactionEngine` computing running quantity, average cost basis, oversell detection, and corporate actions in $O(N)$ linear time without database dependencies.
 
 # Test Status
-- **Unit Tests**: 34 Passed, 0 Failed (`npm test`).
+- **Unit Tests**: 47 Passed, 0 Failed (`npm test`).
 - **Backend Build**: Passed cleanly (`tsc`).
 - **Frontend Build**: Passed cleanly (`vite build`).
 
 # Next Recommended Task
-- **Recommended Action**: Proceed to **Sprint 1D / Phase 2 (Portfolio & Account Transaction Integration)**.
-- **Rationale**: With the full domain hierarchy (`Family -> Family Member -> Entity -> Account -> Holding -> Asset Master / Transactions`) established, documented, and tested, the system is fully prepared to execute Sprint 1D implementation without architectural ambiguity.
+- **Recommended Action**: Proceed to **Sprint 2 (Price Engine Foundation)**.
+- **Rationale**: With `TransactionEngine` producing normalized holding quantities and cost basis states, Sprint 2 will introduce `PriceEngine` to synchronize historical NAVs and daily market prices from external sources (Yahoo Finance, AMFI, NPS), enabling market valuation without altering domain schemas.
 
 # Blockers
 - None.

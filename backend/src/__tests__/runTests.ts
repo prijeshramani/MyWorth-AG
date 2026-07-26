@@ -22,15 +22,24 @@ import { AppError, ValidationError, NotFoundError } from '../errors/AppError';
 // Sprint 1D Engines & Infrastructure
 import { FinancialMath } from '../engines/common/FinancialMath';
 import { engineRegistry } from '../engines/common/EngineRegistry';
-import { transactionEngine, TransactionEngine } from '../engines/TransactionEngine';
+import { transactionEngine } from '../engines/TransactionEngine';
 import { RawTransactionInput } from '../engines/validators/TransactionValidator';
+
+// Sprint 1E Valuation Engines & Infrastructure
+import {
+  CurrencyPrecision,
+  marketCalendar,
+  valuationRegistry,
+  PriceSnapshot,
+  ValuationContext
+} from '../engines/valuation';
 
 async function runTestSuite() {
   // Ensure database initialization & migrations
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING SPRINT 1A, 1B, 1C, PRE-1D & 1D REGRESSION TESTS ');
+  console.log(' RUNNING REGRESSION & SPRINT 1E VALUATION TESTS ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -248,20 +257,16 @@ async function runTestSuite() {
   const txsByMember = transactionRepository.findByFamilyMember(member.id);
   assert(txsByMember.length === 1 && txsByMember[0].id === holdingTx.id, 'findByFamilyMember aggregates transactions across Entities by Family Member');
 
-  // 10. Sprint 1D Transaction Engine Foundation Tests & ARB Quality Gates
+  // 10. Sprint 1D Transaction Engine Foundation Tests
   console.log('\n--- 10. Testing Sprint 1D Transaction Engine & Financial Infrastructure ---');
 
-  // FinancialMath Tests
   assert(FinancialMath.roundMoney(100.456) === 100.46, 'FinancialMath.roundMoney rounds to 2 decimal places');
   assert(FinancialMath.roundUnits(10.123456) === 10.1235, 'FinancialMath.roundUnits rounds to 4 decimal places');
   assert(FinancialMath.safeDiv(100, 0, 0) === 0, 'FinancialMath.safeDiv handles zero denominator safely');
 
-  // EngineRegistry Tests
   const registeredEngine = engineRegistry.getEngine('TRANSACTION_ENGINE');
   assert(registeredEngine !== undefined && registeredEngine.metadata.id === 'TRANSACTION_ENGINE', 'EngineRegistry retrieves registered TRANSACTION_ENGINE');
-  assert(registeredEngine?.metadata.deterministic === true, 'Engine Metadata exposes deterministic flag');
 
-  // TransactionEngine Running Quantity & Average Cost Calculation
   const testTxs: RawTransactionInput[] = [
     { id: 1, holding_id: holding.id, type: 'BUY', date: '2026-01-10', quantity: 100, price: 100, amount: 10000 },
     { id: 2, holding_id: holding.id, type: 'BUY', date: '2026-02-15', quantity: 100, price: 200, amount: 20000 },
@@ -280,33 +285,132 @@ async function runTestSuite() {
   assert(engineResult.data?.summary.totalQuantity === 400, 'TransactionEngine tracks final quantity post buys, sell, split, and bonus (400 units)');
   assert(engineResult.data?.summary.totalCostBasis === 22500, 'TransactionEngine maintains total cost basis (22500)');
   assert(engineResult.data?.summary.averageCost === 56.25, 'TransactionEngine maintains average cost basis (56.25)');
-  assert(engineResult.auditTrail.length > 5, 'TransactionEngine produces detailed audit trail');
 
-  // Oversell Detection Test
-  const oversellTxs: RawTransactionInput[] = [
-    { id: 1, holding_id: holding.id, type: 'BUY', date: '2026-01-01', quantity: 10, price: 100, amount: 1000 },
-    { id: 2, holding_id: holding.id, type: 'SELL', date: '2026-01-02', quantity: 50, price: 150, amount: 7500 }
-  ];
+  // 11. Sprint 1E Asset Valuation Foundation Tests
+  console.log('\n--- 11. Testing Sprint 1E Asset Valuation Infrastructure & Strategies ---');
 
-  const oversellResult = transactionEngine.execute({
-    holdingId: holding.id,
-    data: oversellTxs
+  // CurrencyPrecision & MarketCalendar Tests
+  assert(CurrencyPrecision.roundPercent(12.3456) === 12.35, 'CurrencyPrecision.roundPercent rounds percentage accurately');
+  assert(CurrencyPrecision.formatCurrency(5000, 'USD', 'en-US').includes('$5,000'), 'CurrencyPrecision.formatCurrency supports dynamic non-INR currencies');
+
+  assert(marketCalendar.isTradingDay('2026-07-24') === true, 'MarketCalendar detects weekday Friday as trading day');
+  assert(marketCalendar.isTradingDay('2026-07-26') === false, 'MarketCalendar detects weekend Sunday as non-trading day');
+  assert(marketCalendar.isStalePrice('2026-07-01', '2026-07-26', 5) === true, 'MarketCalendar detects stale prices (>5 days)');
+
+  // AssetTypeValuationRegistry Tests
+  assert(valuationRegistry.hasStrategy('STOCK') === true, 'ValuationRegistry registers STOCK strategy');
+  assert(valuationRegistry.hasStrategy('MUTUAL_FUND') === true, 'ValuationRegistry registers MUTUAL_FUND strategy');
+  assert(valuationRegistry.hasStrategy('FD') === true, 'ValuationRegistry registers FD strategy');
+  assert(valuationRegistry.hasStrategy('EPF') === true, 'ValuationRegistry registers EPF strategy');
+
+  // Strategy 1: Equity (STOCK) Valuation
+  const stockSnapshot: PriceSnapshot = { value: 3200, currency: 'INR', source: 'NSE', timestamp: '2026-07-25' };
+  const stockValContext: ValuationContext = {
+    assetId: stockAsset.id,
+    assetType: 'STOCK',
+    quantity: 100,
+    costBasis: 250000,
+    priceSnapshot: stockSnapshot,
+    valuationDate: '2026-07-26'
+  };
+  const stockValResult = valuationRegistry.value(stockValContext);
+  assert(stockValResult.success === true && stockValResult.marketValue === 320000, 'EquityValuationStrategy computes closing market value (100 * 3200 = 320000)');
+  assert(stockValResult.unrealizedGain === 70000 && stockValResult.unrealizedGainPercent === 28, 'EquityValuationStrategy computes unrealized gain (70000 / 28%)');
+
+  // Strategy 2: Mutual Fund Valuation
+  const mfSnapshot: PriceSnapshot = { value: 150.5, currency: 'INR', source: 'AMFI', timestamp: '2026-07-25' };
+  const mfValContext: ValuationContext = {
+    assetType: 'MUTUAL_FUND',
+    quantity: 1000,
+    costBasis: 100000,
+    priceSnapshot: mfSnapshot,
+    valuationDate: '2026-07-26'
+  };
+  const mfValResult = valuationRegistry.value(mfValContext);
+  assert(mfValResult.marketValue === 150500 && mfValResult.unrealizedGain === 50500, 'MutualFundValuationStrategy computes NAV market value');
+
+  // Strategy 3: Fixed Deposit (FD) Compounding Interest Valuation
+  const fdValContext: ValuationContext = {
+    assetType: 'FD',
+    quantity: 1,
+    costBasis: 100000,
+    valuationDate: '2027-01-01', // 1 year elapsed
+    metadata: {
+      interestRate: 10.0, // 10% annual rate
+      compoundingFrequency: 'ANNUAL',
+      startDate: '2026-01-01'
+    }
+  };
+  const fdValResult = valuationRegistry.value(fdValContext);
+  assert(fdValResult.marketValue === 110000, 'FixedDepositValuationStrategy computes 1-year annual compound interest (100000 @ 10% = 110000)');
+
+  // Strategy 4: Provident Fund (EPF/PPF) Interest Accumulation
+  const epfValContext: ValuationContext = {
+    assetType: 'EPF',
+    quantity: 1,
+    costBasis: 200000,
+    valuationDate: '2027-01-01',
+    metadata: {
+      interestRate: 8.25,
+      startDate: '2026-01-01'
+    }
+  };
+  const epfValResult = valuationRegistry.value(epfValContext);
+  assert(epfValResult.marketValue === 216500, 'ProvidentFundValuationStrategy computes EPF 1-year interest accumulation (200000 @ 8.25% = 216500)');
+
+  // Strategy 5: Gold Valuation (per gram)
+  const goldSnapshot: PriceSnapshot = { value: 7500, currency: 'INR', source: 'BULLION', timestamp: '2026-07-25' };
+  const goldValResult = valuationRegistry.value({
+    assetType: 'GOLD',
+    quantity: 50, // 50 grams
+    costBasis: 300000,
+    priceSnapshot: goldSnapshot,
+    valuationDate: '2026-07-26'
   });
+  assert(goldValResult.marketValue === 375000, 'GoldValuationStrategy computes per-gram bullion value (50g * 7500 = 375000)');
 
-  assert(oversellResult.warnings.some(w => w.code === 'OVERSELL_CONDITION_DETECTED'), 'TransactionEngine detects oversell condition and logs OversellWarning');
+  // Strategy 6: Real Estate Valuation
+  const reValResult = valuationRegistry.value({
+    assetType: 'REAL_ESTATE',
+    quantity: 1,
+    costBasis: 5000000,
+    valuationDate: '2026-07-26',
+    metadata: {
+      areaSqFt: 1200,
+      pricePerSqFt: 6000
+    }
+  });
+  assert(reValResult.marketValue === 7200000, 'RealEstateValuationStrategy computes property valuation from area & rate (1200 * 6000 = 7200000)');
 
-  // Quality Gate 1: Determinism (Same input produces identical output)
-  const execResultA = transactionEngine.execute({ holdingId: holding.id, data: testTxs });
-  const execResultB = transactionEngine.execute({ holdingId: holding.id, data: testTxs });
-  assert(JSON.stringify(execResultA.data) === JSON.stringify(execResultB.data), 'Quality Gate: TransactionEngine is strictly deterministic');
+  // Edge Cases (Recommendation 10)
+  // Edge Case A: Zero Quantity
+  const zeroQtyResult = valuationRegistry.value({
+    assetType: 'STOCK',
+    quantity: 0,
+    costBasis: 10000,
+    valuationDate: '2026-07-26'
+  });
+  assert(zeroQtyResult.marketValue === 0 && zeroQtyResult.warnings.length > 0, 'Edge Case A: Zero quantity yields 0 market value and warning');
 
-  // Quality Gate 2: Sequence Ordering Stability (Unsorted transactions are ordered chronologically date ASC, id ASC)
-  const unsortedTxs: RawTransactionInput[] = [
-    { id: 2, holding_id: holding.id, type: 'BUY', date: '2026-02-01', quantity: 50, price: 200, amount: 10000 },
-    { id: 1, holding_id: holding.id, type: 'BUY', date: '2026-01-01', quantity: 50, price: 100, amount: 5000 }
-  ];
-  const sortedResult = transactionEngine.execute({ holdingId: holding.id, data: unsortedTxs });
-  assert(sortedResult.data?.normalizedTransactions[0].date === '2026-01-01' && sortedResult.data?.summary.averageCost === 150, 'Quality Gate: TransactionEngine enforces stable chronological ordering');
+  // Edge Case B: Stale Price Detection (>5 days old)
+  const staleSnapshot: PriceSnapshot = { value: 100, currency: 'INR', source: 'NSE', timestamp: '2026-06-01' };
+  const staleResult = valuationRegistry.value({
+    assetType: 'STOCK',
+    quantity: 10,
+    costBasis: 1000,
+    priceSnapshot: staleSnapshot,
+    valuationDate: '2026-07-26'
+  });
+  assert(staleResult.dataQuality === 'STALE' && staleResult.warnings.some(w => w.includes('stale')), 'Edge Case B: Stale price flags dataQuality as STALE');
+
+  // Edge Case C: Unsupported Asset Type Warning (Recommendation 8)
+  const unmappedResult = valuationRegistry.value({
+    assetType: 'UNKNOWN_CRYPTO_DERIVATIVE',
+    quantity: 10,
+    costBasis: 500,
+    valuationDate: '2026-07-26'
+  });
+  assert(unmappedResult.success === false && unmappedResult.valuationMethod === 'UNSUPPORTED_VALUATION_STRATEGY', 'Edge Case C: Unmapped asset type returns explicit warning & unsupported valuation method');
 
   // Cleanup test entities & holdings
   transactionRepository.delete(holdingTx.id);

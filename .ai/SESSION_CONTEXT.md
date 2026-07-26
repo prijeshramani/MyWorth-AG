@@ -1,48 +1,48 @@
 # Current Sprint
-- **Sprint Name**: Sprint 1D (Transaction Engine Foundation)
-- **Sprint Goal**: Introduce the first Financial Engine (`TransactionEngine`) and shared computational engine infrastructure (`backend/src/engines/common/`) on top of stable Architecture v1.0.
+- **Sprint Name**: Sprint 1E (Asset Valuation Foundation)
+- **Sprint Goal**: Design and implement the provider-agnostic Asset Valuation Architecture (`backend/src/engines/valuation/`) supporting all 14 financial asset classes on top of stable Architecture v1.0.
 - **Current Status**: Complete
 - **Completion Percentage**: 100%
 
 # Current Branch
 - **Git Branch**: main
-- **Last Commit**: Sprint 1D Transaction Engine Foundation Implementation
+- **Last Commit**: Sprint 1E Asset Valuation Foundation Implementation
 - **Pending Pull Requests**: None
 
 # Current Feature
-- **Feature Name**: Shared Engine Infrastructure & TransactionEngine Foundation
-- **Specification Document**: `prompts/Sprints/Sprint1D/Sprint 1D – Transaction Engine Foundation.md`, `prompts/Sprints/Sprint1D/implementation_plan_reviewed (1).md` & `prompts/summary/Sprint 1D - Implementation Summary.md`
-- **Implementation Status**: Shared Infrastructure, Engine Code & Automated Test Suite Complete
-- **Dependencies**: Architecture Version 1.0 (Frozen)
+- **Feature Name**: Valuation Architecture & Asset Class Valuation Strategies
+- **Specification Document**: `prompts/Sprints/Sprint1E/Sprint 1E – Asset Valuation Foundation.md`, `prompts/Sprints/Sprint1E/implementation_plan_1E_reviewed.md` & `prompts/summary/Sprint 1E - Implementation Summary.md`
+- **Implementation Status**: Infrastructure, 11 Strategies & Automated Test Suite Complete
+- **Dependencies**: Architecture Version 1.0 (Frozen), Sprint 1D Transaction Engine
 
 # Files Modified / Created
-- `backend/src/engines/common/FinancialMath.ts`: Financial precision helper (`roundMoney`, `roundUnits`, `safeDiv`).
-- `backend/src/engines/common/IFinancialEngine.ts`: Engine contract interface & `EngineMetadata`.
-- `backend/src/engines/common/EngineContext.ts`: Standardized context wrapper with `correlationId`, `executionDate`, `userContext`, `featureFlags`.
-- `backend/src/engines/common/EngineResult.ts`: Standardized result envelope with `auditTrail`, `metrics`, `warnings`, `errors`.
-- `backend/src/engines/common/EngineErrors.ts`: Custom engine error classes (`FinancialEngineError`, `OversellError`, `InvalidSequenceError`).
-- `backend/src/engines/common/EngineRegistry.ts`: Singleton engine manager (`engineRegistry`).
-- `backend/src/engines/validators/TransactionValidator.ts`: Transaction sequence chronology and holding ownership validator.
-- `backend/src/engines/config/TransactionEngineConfig.ts`: Configurable business policy constants.
-- `backend/src/engines/TransactionEngine.ts`: Core $O(N)$ stateless computational engine computing running quantity, average cost basis, oversell detection, and corporate actions (`SPLIT`, `BONUS`).
-- `backend/src/__tests__/runTests.ts`: Expanded automated test suite to 47 passing tests covering quality gates (determinism, idempotency, sequence stability, precision).
-- `docs/Sprint_1D_Retrospective.md`: Retrospective report for Sprint 1D.
-- `prompts/summary/Sprint 1D - Implementation Summary.md`: Comprehensive summary report for Sprint 1D.
+- `backend/src/engines/valuation/PriceSnapshot.ts`: Immutable price model (`value`, `currency`, `source`, `timestamp`, `confidence`, `stale`, `adjusted`).
+- `backend/src/engines/valuation/ValuationContext.ts`: Standardized valuation context with typed `AssetMetadata`.
+- `backend/src/engines/valuation/ValuationResult.ts`: Standardized valuation result envelope (`valuationMethod`, `dataQuality`, `unrealizedGain`).
+- `backend/src/engines/valuation/IValuationStrategy.ts`: Strategy pattern contract interface.
+- `backend/src/engines/valuation/CurrencyPrecision.ts`: Financial precision & multi-currency formatting helper.
+- `backend/src/engines/valuation/MarketCalendar.ts`: Trading calendar helper evaluating trading days and stale price conditions.
+- `backend/src/engines/valuation/AssetTypeValuationRegistry.ts`: Strategy registry manager supporting dynamic runtime strategy registration.
+- `backend/src/engines/valuation/strategies/*`: 11 valuation strategy classes (`STOCK`, `MUTUAL_FUND`, `ETF`, `GOLD`, `BOND`, `FD`, `EPF`/`PPF`/`SSA`, `NPS`, `REAL_ESTATE`, `CRYPTO`, `BANK`, `OTHER`).
+- `backend/src/engines/valuation/index.ts`: Re-export index file.
+- `backend/src/__tests__/runTests.ts`: Expanded automated test suite to 61 passing tests.
+- `docs/Sprint_1E_Retrospective.md`: Retrospective report for Sprint 1E.
+- `prompts/summary/Sprint 1E - Implementation Summary.md`: Comprehensive summary report for Sprint 1E.
 - `docs/AI_CHANGELOG.md`: Updated AI changelog.
 
 # Architecture Decisions
 - **New ADRs**:
-  - ADR-016: Shared Financial Engine Infrastructure (`IFinancialEngine`, `EngineContext`, `EngineResult`, `EngineRegistry`).
-  - ADR-017: Pure stateless `TransactionEngine` computing running quantity, average cost basis, oversell detection, and corporate actions in $O(N)$ linear time without database dependencies.
+  - ADR-018: Provider-Agnostic Asset Valuation Architecture (`IValuationStrategy`, `PriceSnapshot`, `ValuationContext`, `ValuationResult`, `AssetTypeValuationRegistry`).
+  - ADR-019: Compound interest valuation for Fixed Deposits ($A = P(1+r/n)^{nt}$) and annual interest accumulation for Provident Funds ($A = P(1+r)^t$).
 
 # Test Status
-- **Unit Tests**: 47 Passed, 0 Failed (`npm test`).
+- **Unit Tests**: 61 Passed, 0 Failed (`npm test`).
 - **Backend Build**: Passed cleanly (`tsc`).
 - **Frontend Build**: Passed cleanly (`vite build`).
 
 # Next Recommended Task
-- **Recommended Action**: Proceed to **Sprint 2 (Price Engine Foundation)**.
-- **Rationale**: With `TransactionEngine` producing normalized holding quantities and cost basis states, Sprint 2 will introduce `PriceEngine` to synchronize historical NAVs and daily market prices from external sources (Yahoo Finance, AMFI, NPS), enabling market valuation without altering domain schemas.
+- **Recommended Action**: Proceed to **Sprint 2 (Price Engine Foundation & Market Importers)**.
+- **Rationale**: With `TransactionEngine` computing normalized holding quantities and cost basis, and `ValuationEngine` providing the valuation architecture, Sprint 2 will implement market price importers (Yahoo Finance for Equities/ETFs, AMFI for Mutual Funds, NPS CRA for NPS) to populate `PriceSnapshot` objects and historic price tables seamlessly.
 
 # Blockers
 - None.

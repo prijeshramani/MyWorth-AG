@@ -1,13 +1,69 @@
 # 📊 RISK_DOMAIN_MODEL.md — Risk Engine Contracts & Models
 
 **System Name**: Family Wealth OS  
-**Phase**: Sprint 5B (Risk Intelligence Engine - Architecture & Design Phase)  
+**Phase**: Sprint 5B (Final ARB Integration)  
 **Date**: July 26, 2026  
-**Status**: APPROVED ARCHITECTURE  
+**Status**: APPROVED ARCHITECTURE (ARB ENHANCED)  
 
 ---
 
-## 1. Engine Contract Interface (`IRiskEngine`)
+## 1. Risk Metric Taxonomy & Rule Registry
+
+- **RISK-001**: Sharpe Ratio ($\frac{R_p - R_f}{\sigma_p}$)
+- **RISK-002**: Sortino Ratio ($\frac{R_p - R_f}{\sigma_d}$)
+- **RISK-003**: Annualized Volatility ($\sigma_p \cdot \sqrt{252}$)
+- **RISK-004**: Maximum Drawdown ($\frac{\text{Peak} - \text{Trough}}{\text{Peak}}$)
+- **RISK-005**: Portfolio Beta ($\frac{\text{Cov}(R_p, R_m)}{\text{Var}(R_m)}$)
+- **RISK-006**: Benchmark Correlation ($\rho_{p, m}$)
+- **RISK-007**: Tracking Error ($\sigma(R_p - R_m)$)
+
+---
+
+## 2. Future Strategy & Context Abstractions (Documentation Only)
+
+### A. Extended Risk Classification Registry
+- `LOW`: Minimal volatility, capital preservation focus.
+- `MODERATE`: Balanced risk-return profile.
+- `HIGH`: Growth focus with elevated volatility.
+- `EXTREME`: High concentration or speculative assets.
+- `SYSTEMIC`: Market-wide broad market risk.
+- `IDIOSYNCRATIC`: Single-asset or issuer specific risk.
+
+### B. Risk Source Attribution Model
+```typescript
+export interface RiskSourceAttribution {
+  overallRisk: number;
+  marketRiskContribution: number;
+  sectorRiskContribution: number;
+  issuerRiskContribution: number;
+  currencyRiskContribution: number;
+  liquidityRiskContribution: number;
+}
+```
+
+### C. Reusable Scenario Registry (`ScenarioRegistry`)
+- `2008 Financial Crisis`: -45% equity shock, credit spread widening.
+- `COVID Crash`: -33% rapid equity drawdown, liquidity freeze.
+- `Dot-com Crash`: -75% tech sector drawdown.
+- `Interest Rate Shock`: +200 bps rate increase (bond price decline).
+- `Oil Crisis`: Energy price surge & stagflation.
+
+### D. Centralized Benchmark Registry Architecture (`BenchmarkRegistry`)
+```typescript
+export interface CentralizedBenchmarkRegistry {
+  benchmarks: Record<string, {
+    id: string;
+    name: string;
+    currency: string;
+    market: string;
+    ticker: string;
+  }>;
+}
+```
+
+---
+
+## 3. Core Risk Engine Contracts
 
 ```typescript
 import { IFinancialEngine } from './common/IFinancialEngine';
@@ -27,25 +83,6 @@ export interface PortfolioTimePoint {
   returnPercent: number;
 }
 
-export interface RiskInputPayload {
-  portfolioTimeSeries: PortfolioTimePoint[];
-  benchmarkTimeSeries?: Record<string, BenchmarkReturnPoint[]>;
-  riskFreeRatePercent?: number; // Default 6.5% (India 10Y Repo Rate)
-  reportingCurrency?: string;   // Default 'INR'
-  asOfDate: string;             // YYYY-MM-DD
-}
-
-export interface IRiskEngine extends IFinancialEngine<RiskInputPayload, RiskSnapshot> {
-  // Inherits metadata and execute(context) method
-}
-```
-
----
-
-## 2. Core Risk Domain Models
-
-### A. `RiskSummary`
-```typescript
 export interface RiskSummary {
   annualizedVolatilityPercent: number; // RISK-003
   downsideDeviationPercent: number;
@@ -54,12 +91,9 @@ export interface RiskSummary {
   sharpeRatio: number;                 // RISK-001
   sortinoRatio: number;                // RISK-002
   riskFreeRateUsed: number;
-  riskRating: 'LOW' | 'MODERATE' | 'HIGH' | 'EXTREME';
+  riskRating: 'LOW' | 'MODERATE' | 'HIGH' | 'EXTREME' | 'SYSTEMIC' | 'IDIOSYNCRATIC';
 }
-```
 
-### B. `BenchmarkComparison`
-```typescript
 export interface BenchmarkComparisonItem {
   benchmarkSymbol: string;             // e.g. 'NIFTY_50', 'S_AND_P_500'
   benchmarkName: string;               // e.g. 'Nifty 50 Index'
@@ -75,10 +109,7 @@ export interface BenchmarkComparison {
   primaryBenchmark: BenchmarkComparisonItem;
   benchmarks: BenchmarkComparisonItem[];
 }
-```
 
-### C. `RiskRecommendation`
-```typescript
 export interface RiskRecommendation {
   id: string;
   category: 'VOLATILITY' | 'DRAWDOWN' | 'CONCENTRATION' | 'BENCHMARK_LAG';
@@ -87,31 +118,7 @@ export interface RiskRecommendation {
   recommendation: string;
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 }
-```
 
-### D. Future Advanced Risk Extensions (Documentation Only)
-```typescript
-export interface FutureAdvancedRiskExtensions {
-  stressTesting?: {
-    scenarioName: string; // e.g. '2008 Financial Crisis', '2020 COVID Crash'
-    simulatedLossPercent: number;
-  }[];
-  monteCarloSimulation?: {
-    numSimulations: 10000;
-    expectedReturn5Yr: number;
-    worstCase5Yr95Percentile: number;
-    bestCase5Yr95Percentile: number;
-  };
-  valueAtRisk?: {
-    var95Percent1Day: number;
-    var99Percent1Day: number;
-    conditionalVar95Percent: number; // CVaR / Expected Shortfall
-  };
-}
-```
-
-### E. Consolidated `RiskSnapshot`
-```typescript
 export interface RiskSnapshot {
   snapshotId: string;
   asOfDate: string;
@@ -120,6 +127,5 @@ export interface RiskSnapshot {
   summary: RiskSummary;
   benchmarkComparison?: BenchmarkComparison;
   recommendations: RiskRecommendation[];
-  advancedExtensions?: FutureAdvancedRiskExtensions;
 }
 ```

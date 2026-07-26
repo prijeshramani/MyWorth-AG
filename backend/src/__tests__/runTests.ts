@@ -59,12 +59,16 @@ import { CashFlowEvent } from '../engines/PerformanceTypes';
 // Sprint 5A Portfolio Analytics Engine
 import { portfolioAnalyticsEngine, PortfolioAnalyticsEngine } from '../engines/PortfolioAnalyticsEngine';
 
+// Sprint 5B Risk Intelligence Engine
+import { riskEngine, RiskEngine } from '../engines/RiskEngine';
+import { PortfolioTimePoint, BenchmarkReturnPoint } from '../engines/RiskTypes';
+
 async function runTestSuite() {
   // Ensure database initialization & migrations
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING REGRESSION & SPRINT 5A PORTFOLIO ANALYTICS ENGINE TESTS ');
+  console.log(' RUNNING REGRESSION & SPRINT 5B RISK ENGINE TESTS ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -506,26 +510,73 @@ async function runTestSuite() {
   assert(analyticsResult.success === true, 'PortfolioAnalyticsEngine executes successfully');
   const analyticsSnapshot = analyticsResult.data!;
 
-  // Verify Multi-Dimensional Allocations (ANL-001, ANL-002)
   assert(analyticsSnapshot.allocations.assetAllocation.length === 2, 'PortfolioAnalyticsEngine decomposes Asset Allocation (STOCK & BANK)');
   assert(analyticsSnapshot.allocations.sectorAllocation.length === 2, 'PortfolioAnalyticsEngine decomposes Sector Allocation (TECHNOLOGY & BANKING)');
   assert(analyticsSnapshot.allocations.marketAllocation.length === 3, 'PortfolioAnalyticsEngine decomposes Market Allocation (IN_NSE, US_NASDAQ, DOMESTIC)');
   assert(analyticsSnapshot.allocations.geographicAllocation.length === 2, 'PortfolioAnalyticsEngine decomposes Geographic Allocation (India & United States)');
-
-  // Verify HHI Diversification Score & Concentration Ratios (ANL-003)
   assert(analyticsSnapshot.health.diversification.score > 0, 'PortfolioAnalyticsEngine computes positive DiversificationScore');
   assert(analyticsSnapshot.health.diversification.hhiIndex > 0, 'PortfolioAnalyticsEngine computes valid HHI Index');
   assert(analyticsSnapshot.health.concentration.top1AssetConcentrationPercent > 0, 'PortfolioAnalyticsEngine measures Top 1 Asset concentration');
-
-  // Verify Cash Allocation & Health Rating (ANL-004, ANL-005)
   assert(analyticsSnapshot.health.cashLiquidity.cashPercentage > 0, 'PortfolioAnalyticsEngine computes cash liquidity percentage');
   assert(analyticsSnapshot.health.healthScore > 0, 'PortfolioAnalyticsEngine evaluates composite PortfolioHealth score');
   assert(analyticsSnapshot.manifest.checksum.length === 64, 'PortfolioAnalyticsEngine generates valid SHA-256 calculation manifest checksum');
 
-  // Quality Gate 1: Determinism
   const analyticsExecA = portfolioAnalyticsEngine.execute({ correlationId: 'anl_gate_1', data: { valuationResults: [inrValResult, usdValResult], fxRates: { 'USD_INR': 83.50 }, asOfDate: '2026-07-26' } });
   const analyticsExecB = portfolioAnalyticsEngine.execute({ correlationId: 'anl_gate_2', data: { valuationResults: [inrValResult, usdValResult], fxRates: { 'USD_INR': 83.50 }, asOfDate: '2026-07-26' } });
   assert(analyticsExecA.data?.manifest.checksum === analyticsExecB.data?.manifest.checksum, 'Quality Gate: PortfolioAnalyticsEngine produces 100% deterministic calculation checksum');
+
+  // 16. Sprint 5B Risk Intelligence Engine Tests
+  console.log('\n--- 16. Testing Sprint 5B Risk Intelligence Engine & Metrics ---');
+
+  const registeredRiskEngine = engineRegistry.getEngine('RISK_ENGINE');
+  assert(registeredRiskEngine !== undefined && registeredRiskEngine.metadata.id === 'RISK_ENGINE', 'EngineRegistry retrieves registered RISK_ENGINE');
+
+  const samplePortfolioTimeSeries: PortfolioTimePoint[] = [
+    { date: '2025-01-01', portfolioValue: 100000, returnPercent: 0 },
+    { date: '2025-02-01', portfolioValue: 105000, returnPercent: 0.05 },
+    { date: '2025-03-01', portfolioValue: 98000, returnPercent: -0.0667 },
+    { date: '2025-04-01', portfolioValue: 112000, returnPercent: 0.1428 },
+    { date: '2025-05-01', portfolioValue: 115000, returnPercent: 0.0267 }
+  ];
+
+  const sampleBenchmarkTimeSeries: Record<string, BenchmarkReturnPoint[]> = {
+    NIFTY_50: [
+      { date: '2025-01-01', indexValue: 22000, returnPercent: 0 },
+      { date: '2025-02-01', indexValue: 22400, returnPercent: 0.0181 },
+      { date: '2025-03-01', indexValue: 21800, returnPercent: -0.0267 },
+      { date: '2025-04-01', indexValue: 23000, returnPercent: 0.055 },
+      { date: '2025-05-01', indexValue: 23500, returnPercent: 0.0217 }
+    ]
+  };
+
+  const riskResult = riskEngine.execute({
+    correlationId: 'risk_test_1001',
+    data: {
+      portfolioTimeSeries: samplePortfolioTimeSeries,
+      benchmarkTimeSeries: sampleBenchmarkTimeSeries,
+      riskFreeRatePercent: 6.50,
+      reportingCurrency: 'INR',
+      asOfDate: '2025-05-01'
+    }
+  });
+
+  assert(riskResult.success === true, 'RiskEngine executes successfully');
+  const riskSnapshot = riskResult.data!;
+
+  // Verify Risk Metrics (RISK-001 through RISK-007)
+  assert(riskSnapshot.summary.annualizedVolatilityPercent > 0, 'RiskEngine computes Annualized Volatility (RISK-003)');
+  assert(riskSnapshot.summary.maxDrawdownPercent > 0, 'RiskEngine measures Maximum Drawdown (RISK-004)');
+  assert(riskSnapshot.summary.sharpeRatio !== 0, 'RiskEngine solves Sharpe Ratio (RISK-001)');
+  assert(riskSnapshot.summary.sortinoRatio !== 0, 'RiskEngine solves Sortino Ratio (RISK-002)');
+  assert(riskSnapshot.benchmarkComparison !== undefined, 'RiskEngine generates BenchmarkComparison structure');
+  assert(riskSnapshot.benchmarkComparison?.primaryBenchmark.beta !== undefined, 'RiskEngine solves Beta against Nifty 50 (RISK-005)');
+  assert(riskSnapshot.benchmarkComparison?.primaryBenchmark.correlation !== undefined, 'RiskEngine solves Correlation against Nifty 50 (RISK-006)');
+  assert(riskSnapshot.manifest.checksum.length === 64, 'RiskEngine generates valid SHA-256 calculation manifest checksum');
+
+  // Quality Gate 1: Determinism
+  const riskExecA = riskEngine.execute({ correlationId: 'risk_gate_1', data: { portfolioTimeSeries: samplePortfolioTimeSeries, asOfDate: '2025-05-01' } });
+  const riskExecB = riskEngine.execute({ correlationId: 'risk_gate_2', data: { portfolioTimeSeries: samplePortfolioTimeSeries, asOfDate: '2025-05-01' } });
+  assert(riskExecA.data?.manifest.checksum === riskExecB.data?.manifest.checksum, 'Quality Gate: RiskEngine produces 100% deterministic calculation checksum');
 
   // Cleanup test entities & holdings
   transactionRepository.delete(holdingTx.id);

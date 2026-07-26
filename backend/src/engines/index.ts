@@ -19,3 +19,7 @@ export { IPerformanceEngine, PerformanceInputPayload } from './IPerformanceEngin
 export * from './PortfolioAnalyticsEngine';
 export * from './PortfolioAnalyticsTypes';
 export { IPortfolioAnalyticsEngine, PortfolioAnalyticsInputPayload } from './IPortfolioAnalyticsEngine';
+
+export * from './RiskEngine';
+export * from './RiskTypes';
+export { IRiskEngine, RiskInputPayload } from './IRiskEngine';

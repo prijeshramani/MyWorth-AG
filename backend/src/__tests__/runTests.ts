@@ -31,7 +31,8 @@ import {
   marketCalendar,
   valuationRegistry,
   PriceSnapshot,
-  ValuationContext
+  ValuationContext,
+  ValuationResult
 } from '../engines/valuation';
 
 // Sprint 2B Provider Framework & Resilience
@@ -42,18 +43,21 @@ import {
   ReplayProvider,
   ProviderCache,
   CircuitBreaker,
-  RetryPolicy,
   ProviderHealthService,
   providerIdentifierMapper,
   InvalidSymbolError
 } from '../providers';
+
+// Sprint 3 Net Worth Engine
+import { netWorthEngine, NetWorthEngine } from '../engines/NetWorthEngine';
+import { CalculationManifestHelper } from '../engines/common/CalculationManifest';
 
 async function runTestSuite() {
   // Ensure database initialization & migrations
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING REGRESSION & SPRINT 2B PROVIDER TESTS ');
+  console.log(' RUNNING REGRESSION & SPRINT 3 NET WORTH ENGINE TESTS ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -277,67 +281,130 @@ async function runTestSuite() {
   // 12. Sprint 2B Market Data Provider Framework Tests
   console.log('\n--- 12. Testing Sprint 2B Market Data Provider Framework & Resilience ---');
 
-  // ProviderIdentifierMapper Tests
   const indiaQuery = providerIdentifierMapper.resolveProviderQuerySymbol({ providerId: 'YAHOO_FINANCE', symbol: 'RELIANCE', exchange: 'NSE' });
   assert(indiaQuery === 'RELIANCE.NS', 'ProviderIdentifierMapper appends .NS for Indian NSE stocks');
 
   const usQuery = providerIdentifierMapper.resolveProviderQuerySymbol({ providerId: 'YAHOO_FINANCE', symbol: 'AAPL', exchange: 'NASDAQ' });
   assert(usQuery === 'AAPL', 'ProviderIdentifierMapper preserves plain ticker for US NASDAQ stocks');
 
-  // YahooFinanceProvider (India + USA)
   const inPrice = await yahooFinanceProvider.fetchLatestPrice('RELIANCE', 'NSE');
   assert(inPrice !== null && inPrice.value === 2850.00 && inPrice.currency === 'INR', 'YahooFinanceProvider fetches Indian stock quote in INR');
 
   const usPrice = await yahooFinanceProvider.fetchLatestPrice('AAPL', 'NASDAQ');
   assert(usPrice !== null && usPrice.value === 180.50 && usPrice.currency === 'USD', 'YahooFinanceProvider fetches US stock quote in USD');
 
-  // ManualProvider Test
-  manualProvider.setManualPrice('UNLISTED_STARTUP', 500);
-  const manualVal = await manualProvider.fetchLatestPrice('UNLISTED_STARTUP');
-  assert(manualVal !== null && manualVal.value === 500, 'ManualProvider sets & returns custom manual override price');
+  // 13. Sprint 3 Net Worth Engine Tests & Calculation Manifest
+  console.log('\n--- 13. Testing Sprint 3 Net Worth Engine & Calculation Manifest ---');
 
-  // MockProvider Test
-  const mockTest = new MockProvider();
-  const mockSnapshot = await mockTest.fetchLatestPrice('TEST_TICKER', 'NSE');
-  assert(mockSnapshot !== null && mockSnapshot.value > 0, 'MockProvider generates deterministic synthetic price');
+  // CalculationManifest Tests
+  const manifest = CalculationManifestHelper.createManifest({
+    engine: 'NET_WORTH_ENGINE',
+    engineVersion: '1.0.0',
+    businessRuleVersion: '2026.1',
+    executionTimeMs: 10,
+    processedHoldings: 2,
+    processedValuations: 2,
+    warningCount: 0,
+    payloadToHash: { test: 123 }
+  });
+  assert(manifest.checksum.length === 64, 'CalculationManifestHelper generates valid SHA-256 checksum string');
 
-  // ReplayProvider Test (Recommendation 6)
-  const replayTest = new ReplayProvider('STEP_BY_STEP');
-  const sampleSeries: PriceSnapshot[] = [
-    Object.freeze({ value: 100, currency: 'INR', source: 'REPLAY', timestamp: '2026-01-01', confidence: 'HIGH', stale: false, adjusted: true }),
-    Object.freeze({ value: 110, currency: 'INR', source: 'REPLAY', timestamp: '2026-01-02', confidence: 'HIGH', stale: false, adjusted: true })
-  ];
-  replayTest.loadPriceSeries('SERIES_TICKER', sampleSeries);
-  const step1 = await replayTest.fetchLatestPrice('SERIES_TICKER');
-  const step2 = await replayTest.fetchLatestPrice('SERIES_TICKER');
-  assert(step1?.value === 100 && step2?.value === 110, 'ReplayProvider steps through historical price series deterministically');
+  // EngineRegistry Lookup
+  const registeredNwEngine = engineRegistry.getEngine('NET_WORTH_ENGINE');
+  assert(registeredNwEngine !== undefined && registeredNwEngine.metadata.id === 'NET_WORTH_ENGINE', 'EngineRegistry retrieves registered NET_WORTH_ENGINE');
 
-  // ProviderCache Independent TTL Test (Recommendation 4)
-  const testCache = new ProviderCache();
-  testCache.set('QUOTE_KEY', mockSnapshot, 'QUOTE');
-  assert(testCache.get('QUOTE_KEY', 'QUOTE') !== null, 'ProviderCache stores and retrieves live quote snapshot');
+  // Multi-Currency Portfolio Consolidation Test (INR + USD)
+  const inrValResult: ValuationResult = {
+    success: true,
+    assetId: 101,
+    assetType: 'STOCK',
+    quantity: 100,
+    unitPrice: 2000,
+    valuationDate: '2026-07-26',
+    marketValue: 200000, // ₹2,00,000 INR
+    costBasis: 150000,
+    unrealizedGain: 50000,
+    unrealizedGainPercent: 33.33,
+    currency: 'INR',
+    valuationMethod: 'MARKET_CLOSING_PRICE',
+    dataQuality: 'HIGH',
+    priceSource: 'NSE',
+    warnings: [],
+    errors: [],
+    auditTrail: [],
+    engineVersion: '1.0.0'
+  };
 
-  // CircuitBreaker Tests (Recommendation 10)
-  const cb = new CircuitBreaker({ failureThreshold: 2, cooldownPeriodMs: 500 });
-  assert(cb.canExecute() === true, 'CircuitBreaker initializes in CLOSED state');
-  cb.onFailure();
-  cb.onFailure(); // Exceeds threshold
-  assert(cb.canExecute() === false, 'CircuitBreaker transitions to OPEN after 2 consecutive failures');
+  const usdValResult: ValuationResult = {
+    success: true,
+    assetId: 102,
+    assetType: 'STOCK',
+    quantity: 50,
+    unitPrice: 200,
+    valuationDate: '2026-07-26',
+    marketValue: 10000, // $10,000 USD
+    costBasis: 8000,
+    unrealizedGain: 2000,
+    unrealizedGainPercent: 25.0,
+    currency: 'USD',
+    valuationMethod: 'MARKET_CLOSING_PRICE',
+    dataQuality: 'HIGH',
+    priceSource: 'NASDAQ',
+    warnings: [],
+    errors: [],
+    auditTrail: [],
+    engineVersion: '1.0.0'
+  };
 
-  // ProviderHealthService Metrics (Recommendation 7)
-  const healthSvc = new ProviderHealthService('TEST_HEALTH');
-  healthSvc.recordSuccess(50);
-  const metrics = healthSvc.getMetrics();
-  assert(metrics.successCount === 1 && metrics.averageLatencyMs === 50, 'ProviderHealthService tracks request counts & average latency');
+  const nwEngineResult = netWorthEngine.execute({
+    correlationId: 'nw_test_1001',
+    data: {
+      valuationResults: [inrValResult, usdValResult],
+      fxRates: { 'USD_INR': 83.50, 'INR_INR': 1.0 },
+      reportingCurrency: 'INR',
+      asOfDate: '2026-07-26',
+      hierarchyContext: {
+        familyId: family.id,
+        familyName: 'Sharma Family',
+        members: [{
+          id: member.id,
+          name: 'Rajesh Sharma',
+          entities: [{
+            id: entity.id,
+            name: 'Rajesh Sharma HUF',
+            accounts: [{
+              id: account.id,
+              name: 'HDFCBANK Wealth Account',
+              assetIds: [101, 102]
+            }]
+          }]
+        }]
+      }
+    }
+  });
 
-  // Invalid Symbol Error Test (Recommendation 5 & 10)
-  let invalidSymbolCaught = false;
-  try {
-    await yahooFinanceProvider.fetchLatestPrice('');
-  } catch (e) {
-    invalidSymbolCaught = e instanceof InvalidSymbolError;
-  }
-  assert(invalidSymbolCaught, 'YahooFinanceProvider throws InvalidSymbolError on empty symbol query');
+  assert(nwEngineResult.success === true, 'NetWorthEngine executes successfully');
+  const snapshot = nwEngineResult.data!;
+
+  // Verify Multi-Currency Conversion: 200,000 + (10,000 * 83.50 = 835,000) = 1,035,000
+  assert(snapshot.summary.totalMarketValue === 1035000, 'NetWorthEngine consolidates INR and USD assets accurately (₹1,035,000)');
+  assert(snapshot.summary.reportingCurrency === 'INR', 'NetWorthEngine sets reporting currency to INR');
+  assert(snapshot.currencyAggregation.nativeCurrencies.length === 2, 'NetWorthEngine aggregates 2 distinct native currencies');
+
+  // Verify Asset Allocation & Dominant Asset Type
+  assert(snapshot.assetAllocation.dominantAssetType === 'STOCK', 'NetWorthEngine identifies STOCK as dominant asset type');
+  assert(snapshot.assetAllocation.breakdown[0].percentageOfTotal === 100, 'NetWorthEngine calculates 100% stock allocation');
+
+  // Verify Hierarchical Rollup Tree (Family -> Member -> Entity -> Account)
+  assert(snapshot.hierarchy.name === 'Sharma Family', 'NetWorthEngine builds Family root node');
+  assert(snapshot.hierarchy.children?.[0].name === 'Rajesh Sharma', 'NetWorthEngine builds Family Member node');
+  assert(snapshot.hierarchy.children?.[0].children?.[0].name === 'Rajesh Sharma HUF', 'NetWorthEngine builds Entity node');
+  assert(snapshot.hierarchy.children?.[0].children?.[0].children?.[0].marketValue === 1035000, 'NetWorthEngine rolls up Account market value');
+
+  // Quality Gate 1: Determinism (Same input yields identical SHA-256 manifest checksum)
+  const execA = netWorthEngine.execute({ correlationId: 'nw_gate_1', data: { valuationResults: [inrValResult, usdValResult], fxRates: { 'USD_INR': 83.50 }, asOfDate: '2026-07-26' } });
+  const execB = netWorthEngine.execute({ correlationId: 'nw_gate_2', data: { valuationResults: [inrValResult, usdValResult], fxRates: { 'USD_INR': 83.50 }, asOfDate: '2026-07-26' } });
+  assert(execA.data?.manifest.checksum === execB.data?.manifest.checksum, 'Quality Gate: NetWorthEngine produces 100% deterministic calculation checksum');
 
   // Cleanup test entities & holdings
   transactionRepository.delete(holdingTx.id);

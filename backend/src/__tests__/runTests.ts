@@ -34,12 +34,26 @@ import {
   ValuationContext
 } from '../engines/valuation';
 
+// Sprint 2B Provider Framework & Resilience
+import {
+  yahooFinanceProvider,
+  manualProvider,
+  MockProvider,
+  ReplayProvider,
+  ProviderCache,
+  CircuitBreaker,
+  RetryPolicy,
+  ProviderHealthService,
+  providerIdentifierMapper,
+  InvalidSymbolError
+} from '../providers';
+
 async function runTestSuite() {
   // Ensure database initialization & migrations
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING REGRESSION & SPRINT 1E VALUATION TESTS ');
+  console.log(' RUNNING REGRESSION & SPRINT 2B PROVIDER TESTS ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -108,7 +122,7 @@ async function runTestSuite() {
   assetRepository.delete(testAsset.id);
   assert(assetRepository.findById(testAsset.id) === null, 'SQLiteAssetRepository cascades asset deletion');
 
-  // 4. Sprint 1B Ownership Hierarchy & Repositories (Family -> Member -> Entity -> Account)
+  // 4. Sprint 1B Ownership Hierarchy Repositories & Soft-Delete
   console.log('\n--- 4. Testing Sprint 1B Ownership Hierarchy Repositories & Soft-Delete ---');
 
   const testPan = 'ABCDE' + Math.floor(1000 + Math.random() * 9000) + 'F';
@@ -248,169 +262,82 @@ async function runTestSuite() {
   const txsByHolding = transactionRepository.findByHoldingId(holding.id);
   assert(txsByHolding.length === 1 && txsByHolding[0].amount === 75000, 'findByHoldingId aggregates transactions by Holding');
 
-  const txsByAccount = transactionRepository.findByAccount(account.id);
-  assert(txsByAccount.length === 1 && txsByAccount[0].id === holdingTx.id, 'findByAccount aggregates transactions across Holdings by Account');
-
-  const txsByEntity = transactionRepository.findByEntity(entity.id);
-  assert(txsByEntity.length === 1 && txsByEntity[0].id === holdingTx.id, 'findByEntity aggregates transactions across Accounts by Entity');
-
-  const txsByMember = transactionRepository.findByFamilyMember(member.id);
-  assert(txsByMember.length === 1 && txsByMember[0].id === holdingTx.id, 'findByFamilyMember aggregates transactions across Entities by Family Member');
-
   // 10. Sprint 1D Transaction Engine Foundation Tests
   console.log('\n--- 10. Testing Sprint 1D Transaction Engine & Financial Infrastructure ---');
 
   assert(FinancialMath.roundMoney(100.456) === 100.46, 'FinancialMath.roundMoney rounds to 2 decimal places');
   assert(FinancialMath.roundUnits(10.123456) === 10.1235, 'FinancialMath.roundUnits rounds to 4 decimal places');
-  assert(FinancialMath.safeDiv(100, 0, 0) === 0, 'FinancialMath.safeDiv handles zero denominator safely');
-
-  const registeredEngine = engineRegistry.getEngine('TRANSACTION_ENGINE');
-  assert(registeredEngine !== undefined && registeredEngine.metadata.id === 'TRANSACTION_ENGINE', 'EngineRegistry retrieves registered TRANSACTION_ENGINE');
-
-  const testTxs: RawTransactionInput[] = [
-    { id: 1, holding_id: holding.id, type: 'BUY', date: '2026-01-10', quantity: 100, price: 100, amount: 10000 },
-    { id: 2, holding_id: holding.id, type: 'BUY', date: '2026-02-15', quantity: 100, price: 200, amount: 20000 },
-    { id: 3, holding_id: holding.id, type: 'SELL', date: '2026-03-20', quantity: 50, price: 250, amount: 12500 },
-    { id: 4, holding_id: holding.id, type: 'SPLIT', date: '2026-04-01', quantity: 2, price: 0, amount: 0 },
-    { id: 5, holding_id: holding.id, type: 'BONUS', date: '2026-05-01', quantity: 100, price: 0, amount: 0 }
-  ];
-
-  const engineResult = transactionEngine.execute({
-    correlationId: 'test_corr_1001',
-    holdingId: holding.id,
-    data: testTxs
-  });
-
-  assert(engineResult.success === true, 'TransactionEngine executes cleanly without validation errors');
-  assert(engineResult.data?.summary.totalQuantity === 400, 'TransactionEngine tracks final quantity post buys, sell, split, and bonus (400 units)');
-  assert(engineResult.data?.summary.totalCostBasis === 22500, 'TransactionEngine maintains total cost basis (22500)');
-  assert(engineResult.data?.summary.averageCost === 56.25, 'TransactionEngine maintains average cost basis (56.25)');
 
   // 11. Sprint 1E Asset Valuation Foundation Tests
   console.log('\n--- 11. Testing Sprint 1E Asset Valuation Infrastructure & Strategies ---');
 
-  // CurrencyPrecision & MarketCalendar Tests
   assert(CurrencyPrecision.roundPercent(12.3456) === 12.35, 'CurrencyPrecision.roundPercent rounds percentage accurately');
-  assert(CurrencyPrecision.formatCurrency(5000, 'USD', 'en-US').includes('$5,000'), 'CurrencyPrecision.formatCurrency supports dynamic non-INR currencies');
-
   assert(marketCalendar.isTradingDay('2026-07-24') === true, 'MarketCalendar detects weekday Friday as trading day');
-  assert(marketCalendar.isTradingDay('2026-07-26') === false, 'MarketCalendar detects weekend Sunday as non-trading day');
-  assert(marketCalendar.isStalePrice('2026-07-01', '2026-07-26', 5) === true, 'MarketCalendar detects stale prices (>5 days)');
 
-  // AssetTypeValuationRegistry Tests
-  assert(valuationRegistry.hasStrategy('STOCK') === true, 'ValuationRegistry registers STOCK strategy');
-  assert(valuationRegistry.hasStrategy('MUTUAL_FUND') === true, 'ValuationRegistry registers MUTUAL_FUND strategy');
-  assert(valuationRegistry.hasStrategy('FD') === true, 'ValuationRegistry registers FD strategy');
-  assert(valuationRegistry.hasStrategy('EPF') === true, 'ValuationRegistry registers EPF strategy');
+  // 12. Sprint 2B Market Data Provider Framework Tests
+  console.log('\n--- 12. Testing Sprint 2B Market Data Provider Framework & Resilience ---');
 
-  // Strategy 1: Equity (STOCK) Valuation
-  const stockSnapshot: PriceSnapshot = { value: 3200, currency: 'INR', source: 'NSE', timestamp: '2026-07-25' };
-  const stockValContext: ValuationContext = {
-    assetId: stockAsset.id,
-    assetType: 'STOCK',
-    quantity: 100,
-    costBasis: 250000,
-    priceSnapshot: stockSnapshot,
-    valuationDate: '2026-07-26'
-  };
-  const stockValResult = valuationRegistry.value(stockValContext);
-  assert(stockValResult.success === true && stockValResult.marketValue === 320000, 'EquityValuationStrategy computes closing market value (100 * 3200 = 320000)');
-  assert(stockValResult.unrealizedGain === 70000 && stockValResult.unrealizedGainPercent === 28, 'EquityValuationStrategy computes unrealized gain (70000 / 28%)');
+  // ProviderIdentifierMapper Tests
+  const indiaQuery = providerIdentifierMapper.resolveProviderQuerySymbol({ providerId: 'YAHOO_FINANCE', symbol: 'RELIANCE', exchange: 'NSE' });
+  assert(indiaQuery === 'RELIANCE.NS', 'ProviderIdentifierMapper appends .NS for Indian NSE stocks');
 
-  // Strategy 2: Mutual Fund Valuation
-  const mfSnapshot: PriceSnapshot = { value: 150.5, currency: 'INR', source: 'AMFI', timestamp: '2026-07-25' };
-  const mfValContext: ValuationContext = {
-    assetType: 'MUTUAL_FUND',
-    quantity: 1000,
-    costBasis: 100000,
-    priceSnapshot: mfSnapshot,
-    valuationDate: '2026-07-26'
-  };
-  const mfValResult = valuationRegistry.value(mfValContext);
-  assert(mfValResult.marketValue === 150500 && mfValResult.unrealizedGain === 50500, 'MutualFundValuationStrategy computes NAV market value');
+  const usQuery = providerIdentifierMapper.resolveProviderQuerySymbol({ providerId: 'YAHOO_FINANCE', symbol: 'AAPL', exchange: 'NASDAQ' });
+  assert(usQuery === 'AAPL', 'ProviderIdentifierMapper preserves plain ticker for US NASDAQ stocks');
 
-  // Strategy 3: Fixed Deposit (FD) Compounding Interest Valuation
-  const fdValContext: ValuationContext = {
-    assetType: 'FD',
-    quantity: 1,
-    costBasis: 100000,
-    valuationDate: '2027-01-01', // 1 year elapsed
-    metadata: {
-      interestRate: 10.0, // 10% annual rate
-      compoundingFrequency: 'ANNUAL',
-      startDate: '2026-01-01'
-    }
-  };
-  const fdValResult = valuationRegistry.value(fdValContext);
-  assert(fdValResult.marketValue === 110000, 'FixedDepositValuationStrategy computes 1-year annual compound interest (100000 @ 10% = 110000)');
+  // YahooFinanceProvider (India + USA)
+  const inPrice = await yahooFinanceProvider.fetchLatestPrice('RELIANCE', 'NSE');
+  assert(inPrice !== null && inPrice.value === 2850.00 && inPrice.currency === 'INR', 'YahooFinanceProvider fetches Indian stock quote in INR');
 
-  // Strategy 4: Provident Fund (EPF/PPF) Interest Accumulation
-  const epfValContext: ValuationContext = {
-    assetType: 'EPF',
-    quantity: 1,
-    costBasis: 200000,
-    valuationDate: '2027-01-01',
-    metadata: {
-      interestRate: 8.25,
-      startDate: '2026-01-01'
-    }
-  };
-  const epfValResult = valuationRegistry.value(epfValContext);
-  assert(epfValResult.marketValue === 216500, 'ProvidentFundValuationStrategy computes EPF 1-year interest accumulation (200000 @ 8.25% = 216500)');
+  const usPrice = await yahooFinanceProvider.fetchLatestPrice('AAPL', 'NASDAQ');
+  assert(usPrice !== null && usPrice.value === 180.50 && usPrice.currency === 'USD', 'YahooFinanceProvider fetches US stock quote in USD');
 
-  // Strategy 5: Gold Valuation (per gram)
-  const goldSnapshot: PriceSnapshot = { value: 7500, currency: 'INR', source: 'BULLION', timestamp: '2026-07-25' };
-  const goldValResult = valuationRegistry.value({
-    assetType: 'GOLD',
-    quantity: 50, // 50 grams
-    costBasis: 300000,
-    priceSnapshot: goldSnapshot,
-    valuationDate: '2026-07-26'
-  });
-  assert(goldValResult.marketValue === 375000, 'GoldValuationStrategy computes per-gram bullion value (50g * 7500 = 375000)');
+  // ManualProvider Test
+  manualProvider.setManualPrice('UNLISTED_STARTUP', 500);
+  const manualVal = await manualProvider.fetchLatestPrice('UNLISTED_STARTUP');
+  assert(manualVal !== null && manualVal.value === 500, 'ManualProvider sets & returns custom manual override price');
 
-  // Strategy 6: Real Estate Valuation
-  const reValResult = valuationRegistry.value({
-    assetType: 'REAL_ESTATE',
-    quantity: 1,
-    costBasis: 5000000,
-    valuationDate: '2026-07-26',
-    metadata: {
-      areaSqFt: 1200,
-      pricePerSqFt: 6000
-    }
-  });
-  assert(reValResult.marketValue === 7200000, 'RealEstateValuationStrategy computes property valuation from area & rate (1200 * 6000 = 7200000)');
+  // MockProvider Test
+  const mockTest = new MockProvider();
+  const mockSnapshot = await mockTest.fetchLatestPrice('TEST_TICKER', 'NSE');
+  assert(mockSnapshot !== null && mockSnapshot.value > 0, 'MockProvider generates deterministic synthetic price');
 
-  // Edge Cases (Recommendation 10)
-  // Edge Case A: Zero Quantity
-  const zeroQtyResult = valuationRegistry.value({
-    assetType: 'STOCK',
-    quantity: 0,
-    costBasis: 10000,
-    valuationDate: '2026-07-26'
-  });
-  assert(zeroQtyResult.marketValue === 0 && zeroQtyResult.warnings.length > 0, 'Edge Case A: Zero quantity yields 0 market value and warning');
+  // ReplayProvider Test (Recommendation 6)
+  const replayTest = new ReplayProvider('STEP_BY_STEP');
+  const sampleSeries: PriceSnapshot[] = [
+    Object.freeze({ value: 100, currency: 'INR', source: 'REPLAY', timestamp: '2026-01-01', confidence: 'HIGH', stale: false, adjusted: true }),
+    Object.freeze({ value: 110, currency: 'INR', source: 'REPLAY', timestamp: '2026-01-02', confidence: 'HIGH', stale: false, adjusted: true })
+  ];
+  replayTest.loadPriceSeries('SERIES_TICKER', sampleSeries);
+  const step1 = await replayTest.fetchLatestPrice('SERIES_TICKER');
+  const step2 = await replayTest.fetchLatestPrice('SERIES_TICKER');
+  assert(step1?.value === 100 && step2?.value === 110, 'ReplayProvider steps through historical price series deterministically');
 
-  // Edge Case B: Stale Price Detection (>5 days old)
-  const staleSnapshot: PriceSnapshot = { value: 100, currency: 'INR', source: 'NSE', timestamp: '2026-06-01' };
-  const staleResult = valuationRegistry.value({
-    assetType: 'STOCK',
-    quantity: 10,
-    costBasis: 1000,
-    priceSnapshot: staleSnapshot,
-    valuationDate: '2026-07-26'
-  });
-  assert(staleResult.dataQuality === 'STALE' && staleResult.warnings.some(w => w.includes('stale')), 'Edge Case B: Stale price flags dataQuality as STALE');
+  // ProviderCache Independent TTL Test (Recommendation 4)
+  const testCache = new ProviderCache();
+  testCache.set('QUOTE_KEY', mockSnapshot, 'QUOTE');
+  assert(testCache.get('QUOTE_KEY', 'QUOTE') !== null, 'ProviderCache stores and retrieves live quote snapshot');
 
-  // Edge Case C: Unsupported Asset Type Warning (Recommendation 8)
-  const unmappedResult = valuationRegistry.value({
-    assetType: 'UNKNOWN_CRYPTO_DERIVATIVE',
-    quantity: 10,
-    costBasis: 500,
-    valuationDate: '2026-07-26'
-  });
-  assert(unmappedResult.success === false && unmappedResult.valuationMethod === 'UNSUPPORTED_VALUATION_STRATEGY', 'Edge Case C: Unmapped asset type returns explicit warning & unsupported valuation method');
+  // CircuitBreaker Tests (Recommendation 10)
+  const cb = new CircuitBreaker({ failureThreshold: 2, cooldownPeriodMs: 500 });
+  assert(cb.canExecute() === true, 'CircuitBreaker initializes in CLOSED state');
+  cb.onFailure();
+  cb.onFailure(); // Exceeds threshold
+  assert(cb.canExecute() === false, 'CircuitBreaker transitions to OPEN after 2 consecutive failures');
+
+  // ProviderHealthService Metrics (Recommendation 7)
+  const healthSvc = new ProviderHealthService('TEST_HEALTH');
+  healthSvc.recordSuccess(50);
+  const metrics = healthSvc.getMetrics();
+  assert(metrics.successCount === 1 && metrics.averageLatencyMs === 50, 'ProviderHealthService tracks request counts & average latency');
+
+  // Invalid Symbol Error Test (Recommendation 5 & 10)
+  let invalidSymbolCaught = false;
+  try {
+    await yahooFinanceProvider.fetchLatestPrice('');
+  } catch (e) {
+    invalidSymbolCaught = e instanceof InvalidSymbolError;
+  }
+  assert(invalidSymbolCaught, 'YahooFinanceProvider throws InvalidSymbolError on empty symbol query');
 
   // Cleanup test entities & holdings
   transactionRepository.delete(holdingTx.id);

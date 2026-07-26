@@ -52,12 +52,16 @@ import {
 import { netWorthEngine, NetWorthEngine } from '../engines/NetWorthEngine';
 import { CalculationManifestHelper } from '../engines/common/CalculationManifest';
 
+// Sprint 4 Performance Engine
+import { performanceEngine, PerformanceEngine } from '../engines/PerformanceEngine';
+import { CashFlowEvent } from '../engines/PerformanceTypes';
+
 async function runTestSuite() {
   // Ensure database initialization & migrations
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING REGRESSION & SPRINT 3 NET WORTH ENGINE TESTS ');
+  console.log(' RUNNING REGRESSION & SPRINT 4 PERFORMANCE ENGINE TESTS ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -296,7 +300,6 @@ async function runTestSuite() {
   // 13. Sprint 3 Net Worth Engine Tests & Calculation Manifest
   console.log('\n--- 13. Testing Sprint 3 Net Worth Engine & Calculation Manifest ---');
 
-  // CalculationManifest Tests
   const manifest = CalculationManifestHelper.createManifest({
     engine: 'NET_WORTH_ENGINE',
     engineVersion: '1.0.0',
@@ -309,11 +312,9 @@ async function runTestSuite() {
   });
   assert(manifest.checksum.length === 64, 'CalculationManifestHelper generates valid SHA-256 checksum string');
 
-  // EngineRegistry Lookup
   const registeredNwEngine = engineRegistry.getEngine('NET_WORTH_ENGINE');
   assert(registeredNwEngine !== undefined && registeredNwEngine.metadata.id === 'NET_WORTH_ENGINE', 'EngineRegistry retrieves registered NET_WORTH_ENGINE');
 
-  // Multi-Currency Portfolio Consolidation Test (INR + USD)
   const inrValResult: ValuationResult = {
     success: true,
     assetId: 101,
@@ -386,25 +387,78 @@ async function runTestSuite() {
   assert(nwEngineResult.success === true, 'NetWorthEngine executes successfully');
   const snapshot = nwEngineResult.data!;
 
-  // Verify Multi-Currency Conversion: 200,000 + (10,000 * 83.50 = 835,000) = 1,035,000
   assert(snapshot.summary.totalMarketValue === 1035000, 'NetWorthEngine consolidates INR and USD assets accurately (₹1,035,000)');
   assert(snapshot.summary.reportingCurrency === 'INR', 'NetWorthEngine sets reporting currency to INR');
   assert(snapshot.currencyAggregation.nativeCurrencies.length === 2, 'NetWorthEngine aggregates 2 distinct native currencies');
-
-  // Verify Asset Allocation & Dominant Asset Type
   assert(snapshot.assetAllocation.dominantAssetType === 'STOCK', 'NetWorthEngine identifies STOCK as dominant asset type');
   assert(snapshot.assetAllocation.breakdown[0].percentageOfTotal === 100, 'NetWorthEngine calculates 100% stock allocation');
-
-  // Verify Hierarchical Rollup Tree (Family -> Member -> Entity -> Account)
   assert(snapshot.hierarchy.name === 'Sharma Family', 'NetWorthEngine builds Family root node');
   assert(snapshot.hierarchy.children?.[0].name === 'Rajesh Sharma', 'NetWorthEngine builds Family Member node');
   assert(snapshot.hierarchy.children?.[0].children?.[0].name === 'Rajesh Sharma HUF', 'NetWorthEngine builds Entity node');
   assert(snapshot.hierarchy.children?.[0].children?.[0].children?.[0].marketValue === 1035000, 'NetWorthEngine rolls up Account market value');
 
-  // Quality Gate 1: Determinism (Same input yields identical SHA-256 manifest checksum)
   const execA = netWorthEngine.execute({ correlationId: 'nw_gate_1', data: { valuationResults: [inrValResult, usdValResult], fxRates: { 'USD_INR': 83.50 }, asOfDate: '2026-07-26' } });
   const execB = netWorthEngine.execute({ correlationId: 'nw_gate_2', data: { valuationResults: [inrValResult, usdValResult], fxRates: { 'USD_INR': 83.50 }, asOfDate: '2026-07-26' } });
   assert(execA.data?.manifest.checksum === execB.data?.manifest.checksum, 'Quality Gate: NetWorthEngine produces 100% deterministic calculation checksum');
+
+  // 14. Sprint 4 Performance Engine Tests
+  console.log('\n--- 14. Testing Sprint 4 Performance Engine & XIRR Solver ---');
+
+  const registeredPerfEngine = engineRegistry.getEngine('PERFORMANCE_ENGINE');
+  assert(registeredPerfEngine !== undefined && registeredPerfEngine.metadata.id === 'PERFORMANCE_ENGINE', 'EngineRegistry retrieves registered PERFORMANCE_ENGINE');
+
+  const testCashFlows: CashFlowEvent[] = [
+    { date: '2024-01-01', amount: -100000, type: 'BUY', currency: 'INR' },
+    { date: '2025-01-01', amount: -50000, type: 'BUY', currency: 'INR' },
+    { date: '2025-06-30', amount: 5000, type: 'DIVIDEND', currency: 'INR' }
+  ];
+
+  const perfValuation: ValuationResult = {
+    success: true,
+    assetId: 101,
+    assetType: 'STOCK',
+    quantity: 100,
+    unitPrice: 2100,
+    valuationDate: '2026-01-01',
+    marketValue: 210000,
+    costBasis: 150000,
+    unrealizedGain: 60000,
+    unrealizedGainPercent: 40.0,
+    currency: 'INR',
+    valuationMethod: 'MARKET_CLOSING_PRICE',
+    dataQuality: 'HIGH',
+    priceSource: 'NSE',
+    warnings: [],
+    errors: [],
+    auditTrail: [],
+    engineVersion: '1.0.0'
+  };
+
+  const perfResult = performanceEngine.execute({
+    correlationId: 'perf_test_1001',
+    data: {
+      cashFlows: testCashFlows,
+      currentValuation: perfValuation,
+      reportingCurrency: 'INR',
+      asOfDate: '2026-01-01',
+      startDate: '2024-01-01'
+    }
+  });
+
+  assert(perfResult.success === true, 'PerformanceEngine executes successfully');
+  const perfSnapshot = perfResult.data!;
+
+  // Verify Newton-Raphson XIRR & CAGR Math (PERF-002, PERF-003)
+  assert(perfSnapshot.summary.xirrPercent > 0, 'PerformanceEngine computes positive XIRR via Newton-Raphson solver');
+  assert(perfSnapshot.summary.cagrPercent > 0, 'PerformanceEngine computes positive CAGR for holding period > 365 days');
+  assert(perfSnapshot.summary.absoluteReturnPercent > 0, 'PerformanceEngine computes positive Absolute Return (PERF-001)');
+  assert(perfSnapshot.quality === 'EXACT', 'PerformanceEngine classifies quality as EXACT when solver converges cleanly');
+  assert(perfSnapshot.manifest.checksum.length === 64, 'PerformanceEngine generates valid SHA-256 calculation manifest checksum');
+
+  // Quality Gate 1: Determinism
+  const perfExecA = performanceEngine.execute({ correlationId: 'perf_gate_1', data: { cashFlows: testCashFlows, currentValuation: perfValuation, asOfDate: '2026-01-01' } });
+  const perfExecB = performanceEngine.execute({ correlationId: 'perf_gate_2', data: { cashFlows: testCashFlows, currentValuation: perfValuation, asOfDate: '2026-01-01' } });
+  assert(perfExecA.data?.manifest.checksum === perfExecB.data?.manifest.checksum, 'Quality Gate: PerformanceEngine produces 100% deterministic calculation checksum');
 
   // Cleanup test entities & holdings
   transactionRepository.delete(holdingTx.id);

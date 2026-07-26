@@ -1,21 +1,79 @@
 # 📊 PORTFOLIO_ANALYTICS_DOMAIN_MODEL.md — Domain Models & Contracts
 
 **System Name**: Family Wealth OS  
-**Phase**: Sprint 5A (Portfolio Analytics Engine - Architecture & Design Phase)  
+**Phase**: Sprint 5A (Final ARB Integration)  
 **Date**: July 26, 2026  
-**Status**: APPROVED ARCHITECTURE  
+**Status**: APPROVED ARCHITECTURE (ARB ENHANCED)  
 
 ---
 
-## 1. Engine Contract Interface (`IAnalyticsEngine`)
+## 1. Analytics Registry & Formula Mapping
+
+- **ANL-001**: Asset Allocation
+- **ANL-002**: Sector Allocation
+- **ANL-003**: Diversification (HHI)
+- **ANL-004**: Portfolio Health
+- **ANL-005**: Cash Allocation
+
+---
+
+## 2. Future Strategy & Context Abstractions (Documentation Only)
+
+### A. Exposure Engine Abstraction (`ExposureModel`)
+```typescript
+export interface ExposureModel {
+  marketExposure: Record<string, number>;
+  currencyExposure: Record<string, number>;
+  countryExposure: Record<string, number>;
+  sectorExposure: Record<string, number>;
+  assetClassExposure: Record<string, number>;
+  issuerExposure: Record<string, number>;
+}
+```
+
+### B. Explainable Portfolio Health Decomposition
+```typescript
+export interface ExplainableHealthDecomposition {
+  diversificationScore: number;
+  liquidityScore: number;
+  concentrationScore: number;
+  cashScore: number;
+  currencyScore: number;
+  overallHealthScore: number;
+}
+```
+
+### C. Portfolio Policy Model (`PortfolioPolicy`)
+```typescript
+export interface PortfolioPolicy {
+  minCashPercent: number;
+  maxSingleHoldingPercent: number;
+  maxSectorPercent: number;
+  targetAssetAllocation: Record<string, number>;
+  targetGeography: Record<string, number>;
+  targetCurrency: Record<string, number>;
+}
+```
+
+### D. Recommendation Model (`PortfolioRecommendation`)
+```typescript
+export interface PortfolioRecommendation {
+  finding: string;
+  recommendation: string;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  evidence: string;
+}
+```
+
+---
+
+## 3. Core Portfolio Analytics Contracts
 
 ```typescript
 import { IFinancialEngine } from './common/IFinancialEngine';
 import { EngineContext } from './common/EngineContext';
 import { EngineResult } from './common/EngineResult';
 import { ValuationResult } from './valuation/ValuationResult';
-import { NetWorthSnapshot } from './NetWorthTypes';
-import { PerformanceSnapshot } from './PerformanceTypes';
 import { CalculationManifest } from './common/CalculationManifest';
 
 export interface AssetMetadataMap {
@@ -27,28 +85,8 @@ export interface AssetMetadataMap {
   };
 }
 
-export interface PortfolioAnalyticsInputPayload {
-  valuationResults: ValuationResult[];
-  netWorthSnapshot?: NetWorthSnapshot;
-  performanceSnapshot?: PerformanceSnapshot;
-  assetMetadata: AssetMetadataMap;
-  reportingCurrency?: string; // Default 'INR'
-  asOfDate: string;           // YYYY-MM-DD
-}
-
-export interface IAnalyticsEngine extends IFinancialEngine<PortfolioAnalyticsInputPayload, PortfolioAnalyticsSnapshot> {
-  // Inherits metadata and execute(context) method
-}
-```
-
----
-
-## 2. Core Analytics Domain Models
-
-### A. Allocation Models
-```typescript
 export interface AllocationItem {
-  key: string;               // Category name (e.g. 'Technology', 'USD', 'India')
+  key: string;               // Category name
   marketValue: number;       // Converted market value in reporting currency
   percentageOfTotal: number; // e.g. 35.5%
   holdingCount: number;
@@ -61,13 +99,10 @@ export interface MultiDimensionalAllocations {
   currencyAllocation: AllocationItem[];
   geographicAllocation: AllocationItem[];
 }
-```
 
-### B. Health & Risk Scores
-```typescript
 export interface DiversificationScore {
-  score: number;             // 0 to 100 (100 = highly diversified, 0 = concentrated)
-  hhiIndex: number;          // Herfindahl-Hirschman Index (0.0 to 1.0)
+  score: number;             // 0 to 100
+  hhiIndex: number;          // Herfindahl-Hirschman Index
   rating: 'EXCELLENT' | 'GOOD' | 'MODERATE' | 'POOR' | 'HIGHLY_CONCENTRATED';
 }
 
@@ -95,22 +130,7 @@ export interface PortfolioHealth {
   cashLiquidity: CashAllocation;
   warnings: string[];
 }
-```
 
-### C. Future Risk Metrics Extensions (Documentation Only)
-```typescript
-export interface FutureRiskMetricsExtensions {
-  sharpeRatio?: number;
-  sortinoRatio?: number;
-  beta?: number;
-  correlationMatrix?: Record<string, Record<string, number>>;
-  annualizedVolatility?: number;
-  maxDrawdownPercent?: number;
-}
-```
-
-### D. Consolidated `PortfolioAnalyticsSnapshot`
-```typescript
 export interface PortfolioAnalyticsSnapshot {
   snapshotId: string;
   asOfDate: string;
@@ -123,6 +143,5 @@ export interface PortfolioAnalyticsSnapshot {
     totalCostBasis: number;
     totalUnrealizedGain: number;
   };
-  futureRiskMetrics?: FutureRiskMetricsExtensions;
 }
 ```

@@ -15,3 +15,7 @@ export { INetWorthEngine, NetWorthInputPayload } from './INetWorthEngine';
 export * from './PerformanceEngine';
 export * from './PerformanceTypes';
 export { IPerformanceEngine, PerformanceInputPayload } from './IPerformanceEngine';
+
+export * from './PortfolioAnalyticsEngine';
+export * from './PortfolioAnalyticsTypes';
+export { IPortfolioAnalyticsEngine, PortfolioAnalyticsInputPayload } from './IPortfolioAnalyticsEngine';

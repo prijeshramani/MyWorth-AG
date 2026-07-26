@@ -56,12 +56,15 @@ import { CalculationManifestHelper } from '../engines/common/CalculationManifest
 import { performanceEngine, PerformanceEngine } from '../engines/PerformanceEngine';
 import { CashFlowEvent } from '../engines/PerformanceTypes';
 
+// Sprint 5A Portfolio Analytics Engine
+import { portfolioAnalyticsEngine, PortfolioAnalyticsEngine } from '../engines/PortfolioAnalyticsEngine';
+
 async function runTestSuite() {
   // Ensure database initialization & migrations
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING REGRESSION & SPRINT 4 PERFORMANCE ENGINE TESTS ');
+  console.log(' RUNNING REGRESSION & SPRINT 5A PORTFOLIO ANALYTICS ENGINE TESTS ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -448,17 +451,81 @@ async function runTestSuite() {
   assert(perfResult.success === true, 'PerformanceEngine executes successfully');
   const perfSnapshot = perfResult.data!;
 
-  // Verify Newton-Raphson XIRR & CAGR Math (PERF-002, PERF-003)
   assert(perfSnapshot.summary.xirrPercent > 0, 'PerformanceEngine computes positive XIRR via Newton-Raphson solver');
   assert(perfSnapshot.summary.cagrPercent > 0, 'PerformanceEngine computes positive CAGR for holding period > 365 days');
   assert(perfSnapshot.summary.absoluteReturnPercent > 0, 'PerformanceEngine computes positive Absolute Return (PERF-001)');
   assert(perfSnapshot.quality === 'EXACT', 'PerformanceEngine classifies quality as EXACT when solver converges cleanly');
   assert(perfSnapshot.manifest.checksum.length === 64, 'PerformanceEngine generates valid SHA-256 calculation manifest checksum');
 
-  // Quality Gate 1: Determinism
   const perfExecA = performanceEngine.execute({ correlationId: 'perf_gate_1', data: { cashFlows: testCashFlows, currentValuation: perfValuation, asOfDate: '2026-01-01' } });
   const perfExecB = performanceEngine.execute({ correlationId: 'perf_gate_2', data: { cashFlows: testCashFlows, currentValuation: perfValuation, asOfDate: '2026-01-01' } });
   assert(perfExecA.data?.manifest.checksum === perfExecB.data?.manifest.checksum, 'Quality Gate: PerformanceEngine produces 100% deterministic calculation checksum');
+
+  // 15. Sprint 5A Portfolio Analytics Engine Tests
+  console.log('\n--- 15. Testing Sprint 5A Portfolio Analytics Engine & HHI Index ---');
+
+  const registeredAnalyticsEngine = engineRegistry.getEngine('PORTFOLIO_ANALYTICS_ENGINE');
+  assert(registeredAnalyticsEngine !== undefined && registeredAnalyticsEngine.metadata.id === 'PORTFOLIO_ANALYTICS_ENGINE', 'EngineRegistry retrieves registered PORTFOLIO_ANALYTICS_ENGINE');
+
+  const bankValResult: ValuationResult = {
+    success: true,
+    assetId: 103,
+    assetType: 'BANK',
+    quantity: 1,
+    unitPrice: 100000,
+    valuationDate: '2026-07-26',
+    marketValue: 100000, // ₹1,00,000 liquid cash
+    costBasis: 100000,
+    unrealizedGain: 0,
+    unrealizedGainPercent: 0,
+    currency: 'INR',
+    valuationMethod: 'BOOK_VALUE',
+    dataQuality: 'HIGH',
+    priceSource: 'MANUAL',
+    warnings: [],
+    errors: [],
+    auditTrail: [],
+    engineVersion: '1.0.0'
+  };
+
+  const analyticsResult = portfolioAnalyticsEngine.execute({
+    correlationId: 'analytics_test_1001',
+    data: {
+      valuationResults: [inrValResult, usdValResult, bankValResult],
+      fxRates: { 'USD_INR': 83.50, 'INR_INR': 1.0 },
+      assetMetadata: {
+        101: { sector: 'Technology', market: 'IN_NSE', country: 'India' },
+        102: { sector: 'Technology', market: 'US_NASDAQ', country: 'United States' },
+        103: { sector: 'Banking', market: 'DOMESTIC', country: 'India', isLiquid: true }
+      },
+      reportingCurrency: 'INR',
+      asOfDate: '2026-07-26'
+    }
+  });
+
+  assert(analyticsResult.success === true, 'PortfolioAnalyticsEngine executes successfully');
+  const analyticsSnapshot = analyticsResult.data!;
+
+  // Verify Multi-Dimensional Allocations (ANL-001, ANL-002)
+  assert(analyticsSnapshot.allocations.assetAllocation.length === 2, 'PortfolioAnalyticsEngine decomposes Asset Allocation (STOCK & BANK)');
+  assert(analyticsSnapshot.allocations.sectorAllocation.length === 2, 'PortfolioAnalyticsEngine decomposes Sector Allocation (TECHNOLOGY & BANKING)');
+  assert(analyticsSnapshot.allocations.marketAllocation.length === 3, 'PortfolioAnalyticsEngine decomposes Market Allocation (IN_NSE, US_NASDAQ, DOMESTIC)');
+  assert(analyticsSnapshot.allocations.geographicAllocation.length === 2, 'PortfolioAnalyticsEngine decomposes Geographic Allocation (India & United States)');
+
+  // Verify HHI Diversification Score & Concentration Ratios (ANL-003)
+  assert(analyticsSnapshot.health.diversification.score > 0, 'PortfolioAnalyticsEngine computes positive DiversificationScore');
+  assert(analyticsSnapshot.health.diversification.hhiIndex > 0, 'PortfolioAnalyticsEngine computes valid HHI Index');
+  assert(analyticsSnapshot.health.concentration.top1AssetConcentrationPercent > 0, 'PortfolioAnalyticsEngine measures Top 1 Asset concentration');
+
+  // Verify Cash Allocation & Health Rating (ANL-004, ANL-005)
+  assert(analyticsSnapshot.health.cashLiquidity.cashPercentage > 0, 'PortfolioAnalyticsEngine computes cash liquidity percentage');
+  assert(analyticsSnapshot.health.healthScore > 0, 'PortfolioAnalyticsEngine evaluates composite PortfolioHealth score');
+  assert(analyticsSnapshot.manifest.checksum.length === 64, 'PortfolioAnalyticsEngine generates valid SHA-256 calculation manifest checksum');
+
+  // Quality Gate 1: Determinism
+  const analyticsExecA = portfolioAnalyticsEngine.execute({ correlationId: 'anl_gate_1', data: { valuationResults: [inrValResult, usdValResult], fxRates: { 'USD_INR': 83.50 }, asOfDate: '2026-07-26' } });
+  const analyticsExecB = portfolioAnalyticsEngine.execute({ correlationId: 'anl_gate_2', data: { valuationResults: [inrValResult, usdValResult], fxRates: { 'USD_INR': 83.50 }, asOfDate: '2026-07-26' } });
+  assert(analyticsExecA.data?.manifest.checksum === analyticsExecB.data?.manifest.checksum, 'Quality Gate: PortfolioAnalyticsEngine produces 100% deterministic calculation checksum');
 
   // Cleanup test entities & holdings
   transactionRepository.delete(holdingTx.id);

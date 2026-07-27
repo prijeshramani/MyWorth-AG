@@ -81,7 +81,7 @@ async function runTestSuite() {
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING REGRESSION & SPRINT 6B REST API TESTS    ');
+  console.log(' RUNNING REGRESSION & SPRINT 6C SECURITY TESTS    ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -651,11 +651,10 @@ async function runTestSuite() {
     const srv = app.listen(0, () => resolve(srv));
   });
   const address = server.address() as any;
-  const baseUrl = `http://127.0.0.1:${address.port}/api/v1`;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
 
-  // Test API-001: GET /api/v1/portfolio/summary
   const customCorrId = `test_corr_${Date.now()}`;
-  const portSummaryHttpRes = await axios.get(`${baseUrl}/portfolio/summary?familyId=${family.id}&includeRiskMetrics=true`, {
+  const portSummaryHttpRes = await axios.get(`${baseUrl}/api/v1/portfolio/summary?familyId=${family.id}&includeRiskMetrics=true`, {
     headers: { 'X-Correlation-ID': customCorrId }
   });
   
@@ -666,13 +665,11 @@ async function runTestSuite() {
   assert(portSummaryHttpRes.data.metadata.executionTimeMs >= 0, 'API-001 attaches executionTimeMs in metadata');
   assert(portSummaryHttpRes.data.metadata.apiVersion === 'v1.0', 'API-001 attaches apiVersion in metadata');
 
-  // Test API-002: GET /api/v1/dashboard/overview
-  const dashHttpRes = await axios.get(`${baseUrl}/dashboard/overview?familyId=${family.id}`);
+  const dashHttpRes = await axios.get(`${baseUrl}/api/v1/dashboard/overview?familyId=${family.id}`);
   assert(dashHttpRes.status === 200, 'GET /api/v1/dashboard/overview returns HTTP 200 OK');
   assert(dashHttpRes.data.data.formattedTotalWealth.startsWith('₹'), 'API-002 returns formatted total wealth string');
 
-  // Test API-003: POST /api/v1/reports/generate
-  const reportHttpRes = await axios.post(`${baseUrl}/reports/generate`, {
+  const reportHttpRes = await axios.post(`${baseUrl}/api/v1/reports/generate`, {
     familyId: family.id,
     reportType: 'PORTFOLIO_SUMMARY',
     format: 'PDF'
@@ -680,10 +677,9 @@ async function runTestSuite() {
   assert(reportHttpRes.status === 200, 'POST /api/v1/reports/generate returns HTTP 200 OK');
   assert(reportHttpRes.data.data.downloadUrl.includes('.pdf'), 'API-003 returns PDF download URL');
 
-  // Test Error Handling: 400 Bad Request on missing familyId query param
   let caught400 = false;
   try {
-    await axios.get(`${baseUrl}/portfolio/summary`);
+    await axios.get(`${baseUrl}/api/v1/portfolio/summary`);
   } catch (err: any) {
     if (err.response) {
       assert(err.response.status === 400, 'Request Validation Middleware triggers 400 Bad Request on missing familyId');
@@ -693,10 +689,9 @@ async function runTestSuite() {
   }
   assert(caught400, 'API validation rejects invalid request query');
 
-  // Test Error Handling: 404 Not Found on invalid familyId
   let caught404 = false;
   try {
-    await axios.get(`${baseUrl}/portfolio/summary?familyId=999999`);
+    await axios.get(`${baseUrl}/api/v1/portfolio/summary?familyId=999999`);
   } catch (err: any) {
     if (err.response) {
       assert(err.response.status === 404, 'Error Middleware transforms NotFoundError to HTTP 404 Not Found');
@@ -705,6 +700,43 @@ async function runTestSuite() {
     }
   }
   assert(caught404, 'API handles non-existent entity with HTTP 404');
+
+  // 19. Sprint 6C Security Foundation & Observability Health Tests
+  console.log('\n--- 19. Testing Sprint 6C Security Foundation & Health Endpoints ---');
+
+  // Test Security HTTP Headers (Helmet)
+  assert(portSummaryHttpRes.headers['x-content-type-options'] === 'nosniff', 'Helmet Middleware attaches X-Content-Type-Options: nosniff');
+  assert(portSummaryHttpRes.headers['x-frame-options'] === 'DENY', 'Helmet Middleware attaches X-Frame-Options: DENY');
+  assert(portSummaryHttpRes.headers['x-xss-protection'] === '1; mode=block', 'Helmet Middleware attaches X-XSS-Protection');
+  assert(portSummaryHttpRes.headers['strict-transport-security'] !== undefined, 'Helmet Middleware attaches Strict-Transport-Security');
+
+  // Test Rate Limiter Headers
+  assert(portSummaryHttpRes.headers['x-ratelimit-limit'] === '100', 'RateLimiter Middleware attaches X-RateLimit-Limit header (100)');
+  assert(portSummaryHttpRes.headers['x-ratelimit-remaining'] !== undefined, 'RateLimiter Middleware attaches X-RateLimit-Remaining header');
+
+  // Test Health Endpoints: GET /health, GET /health/liveness, GET /health/readiness
+  const healthRes = await axios.get(`${baseUrl}/health`);
+  assert(healthRes.status === 200 && healthRes.data.status === 'UP', 'GET /health returns HTTP 200 OK with status UP');
+  assert(healthRes.data.components.database.status === 'HEALTHY', 'GET /health verifies SQLite database health');
+
+  const livenessRes = await axios.get(`${baseUrl}/health/liveness`);
+  assert(livenessRes.status === 200 && livenessRes.data.status === 'UP', 'GET /health/liveness returns HTTP 200 OK');
+
+  const readinessRes = await axios.get(`${baseUrl}/health/readiness`);
+  assert(readinessRes.status === 200 && readinessRes.data.status === 'READY', 'GET /health/readiness returns HTTP 200 OK');
+
+  // Test Payload Size Limit Enforcement (Max 1MB)
+  let caught413 = false;
+  try {
+    const hugePayload = { familyId: family.id, reportType: 'PORTFOLIO_SUMMARY', format: 'PDF', padding: 'X'.repeat(1.5 * 1024 * 1024) };
+    await axios.post(`${baseUrl}/api/v1/reports/generate`, hugePayload);
+  } catch (err: any) {
+    if (err.response) {
+      assert(err.response.status === 413, 'Body Size Limiter rejects oversized JSON payload (>1MB) with HTTP 413 Payload Too Large');
+      caught413 = true;
+    }
+  }
+  assert(caught413, 'Body size limiter enforces max 1MB JSON limit');
 
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));

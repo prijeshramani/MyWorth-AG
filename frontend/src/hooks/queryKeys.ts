@@ -15,5 +15,9 @@ export const queryKeys = {
   health: {
     all: ['health'] as const,
     overall: () => ['health', 'overall'] as const
+  },
+  protection: {
+    all: ['protection'] as const,
+    summary: (familyId: number) => ['protection', 'summary', familyId] as const
   }
 };

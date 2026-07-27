@@ -5,7 +5,7 @@ export interface RiskGaugeProps {
   value: number;
   minValue?: number;
   maxValue?: number;
-  ratingLabel?: 'LOW' | 'MODERATE' | 'HIGH';
+  ratingLabel?: string;
   statusColor?: string;
 }
 

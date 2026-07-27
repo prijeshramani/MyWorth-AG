@@ -759,6 +759,37 @@ async function runTestSuite() {
     assert(postmanJson.item.length >= 3, 'Postman Collection JSON defines request items');
   }
 
+  // Section 21: Testing Phase 5D Protection & Insurance Domain
+  console.log('\n--- 21. Testing Phase 5D Protection & Insurance Domain ---');
+  const { InsuranceRepository } = require('../repositories/InsuranceRepository');
+  const { InsuranceApplicationService } = require('../services/InsuranceApplicationService');
+  const insuranceRepo = new InsuranceRepository(db);
+  const insuranceAppService = new InsuranceApplicationService(insuranceRepo, familyRepository);
+
+  const policy = insuranceRepo.create({
+    family_id: family.id,
+    policy_number: 'POL-TEST-9901',
+    insurer_name: 'Max Life Insurance',
+    policy_type: 'TERM_INSURANCE',
+    policy_holder_id: member.id,
+    sum_assured: 10000000,
+    premium_amount: 15000,
+    premium_frequency: 'ANNUAL',
+    start_date: '2025-01-01',
+    next_premium_due_date: '2027-01-01',
+    status: 'ACTIVE',
+    nominee_name: 'Priya Sharma'
+  });
+
+  assert(policy.id !== undefined, 'InsuranceRepository creates policy record');
+  assert(policy.policy_number === 'POL-TEST-9901', 'InsuranceRepository persists policy number');
+
+  const protectionRes = await axios.get(`${baseUrl}/api/v1/protection/summary?familyId=${family.id}`);
+  assert(protectionRes.status === 200, 'GET /api/v1/protection/summary returns HTTP 200 OK');
+  assert(protectionRes.data.success === true, 'GET /api/v1/protection/summary returns success envelope');
+  assert(protectionRes.data.data.protectionScore !== undefined, 'GET /api/v1/protection/summary returns protectionScore');
+  assert(protectionRes.data.data.lifeCover.totalSumAssured >= 10000000, 'GET /api/v1/protection/summary aggregates lifeCover sum assured');
+
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));
 

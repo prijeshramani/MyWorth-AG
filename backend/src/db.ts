@@ -5,6 +5,7 @@ import { runMigrations } from './db/migrationRunner';
 import { migration001 } from './db/migrations/001_domain_foundation';
 import { migration002 } from './db/migrations/002_asset_master_and_holdings';
 import { migration003 } from './db/migrations/003_transaction_holding_link';
+import { migration004 } from './db/migrations/004_insurance_policies';
 
 // Resolve database path
 const dbDir = path.resolve(__dirname, '../../data');
@@ -214,7 +215,7 @@ export function initDb() {
   `).run();
 
   // Execute Versioned Database Migrations
-  runMigrations(db, [migration001, migration002, migration003], dbPath);
+  runMigrations(db, [migration001, migration002, migration003, migration004], dbPath);
 
   console.log('Database tables successfully verified/created.');
 }

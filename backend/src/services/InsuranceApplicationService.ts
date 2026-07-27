@@ -1,0 +1,124 @@
+import { InsuranceRepository } from '../repositories/InsuranceRepository';
+import { SQLiteFamilyRepository } from '../repositories/SQLiteFamilyRepository';
+
+export interface ProtectionSummaryDTO {
+  familyId: number;
+  familyName: string;
+  asOfDate: string;
+  protectionScore: number;
+  protectionRating: 'OPTIMAL' | 'MODERATE' | 'AT_RISK' | 'CRITICAL_GAP';
+  lifeCover: {
+    totalSumAssured: number;
+    formattedTotalSumAssured: string;
+    targetCoverage: number;
+    formattedTargetCoverage: string;
+    coverageGapPercent: number;
+  };
+  healthCover: {
+    totalSumAssured: number;
+    formattedTotalSumAssured: string;
+    targetCoverage: number;
+    formattedTargetCoverage: string;
+    coverageGapPercent: number;
+  };
+  upcomingPremiumsCount: number;
+  policies: Array<{
+    policyId: number;
+    policyNumber: string;
+    insurerName: string;
+    policyType: string;
+    holderName: string;
+    sumAssured: number;
+    formattedSumAssured: string;
+    premiumAmount: number;
+    formattedPremiumAmount: string;
+    nextPremiumDueDate: string;
+    status: string;
+    nomineeName?: string;
+  }>;
+}
+
+export class InsuranceApplicationService {
+  constructor(
+    private insuranceRepo: InsuranceRepository,
+    private familyRepo: SQLiteFamilyRepository
+  ) {}
+
+  public getProtectionSummary(familyId: number): ProtectionSummaryDTO {
+    const family = this.familyRepo.findById(familyId);
+    if (!family) {
+      throw new Error(`Family with ID ${familyId} not found.`);
+    }
+
+    const policies = this.insuranceRepo.findByFamilyId(familyId);
+
+    let totalLifeCover = 0;
+    let totalHealthCover = 0;
+    let compliantNomineeCount = 0;
+
+    const mappedPolicies = policies.map((p) => {
+      if (['TERM_INSURANCE', 'LIC_ENDOWMENT', 'LIC_MONEY_BACK', 'LIC_PENSION', 'LIC_CHILD', 'ULIP'].includes(p.policy_type)) {
+        totalLifeCover += p.sum_assured;
+      }
+      if (['HEALTH_INSURANCE', 'FAMILY_FLOATER', 'CRITICAL_ILLNESS'].includes(p.policy_type)) {
+        totalHealthCover += p.sum_assured;
+      }
+      if (p.nominee_name && p.nominee_name.trim().length > 0) {
+        compliantNomineeCount++;
+      }
+
+      return {
+        policyId: p.id,
+        policyNumber: p.policy_number,
+        insurerName: p.insurer_name,
+        policyType: p.policy_type,
+        holderName: p.holder_name || 'Family Member',
+        sumAssured: p.sum_assured,
+        formattedSumAssured: `₹${p.sum_assured.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        premiumAmount: p.premium_amount,
+        formattedPremiumAmount: `₹${p.premium_amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        nextPremiumDueDate: p.next_premium_due_date,
+        status: p.status,
+        nomineeName: p.nominee_name || undefined
+      };
+    });
+
+    const targetLifeCoverage = 25000000; // ₹2.5 Cr Target
+    const targetHealthCoverage = 3500000; // ₹35 Lakh Target
+
+    const lifeScore = Math.min(100, (totalLifeCover / targetLifeCoverage) * 100);
+    const healthScore = Math.min(100, (totalHealthCover / targetHealthCoverage) * 100);
+    const nomineeScore = policies.length > 0 ? (compliantNomineeCount / policies.length) * 100 : 100;
+
+    const protectionScore = Math.round(0.5 * lifeScore + 0.35 * healthScore + 0.15 * nomineeScore);
+
+    let protectionRating: ProtectionSummaryDTO['protectionRating'] = 'OPTIMAL';
+    if (protectionScore < 45) protectionRating = 'CRITICAL_GAP';
+    else if (protectionScore < 65) protectionRating = 'AT_RISK';
+    else if (protectionScore < 85) protectionRating = 'MODERATE';
+
+    return {
+      familyId,
+      familyName: family.name,
+      asOfDate: new Date().toISOString().split('T')[0],
+      protectionScore,
+      protectionRating,
+      lifeCover: {
+        totalSumAssured: totalLifeCover,
+        formattedTotalSumAssured: `₹${totalLifeCover.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        targetCoverage: targetLifeCoverage,
+        formattedTargetCoverage: `₹${targetLifeCoverage.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        coverageGapPercent: Math.max(0, 100 - lifeScore)
+      },
+      healthCover: {
+        totalSumAssured: totalHealthCover,
+        formattedTotalSumAssured: `₹${totalHealthCover.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        targetCoverage: targetHealthCoverage,
+        formattedTargetCoverage: `₹${targetHealthCoverage.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        coverageGapPercent: Math.max(0, 100 - healthScore)
+      },
+      upcomingPremiumsCount: mappedPolicies.filter((p) => p.status === 'ACTIVE').length,
+      policies: mappedPolicies
+    };
+  }
+}

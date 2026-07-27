@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './components/layout/ThemeProvider';
 import { AppLayout } from './components/layout/AppLayout';
 import { ComponentDemo } from './components/ui/ComponentDemo';
+import { ProtectionDashboard } from './components/protection/ProtectionDashboard';
+import { useUiStore } from './store/useUiStore';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,13 +16,21 @@ const queryClient = new QueryClient({
   }
 });
 
+function AppContent() {
+  const { activeTab } = useUiStore();
+
+  return (
+    <AppLayout>
+      {activeTab === 'protection' ? <ProtectionDashboard /> : <ComponentDemo />}
+    </AppLayout>
+  );
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AppLayout>
-          <ComponentDemo />
-        </AppLayout>
+        <AppContent />
       </ThemeProvider>
     </QueryClientProvider>
   );

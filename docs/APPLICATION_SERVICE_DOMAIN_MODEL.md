@@ -1,9 +1,9 @@
 # 📊 APPLICATION_SERVICE_DOMAIN_MODEL.md — Application Service Domain Model
 
 **System Name**: Family Wealth OS  
-**Phase**: Sprint 6A (Application Service Layer - Architecture & Design Phase)  
-**Date**: July 26, 2026  
-**Status**: APPROVED ARCHITECTURE  
+**Phase**: Sprint 6A (Final ARB Integration)  
+**Date**: July 27, 2026  
+**Status**: APPROVED ARCHITECTURE (ARB ENHANCED)  
 
 ---
 
@@ -33,9 +33,78 @@ The Application Service Layer acts as the orchestrator of Family Wealth OS, brid
 
 ---
 
-## 2. Core Service Interfaces & Contracts
+## 2. ARB Architectural Enhancements (Documentation Only)
 
-### A. `IPortfolioApplicationService`
+### A. `ApplicationExecutionContext`
+```typescript
+export interface ApplicationExecutionContext {
+  correlationId: string;
+  userContext: {
+    userId: string;
+    familyId: number;
+    roles: string[];
+  };
+  reportingCurrency: string; // e.g. 'INR', 'USD'
+  asOfDate: string;          // YYYY-MM-DD
+  featureFlags?: Record<string, boolean>;
+  executionOptions?: {
+    bypassCache?: boolean;
+    includeRiskMetrics?: boolean;
+  };
+}
+```
+
+### B. Standardized `ApplicationResult<T>` Response Envelope
+```typescript
+export interface ApplicationExecutionMetadata {
+  executionTimeMs: number;
+  engineVersion: string;
+  snapshotId?: string;
+  timestamp: string;
+}
+
+export interface ApplicationResult<T> {
+  success: boolean;
+  data?: T;
+  warnings: Array<{ code: string; message: string }>;
+  errors: Array<{ code: string; message: string }>;
+  metadata: ApplicationExecutionMetadata;
+  manifest?: any; // SHA-256 CalculationManifest
+  correlationId: string;
+}
+```
+
+### C. Application Error Taxonomy Model
+- **`ValidationError`**: Request payload or parameter validation failure (HTTP 400).
+- **`RepositoryError`**: Database query or entity lookup error (HTTP 404 / 500).
+- **`EngineError`**: Internal engine calculation exception (HTTP 422).
+- **`MappingError`**: DTO mapping or formatting exception (HTTP 500).
+- **`OrchestrationError`**: Pipeline sequence execution failure (HTTP 500).
+
+### D. Request Validation Layer Architecture
+```
+  [HTTP Request]
+        │
+        ▼
+[Request Validator] ── (Passes Validation?) ──► [Application Service]
+        │
+  (Validation Error)
+        │
+        ▼
+   [HTTP 400 DTO]
+```
+
+### E. Idempotency Key Specification
+- Supports `X-Idempotency-Key` headers for `ImportApplicationService`, `SnapshotCoordinator`, and `ReportingApplicationService` to guarantee duplicate request safety.
+
+### F. Read / Write Service Separation (CQRS Foundation)
+- **Query Services** (`PortfolioApplicationService`, `DashboardApplicationService`, `ReportingApplicationService`): Read-only data orchestration without state mutation.
+- **Command Services** (`ImportApplicationService`, `SnapshotCoordinator`): State-mutating data ingestion and snapshot persistence workflows.
+
+---
+
+## 3. Core Service Contracts
+
 ```typescript
 export interface PortfolioSummaryRequestDTO {
   familyId: number;
@@ -54,6 +123,9 @@ export interface PortfolioSummaryResponseDTO {
     totalCostBasis: number;
     unrealizedGain: number;
     unrealizedGainPercent: number;
+    formattedTotalMarketValue: string;
+    formattedTotalCostBasis: string;
+    formattedUnrealizedGain: string;
   };
   performance: {
     absoluteReturnPercent: number;
@@ -66,30 +138,5 @@ export interface PortfolioSummaryResponseDTO {
     topSector: string;
   };
   masterChecksum: string;
-}
-```
-
-### B. `IDashboardApplicationService`
-```typescript
-export interface DashboardOverviewResponseDTO {
-  familyId: number;
-  totalWealthFormatted: string; // e.g. "₹1,03,50,000"
-  netWorthChange24h: { absolute: number; percent: number };
-  assetAllocation: Array<{ assetType: string; percentage: number; formattedValue: string }>;
-  topEntities: Array<{ entityId: number; entityName: string; formattedValue: string }>;
-  alerts: Array<{ id: string; type: 'WARNING' | 'INFO'; message: string }>;
-}
-```
-
-### C. `ISnapshotCoordinator`
-```typescript
-export interface PersistedSnapshotEnvelope {
-  snapshotId: string;
-  familyId: number;
-  valuationSnapshotId: string;
-  netWorthSnapshotId: string;
-  performanceSnapshotId: string;
-  masterChecksum: string;
-  createdAt: string;
 }
 ```

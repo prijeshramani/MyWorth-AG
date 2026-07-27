@@ -63,12 +63,20 @@ import { portfolioAnalyticsEngine, PortfolioAnalyticsEngine } from '../engines/P
 import { riskEngine, RiskEngine } from '../engines/RiskEngine';
 import { PortfolioTimePoint, BenchmarkReturnPoint } from '../engines/RiskTypes';
 
+// Sprint 6A Application Service Layer & DTO Mappers
+import { DTOMapper } from '../mappers/DTOMapper';
+import { snapshotCoordinator } from '../services/application/SnapshotCoordinator';
+import { portfolioApplicationService } from '../services/application/PortfolioApplicationService';
+import { dashboardApplicationService } from '../services/application/DashboardApplicationService';
+import { importApplicationService } from '../services/application/ImportApplicationService';
+import { reportingApplicationService } from '../services/application/ReportingApplicationService';
+
 async function runTestSuite() {
   // Ensure database initialization & migrations
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING REGRESSION & SPRINT 5B RISK ENGINE TESTS ');
+  console.log(' RUNNING REGRESSION & SPRINT 6A APPLICATION TESTS ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -563,7 +571,6 @@ async function runTestSuite() {
   assert(riskResult.success === true, 'RiskEngine executes successfully');
   const riskSnapshot = riskResult.data!;
 
-  // Verify Risk Metrics (RISK-001 through RISK-007)
   assert(riskSnapshot.summary.annualizedVolatilityPercent > 0, 'RiskEngine computes Annualized Volatility (RISK-003)');
   assert(riskSnapshot.summary.maxDrawdownPercent > 0, 'RiskEngine measures Maximum Drawdown (RISK-004)');
   assert(riskSnapshot.summary.sharpeRatio !== 0, 'RiskEngine solves Sharpe Ratio (RISK-001)');
@@ -573,10 +580,69 @@ async function runTestSuite() {
   assert(riskSnapshot.benchmarkComparison?.primaryBenchmark.correlation !== undefined, 'RiskEngine solves Correlation against Nifty 50 (RISK-006)');
   assert(riskSnapshot.manifest.checksum.length === 64, 'RiskEngine generates valid SHA-256 calculation manifest checksum');
 
-  // Quality Gate 1: Determinism
   const riskExecA = riskEngine.execute({ correlationId: 'risk_gate_1', data: { portfolioTimeSeries: samplePortfolioTimeSeries, asOfDate: '2025-05-01' } });
   const riskExecB = riskEngine.execute({ correlationId: 'risk_gate_2', data: { portfolioTimeSeries: samplePortfolioTimeSeries, asOfDate: '2025-05-01' } });
   assert(riskExecA.data?.manifest.checksum === riskExecB.data?.manifest.checksum, 'Quality Gate: RiskEngine produces 100% deterministic calculation checksum');
+
+  // 17. Sprint 6A Application Service Layer & DTO Mapper Tests
+  console.log('\n--- 17. Testing Sprint 6A Application Service Layer & DTO Mappers ---');
+
+  // Test DTOMapper currency formatting (Indian & US)
+  const inrFormatted = DTOMapper.formatCurrency(10350000.50, 'INR');
+  assert(inrFormatted === '₹1,03,50,000.50', 'DTOMapper formats INR according to Indian numbering system (₹1,03,50,000.50)');
+
+  const usdFormatted = DTOMapper.formatCurrency(10000.50, 'USD');
+  assert(usdFormatted === '$10,000.50', 'DTOMapper formats USD according to International currency standards ($10,000.50)');
+
+  // Test SnapshotCoordinator lineage tracking
+  const lineageEnv = snapshotCoordinator.coordinateSnapshotLineage(
+    family.id,
+    '2026-07-26',
+    snapshot,
+    perfSnapshot,
+    analyticsSnapshot,
+    riskSnapshot
+  );
+  assert(lineageEnv.masterSnapshotId.startsWith('master_snap_'), 'SnapshotCoordinator generates masterSnapshotId');
+  assert(lineageEnv.masterChecksum === snapshot.manifest.checksum, 'SnapshotCoordinator aligns SHA-256 calculation checksum');
+
+  const fetchedLineage = snapshotCoordinator.getSnapshotLineage(lineageEnv.masterSnapshotId);
+  assert(fetchedLineage?.familyId === family.id, 'SnapshotCoordinator retrieves persisted snapshot lineage by master ID');
+
+  // Test PortfolioApplicationService end-to-end execution
+  const pasResponse = await portfolioApplicationService.getConsolidatedPortfolio({
+    familyId: family.id,
+    asOfDate: '2026-07-26',
+    reportingCurrency: 'INR',
+    includeRiskMetrics: true
+  });
+  assert(pasResponse.familyId === family.id, 'PortfolioApplicationService resolves familyId');
+  assert(pasResponse.familyName === 'Sharma Family', 'PortfolioApplicationService resolves familyName');
+  assert(pasResponse.netWorth.formattedTotalMarketValue.startsWith('₹'), 'PortfolioApplicationService maps formatted INR net worth string');
+  assert(pasResponse.analytics !== undefined, 'PortfolioApplicationService orchestrates PortfolioAnalyticsEngine');
+  assert(pasResponse.risk !== undefined, 'PortfolioApplicationService orchestrates RiskEngine');
+  assert(pasResponse.masterChecksum.length === 64, 'PortfolioApplicationService attaches SHA-256 calculation manifest checksum');
+
+  // Test DashboardApplicationService high-level overview
+  const dashResponse = await dashboardApplicationService.getDashboardOverview(family.id, '2026-07-26');
+  assert(dashResponse.familyId === family.id, 'DashboardApplicationService returns familyId');
+  assert(dashResponse.formattedTotalWealth.startsWith('₹'), 'DashboardApplicationService returns formatted total wealth string');
+  assert(dashResponse.memberSummaries.length === 1, 'DashboardApplicationService maps member net worth summaries');
+
+  // Test ImportApplicationService batch execution
+  const importRes = await importApplicationService.importTransactionBatch([
+    { holdingId: holding.id, assetId: stockAsset.id, type: 'BUY', date: '2026-07-26', quantity: 10, price: 3000, amount: 30000, source: 'ZERODHA' }
+  ], 'idempotency_key_9901');
+  assert(importRes.status === 'COMPLETED' && importRes.importBatchId === 'idempotency_key_9901', 'ImportApplicationService respects idempotency keys');
+
+  // Test ReportingApplicationService workflow
+  const reportRes = await reportingApplicationService.generateReport({
+    familyId: family.id,
+    reportType: 'PORTFOLIO_SUMMARY',
+    format: 'PDF'
+  });
+  assert(reportRes.reportId.startsWith('rep_portfolio_summary_'), 'ReportingApplicationService generates reportId');
+  assert(reportRes.downloadUrl !== undefined, 'ReportingApplicationService returns valid download URL');
 
   // Cleanup test entities & holdings
   transactionRepository.delete(holdingTx.id);

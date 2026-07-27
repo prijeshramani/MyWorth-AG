@@ -4,41 +4,42 @@ All changes executed by AI Coding Assistant are logged in reverse chronological 
 
 ---
 
-## [Phase 5E] - Authentication, Authorization & Platform Security Foundation (2026-07-27)
+## [Phase 6A] - Indian Tax Intelligence Engine (2026-07-27)
 
 ### Summary
-Implemented the complete **Platform Security Foundation** (Authentication, RBAC Authorization, Multi-tenancy, Session Management, Audit Logging, and JWT Security). Created SQLite database migration `005_security.ts` (`users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `sessions`, `audit_logs`). Built `PasswordService.ts` (PBKDF2 salt hashing), `JwtService.ts` (signed Access 15m / Refresh 7d tokens), `SQLiteUserRepository.ts`, `SQLiteAuditRepository.ts`, `AuthenticationService.ts`, `AuthenticationController.ts`, and `authRoutes.ts` serving `/api/v1/auth`. Created `authenticateMiddleware.ts` and `authorizeMiddleware.ts`. Built abstractions for `NotificationEvent.ts`, `DocumentRepository.ts`, and `DomainEvents.ts`. On the frontend, created `authService.ts`, `useAuthStore.ts`, `LoginPage.tsx`, and `apiClient.ts` Authorization header interceptor. Added Section 22 unit tests (`153 PASSED, 0 FAILED`). Verified production bundle build via Vite (`dist/` built cleanly in 21.95s with 0 errors).
+Implemented the **Indian Tax Intelligence Engine** across backend and frontend. Created SQLite database migration `006_taxation.ts` (`tax_profiles`, `tax_income_sources`, `tax_rules`, `tax_slabs`, `deduction_rules`, `tax_deductions`, `capital_gain_summary`, `tax_recommendations`, `tax_calendar`). Created zero-hardcoding `TaxRuleSeedLoader.ts` populating baseline rules for FY 2025-26 & FY 2026-27. Implemented `TaxCalculationEngine.ts` (Old vs New Regime calculation, Standard Deduction ₹75k vs ₹50k, Section 87A rebate, Cess 4%), `CapitalGainTaxEngine.ts` (FIFO STCG/LTCG under Finance Act 2024), `SQLiteTaxRepository.ts`, `TaxApplicationService.ts`, `TaxController.ts`, and `taxRoutes.ts` serving `/api/v1/tax/summary`. Built frontend `taxService.ts`, `useTaxSummary.ts` query hook, and `TaxDashboard.tsx` view. Created 5 architectural documentation files. Added Section 23 unit tests (**161 PASSED, 0 FAILED**). Verified production bundle build via Vite (`dist/` built cleanly in 9.00s with 0 errors).
 
 ### Added
-- `backend/src/db/migrations/005_security.ts`: Security migration 005 for users, roles, sessions, audit logs.
-- `backend/src/services/passwordService.ts`: PBKDF2 salt-based password hashing utility.
-- `backend/src/services/jwtService.ts`: JWT Access and Refresh token manager.
-- `backend/src/repositories/SQLiteUserRepository.ts`: SQLite user, role, and session repository.
-- `backend/src/repositories/SQLiteAuditRepository.ts`: SQLite audit log repository.
-- `backend/src/services/AuthenticationService.ts`: Authentication application service.
-- `backend/src/controllers/AuthenticationController.ts`: REST controller for authentication.
-- `backend/src/routes/authRoutes.ts`: Express router for auth endpoints.
-- `backend/src/middleware/authenticateMiddleware.ts`: JWT authentication middleware.
-- `backend/src/middleware/authorizeMiddleware.ts`: RBAC permission authorization middleware.
-- `backend/src/events/NotificationEvent.ts`: Notification abstraction interface.
-- `backend/src/repositories/DocumentRepository.ts`: Document vault storage abstraction.
-- `backend/src/events/DomainEvents.ts`: Domain event contracts.
-- `frontend/src/services/authService.ts`: Typed API client for auth endpoints.
-- `frontend/src/store/useAuthStore.ts`: Zustand authentication store.
-- `frontend/src/components/auth/LoginPage.tsx`: Glassmorphic login page.
-- `docs/Sprint_5E_Retrospective.md`: Phase 5E retrospective report.
-- `prompts/summary/Phase 5E - Implementation Summary.md`: Comprehensive Phase 5E summary report.
+- `backend/src/db/migrations/006_taxation.ts`: Taxation database schema migration 006.
+- `backend/src/engines/tax/TaxRuleSeedLoader.ts`: Idempotent seed loader for Indian tax rules.
+- `backend/src/engines/tax/TaxCalculationEngine.ts`: Old vs New regime tax calculation engine.
+- `backend/src/engines/tax/CapitalGainTaxEngine.ts`: STCG/LTCG capital gains calculation engine.
+- `backend/src/repositories/SQLiteTaxRepository.ts`: SQLite tax repository.
+- `backend/src/services/TaxApplicationService.ts`: Tax application service.
+- `backend/src/controllers/TaxController.ts`: Tax REST API controller.
+- `backend/src/routes/taxRoutes.ts`: Express router for tax endpoints.
+- `frontend/src/services/taxService.ts`: Typed API client for tax endpoints.
+- `frontend/src/hooks/useTaxSummary.ts`: TanStack Query hook for tax summary data.
+- `frontend/src/components/tax/TaxDashboard.tsx`: Tax Dashboard page view.
+- `docs/TAX_ARCHITECTURE.md`: Tax domain architecture document.
+- `docs/INDIAN_TAX_RULE_ENGINE.md`: Tax rule engine specification.
+- `docs/CAPITAL_GAINS_ENGINE.md`: Capital gains calculation rules.
+- `docs/DEDUCTION_ENGINE.md`: Section 80C/80D deduction engine rules.
+- `docs/RULE_CONFIGURATION_GUIDE.md`: Annual Finance Act update configuration guide.
+- `docs/Sprint_6A_Retrospective.md`: Phase 6A retrospective report.
+- `prompts/summary/Phase 6A - Implementation Summary.md`: Comprehensive Phase 6A summary report.
 
 ### Updated
-- `backend/src/db.ts`: Registered `migration005`.
-- `backend/src/routes/index.ts`: Mounted `authRouter`.
-- `backend/src/__tests__/runTests.ts`: Added Section 22 security tests (`153 PASSED, 0 FAILED`).
-- `frontend/src/services/apiClient.ts`: Attached dynamic Bearer Authorization header.
-- `frontend/src/App.tsx`: Added authentication guard rendering `LoginPage` when unauthenticated.
+- `backend/src/db.ts`: Registered `migration006`.
+- `backend/src/routes/index.ts`: Mounted `taxRouter`.
+- `backend/src/__tests__/runTests.ts`: Added Section 23 tax tests (**161 PASSED, 0 FAILED**).
+- `frontend/src/hooks/queryKeys.ts`: Added tax query keys.
+- `frontend/src/components/layout/NavigationDrawer.tsx`: Added Tax Intelligence drawer link.
+- `frontend/src/App.tsx`: Added `/tax` view switching.
 
 ---
 
-## [Phase 5D] - Protection & Insurance Domain Implementation (2026-07-27)
+## [Phase 5E] - Authentication, Authorization & Platform Security Foundation (2026-07-27)
 
 ### Summary
-Implemented the **Protection & Insurance Domain** across backend and frontend.
+Implemented the complete **Platform Security Foundation** (Authentication, RBAC, Multi-tenancy, Session Management, Audit Logging, and JWT Security).

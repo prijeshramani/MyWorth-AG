@@ -21,6 +21,7 @@ interface NavItem {
 export const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, path: '/dashboard' },
   { id: 'portfolio', label: 'Portfolio Tree', icon: <PieChart className="w-4 h-4" />, path: '/portfolio' },
+  { id: 'tax', label: 'Tax Intelligence', icon: <BarChart3 className="w-4 h-4" />, path: '/tax' },
   { id: 'protection', label: 'Protection & Insurance', icon: <ShieldAlert className="w-4 h-4" />, path: '/protection' },
   { id: 'holdings', label: 'Holdings', icon: <Table className="w-4 h-4" />, path: '/holdings' },
   { id: 'performance', label: 'Performance', icon: <TrendingUp className="w-4 h-4" />, path: '/performance' },

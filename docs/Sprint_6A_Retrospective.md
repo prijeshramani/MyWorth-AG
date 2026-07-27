@@ -1,6 +1,6 @@
-# Sprint 6A Retrospective — Application Service Layer Implementation
+# Phase 6A Retrospective — Indian Tax Intelligence Engine
 
-**Sprint Name**: Sprint 6A – Application Service Layer  
+**Sprint Name**: Phase 6A – Indian Tax Intelligence Engine  
 **Date**: July 27, 2026  
 **Status**: Complete  
 
@@ -8,31 +8,38 @@
 
 ## 1. Accomplishments
 
-1. **DTO Contracts & Mappers (`backend/src/dto/` & `backend/src/mappers/`)**:
-   - `PortfolioDTOs.ts`: Clean request/response DTO structures for family portfolio summaries and dashboard overviews.
-   - `DTOMapper.ts`: Centralized formatting for monetary values according to locale (e.g. Indian numbering system `₹1,03,50,000.50` for INR, `$10,000.50` for USD) and transformation of raw engine snapshots into DTOs.
-2. **Application Service Orchestration (`backend/src/services/application/`)**:
-   - `SnapshotCoordinator.ts`: Cross-engine snapshot lineage alignment, pointer management, and master calculation hash verification.
-   - `PortfolioApplicationService.ts`: Core application service orchestrating SQLite repositories, market data, `NetWorthEngine`, `PortfolioAnalyticsEngine`, and `RiskEngine` without modifying engine core logic.
-   - `DashboardApplicationService.ts`: Aggregates top-level family wealth views and member summaries.
-   - `ImportApplicationService.ts`: Idempotency-aware transaction batch ingestion pipeline.
-   - `ReportingApplicationService.ts`: Financial report generation and export workflows.
-3. **Automated Unit Tests & Quality Gates**:
-   - Expanded test suite section 17 verifying DTO formatting, snapshot lineage alignment, `PortfolioApplicationService` execution, `DashboardApplicationService` aggregation, `ImportApplicationService` batch processing, and `ReportingApplicationService` workflows.
-   - All tests pass cleanly (`101 PASSED, 0 FAILED`).
-   - Both backend (`tsc`) and frontend (`vite build`) compile with 0 errors.
+1. **Rule Engine & Database Schema (`006_taxation.ts` & `TaxRuleSeedLoader.ts`)**:
+   - SQLite migration 006 creating `tax_profiles`, `tax_income_sources`, `tax_rules`, `tax_slabs`, `deduction_rules`, `tax_deductions`, `capital_gain_summary`, `tax_recommendations`, and `tax_calendar`.
+   - Zero hardcoding rule engine storing versioned slabs, rates, and limits populated idempotently for FY 2025-26 & FY 2026-27.
+2. **Calculation Engines & Application Services (`backend/src/`)**:
+   - `TaxCalculationEngine.ts`: Old vs New Regime income tax liability calculation, standard deductions (₹75k vs ₹50k), Section 87A rebate, and 4% Health & Education cess.
+   - `CapitalGainTaxEngine.ts`: FIFO capital gains calculation for Equity (LTCG 12.5% above ₹1.25L, STCG 20%), Gold, Property, and Debt funds.
+   - `SQLiteTaxRepository.ts`: Data access repository for tax entities.
+   - `TaxApplicationService.ts`: Assembles tax profiles, income sources, deduction tracking, regime comparison, capital gains, recommendations, and compliance calendar.
+   - `TaxController.ts` & `taxRoutes.ts`: REST endpoints (`GET /api/v1/tax/summary`, `/regime-comparison`, `/capital-gains`, `/deductions`, `/recommendations`, `/calendar`).
+   - Unit tests: Added Section 23 tests in `runTests.ts` (**161 PASSED, 0 FAILED**).
+3. **Frontend Tax Intelligence Module (`frontend/src/`)**:
+   - `taxService.ts`: Typed API client for `/tax/summary`.
+   - `useTaxSummary.ts`: TanStack Query hook with 5-minute stale-time caching.
+   - `TaxDashboard.tsx`: Interactive Tax Dashboard assembling Tax Efficiency Risk Gauge, Gross Income KPI, Old vs New Regime Comparison Table, Section 80C/80D Deduction Tracker, Tax Optimization Recommendations, and Compliance Calendar.
+   - `NavigationDrawer.tsx` & `App.tsx`: Added **Tax Intelligence** navigation drawer link and view switching.
+4. **Architectural Documentation Suite (`docs/`)**:
+   - `TAX_ARCHITECTURE.md`: High-level domain architecture.
+   - `INDIAN_TAX_RULE_ENGINE.md`: Rule metadata & configuration specification.
+   - `CAPITAL_GAINS_ENGINE.md`: Holding period & tax rate matrix (Finance Act 2024).
+   - `DEDUCTION_ENGINE.md`: Section 80C, 80D, 80CCD(1B), 24(b) deduction rules.
+   - `RULE_CONFIGURATION_GUIDE.md`: Annual Finance Act update configuration guide.
 
 ---
 
 ## 2. What Went Well
 
-- **Strict DTO Isolation Boundary**: Engine snapshots remain raw and algorithm-focused, while DTO Mappers handle locale formatting and user presentation cleanly.
-- **Zero Engine or Repository Redesign**: Orchestrated all 6 pure financial engines and 12 repositories without modifying underlying contracts or schema.
-- **100% Backward Compatibility**: Extended test coverage from 84 to 101 unit tests while preserving all prior regression assertions.
+- **Zero Hardcoding Architecture**: Storing tax slabs, rates, and deduction limits in versioned SQLite tables ensures annual Finance Act updates require configuration changes rather than code refactoring.
+- **100% Component Reuse**: The Tax Dashboard view reused `RiskGauge`, `MetricCard`, `Timeline`, `InsightCard`, and `PageSkeleton` without duplicating UI code.
 
 ---
 
-## 3. Lessons Learned & Recommendations for Sprint 6B
+## 3. Lessons Learned & Recommendation Before Next Sprint
 
-- **Lesson**: Parsing `metadata` JSON strings on `AssetMaster` dynamically inside application services ensures graceful handling of diverse asset properties (e.g. sector, exchange, liquidity).
-- **Recommendation before Sprint 6B**: Proceed to **Sprint 6B – REST API Controllers & Express Middleware**, attaching clean HTTP endpoints (`/api/portfolio/summary`, `/api/dashboard/overview`, `/api/reports/generate`) to the newly created `PortfolioApplicationService` and `DashboardApplicationService`.
+- **Lesson**: Decoupling tax calculation engines into pure, stateless functions (`TaxCalculationEngine`, `CapitalGainTaxEngine`) makes unit testing clean and fast.
+- **Recommendation before next sprint**: **Proceed to Phase 6B (Multi-Family Wealth & Estate Planning) to implement family entity consolidation, trust structure management, and generational wealth transfer planning.**

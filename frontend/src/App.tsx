@@ -4,6 +4,7 @@ import { ThemeProvider } from './components/layout/ThemeProvider';
 import { AppLayout } from './components/layout/AppLayout';
 import { ComponentDemo } from './components/ui/ComponentDemo';
 import { ProtectionDashboard } from './components/protection/ProtectionDashboard';
+import { TaxDashboard } from './components/tax/TaxDashboard';
 import { LoginPage } from './components/auth/LoginPage';
 import { useUiStore } from './store/useUiStore';
 import { useAuthStore } from './store/useAuthStore';
@@ -28,7 +29,13 @@ function AppContent() {
 
   return (
     <AppLayout>
-      {activeTab === 'protection' ? <ProtectionDashboard /> : <ComponentDemo />}
+      {activeTab === 'tax' ? (
+        <TaxDashboard />
+      ) : activeTab === 'protection' ? (
+        <ProtectionDashboard />
+      ) : (
+        <ComponentDemo />
+      )}
     </AppLayout>
   );
 }

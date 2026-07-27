@@ -811,9 +811,10 @@ async function runTestSuite() {
   assert(decoded.userId === 1, 'JwtService verifies access token payload');
   assert(decoded.roles.includes('Owner'), 'JwtService attaches user roles');
 
+  const testEmail = `rajesh.sharma_${Date.now()}@myworth.test`;
   const createdUser = userRepo.create({
     family_id: family.id,
-    email: 'rajesh.sharma@myworth.test',
+    email: testEmail,
     password_hash: PasswordService.hashPassword('MyWorthSecurePass2026'),
     first_name: 'Rajesh',
     last_name: 'Sharma',
@@ -823,7 +824,7 @@ async function runTestSuite() {
 
   userRepo.assignRole(createdUser.id, 'Owner');
   const loginRes = await axios.post(`${baseUrl}/api/v1/auth/login`, {
-    email: 'rajesh.sharma@myworth.test',
+    email: testEmail,
     password: 'MyWorthSecurePass2026'
   });
 
@@ -831,6 +832,30 @@ async function runTestSuite() {
   assert(loginRes.data.data.accessToken !== undefined, 'POST /api/v1/auth/login returns accessToken');
   assert(loginRes.data.data.refreshToken !== undefined, 'POST /api/v1/auth/login returns refreshToken');
   assert(loginRes.data.data.user.roles.includes('Owner'), 'POST /api/v1/auth/login includes Owner role');
+
+  // Section 23: Testing Phase 6A Indian Tax Intelligence Engine
+  console.log('\n--- 23. Testing Phase 6A Indian Tax Intelligence Engine ---');
+  const { TaxRuleSeedLoader } = require('../engines/tax/TaxRuleSeedLoader');
+  const { TaxCalculationEngine } = require('../engines/tax/TaxCalculationEngine');
+  const { CapitalGainTaxEngine } = require('../engines/tax/CapitalGainTaxEngine');
+
+  TaxRuleSeedLoader.seedTaxRules(db);
+
+  const calcNew = TaxCalculationEngine.calculateNewRegimeTax({ grossIncome: 1800000 });
+  assert(calcNew.netTaxableIncome === 1725000, 'TaxCalculationEngine applies ₹75k standard deduction in New Regime');
+  assert(calcNew.totalTaxPayable > 0, 'TaxCalculationEngine computes base tax and cess for New Regime');
+
+  const calcOld = TaxCalculationEngine.calculateOldRegimeTax({ grossIncome: 1800000, claimed80C: 150000, claimed80D: 25000 });
+  assert(calcOld.totalDeductions === 225000, 'TaxCalculationEngine applies Section 80C & 80D deductions in Old Regime');
+
+  const cgRes = CapitalGainTaxEngine.calculateCapitalGain({ assetType: 'EQUITY', buyDate: '2023-01-01', sellDate: '2025-06-01', buyAmount: 200000, sellAmount: 400000 });
+  assert(cgRes.gainType === 'LTCG', 'CapitalGainTaxEngine identifies Equity holding > 12m as LTCG');
+  assert(cgRes.taxRatePercent === 12.5, 'CapitalGainTaxEngine applies 12.5% LTCG tax rate');
+
+  const taxSummaryRes = await axios.get(`${baseUrl}/api/v1/tax/summary?familyId=${family.id}`);
+  assert(taxSummaryRes.status === 200, 'GET /api/v1/tax/summary returns HTTP 200 OK');
+  assert(taxSummaryRes.data.data.recommendedRegime !== undefined, 'GET /api/v1/tax/summary identifies recommended tax regime');
+  assert(taxSummaryRes.data.data.deductions.length >= 4, 'GET /api/v1/tax/summary returns deduction tracker array');
 
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));

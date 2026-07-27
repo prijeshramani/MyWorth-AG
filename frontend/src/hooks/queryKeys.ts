@@ -19,5 +19,9 @@ export const queryKeys = {
   protection: {
     all: ['protection'] as const,
     summary: (familyId: number) => ['protection', 'summary', familyId] as const
+  },
+  tax: {
+    all: ['tax'] as const,
+    summary: (familyId: number) => ['tax', 'summary', familyId] as const
   }
 };

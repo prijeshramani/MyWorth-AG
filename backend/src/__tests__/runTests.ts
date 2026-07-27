@@ -790,6 +790,48 @@ async function runTestSuite() {
   assert(protectionRes.data.data.protectionScore !== undefined, 'GET /api/v1/protection/summary returns protectionScore');
   assert(protectionRes.data.data.lifeCover.totalSumAssured >= 10000000, 'GET /api/v1/protection/summary aggregates lifeCover sum assured');
 
+  // Section 22: Testing Phase 5E Platform Security, Auth & RBAC
+  console.log('\n--- 22. Testing Phase 5E Platform Security, Auth & RBAC ---');
+  const { PasswordService } = require('../services/passwordService');
+  const { JwtService } = require('../services/jwtService');
+  const { SQLiteUserRepository } = require('../repositories/SQLiteUserRepository');
+  const { SQLiteAuditRepository } = require('../repositories/SQLiteAuditRepository');
+  const { AuthenticationService } = require('../services/AuthenticationService');
+
+  const userRepo = new SQLiteUserRepository(db);
+  const auditRepo = new SQLiteAuditRepository(db);
+  const authService = new AuthenticationService(userRepo, auditRepo);
+
+  const hash = PasswordService.hashPassword('SuperSecret123!');
+  assert(PasswordService.verifyPassword('SuperSecret123!', hash) === true, 'PasswordService verifies valid password hash');
+  assert(PasswordService.verifyPassword('WrongPass', hash) === false, 'PasswordService rejects invalid password');
+
+  const jwt = JwtService.generateAccessToken({ userId: 1, familyId: Number(family.id), email: 'test@family.com', roles: ['Owner'], permissions: ['Investment.Read'] });
+  const decoded = JwtService.verifyAccessToken(jwt);
+  assert(decoded.userId === 1, 'JwtService verifies access token payload');
+  assert(decoded.roles.includes('Owner'), 'JwtService attaches user roles');
+
+  const createdUser = userRepo.create({
+    family_id: family.id,
+    email: 'rajesh.sharma@myworth.test',
+    password_hash: PasswordService.hashPassword('MyWorthSecurePass2026'),
+    first_name: 'Rajesh',
+    last_name: 'Sharma',
+    status: 'ACTIVE'
+  });
+  assert(createdUser.id !== undefined, 'SQLiteUserRepository creates user record');
+
+  userRepo.assignRole(createdUser.id, 'Owner');
+  const loginRes = await axios.post(`${baseUrl}/api/v1/auth/login`, {
+    email: 'rajesh.sharma@myworth.test',
+    password: 'MyWorthSecurePass2026'
+  });
+
+  assert(loginRes.status === 200, 'POST /api/v1/auth/login returns HTTP 200 OK');
+  assert(loginRes.data.data.accessToken !== undefined, 'POST /api/v1/auth/login returns accessToken');
+  assert(loginRes.data.data.refreshToken !== undefined, 'POST /api/v1/auth/login returns refreshToken');
+  assert(loginRes.data.data.user.roles.includes('Owner'), 'POST /api/v1/auth/login includes Owner role');
+
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));
 

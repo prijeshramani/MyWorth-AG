@@ -4,7 +4,9 @@ import { ThemeProvider } from './components/layout/ThemeProvider';
 import { AppLayout } from './components/layout/AppLayout';
 import { ComponentDemo } from './components/ui/ComponentDemo';
 import { ProtectionDashboard } from './components/protection/ProtectionDashboard';
+import { LoginPage } from './components/auth/LoginPage';
 import { useUiStore } from './store/useUiStore';
+import { useAuthStore } from './store/useAuthStore';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +20,11 @@ const queryClient = new QueryClient({
 
 function AppContent() {
   const { activeTab } = useUiStore();
+  const { isAuthenticated } = useAuthStore();
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   return (
     <AppLayout>

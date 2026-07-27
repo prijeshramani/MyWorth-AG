@@ -1,51 +1,36 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../errors/AppError';
-import { logger } from '../utils/logger';
 
 export function errorHandlerMiddleware(
-  err: Error,
+  err: any,
   req: Request,
   res: Response,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   next: NextFunction
 ): void {
-  const correlationId = (req as any).correlationId;
+  const startTime = (req as any).startTime || Date.now();
+  const executionTimeMs = Date.now() - startTime;
+  const correlationId = (req as any).correlationId || 'N/A';
 
-  if (err instanceof AppError) {
-    logger.warn(`Operational AppError [${err.errorCode}]: ${err.message}`, {
-      correlationId,
-      path: req.path,
-      statusCode: err.statusCode
-    });
+  const statusCode = err instanceof AppError ? err.statusCode : (err.statusCode || 500);
+  const errorCode = err instanceof AppError ? err.errorCode : 'INTERNAL_SERVER_ERROR';
+  const category = statusCode >= 400 && statusCode < 500 ? 'CLIENT_ERROR' : 'SERVER_ERROR';
+  const message = err.message || 'An unexpected internal server error occurred';
 
-    res.status(err.statusCode).json({
-      success: false,
-      data: null,
-      error: {
-        code: err.errorCode,
-        message: err.message,
-        details: err.details || []
-      },
-      timestamp: new Date().toISOString()
-    });
-    return;
-  }
-
-  // Unhandled operational / code exceptions
-  logger.error(`Unhandled Exception: ${err.message}`, {
-    correlationId,
-    path: req.path,
-    stack: err.stack
-  });
-
-  res.status(500).json({
+  res.status(statusCode).json({
     success: false,
-    data: null,
-    error: {
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'An unexpected internal error occurred.',
-      details: []
+    metadata: {
+      executionTimeMs,
+      apiVersion: 'v1.0'
     },
-    timestamp: new Date().toISOString()
+    correlationId,
+    warnings: [],
+    errors: [
+      {
+        code: errorCode,
+        category,
+        message,
+        timestamp: new Date().toISOString()
+      }
+    ]
   });
 }

@@ -71,12 +71,17 @@ import { dashboardApplicationService } from '../services/application/DashboardAp
 import { importApplicationService } from '../services/application/ImportApplicationService';
 import { reportingApplicationService } from '../services/application/ReportingApplicationService';
 
+// Sprint 6B REST API Layer & Express App
+import { app } from '../app';
+import axios from 'axios';
+import { Server } from 'http';
+
 async function runTestSuite() {
   // Ensure database initialization & migrations
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING REGRESSION & SPRINT 6A APPLICATION TESTS ');
+  console.log(' RUNNING REGRESSION & SPRINT 6B REST API TESTS    ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -584,17 +589,15 @@ async function runTestSuite() {
   const riskExecB = riskEngine.execute({ correlationId: 'risk_gate_2', data: { portfolioTimeSeries: samplePortfolioTimeSeries, asOfDate: '2025-05-01' } });
   assert(riskExecA.data?.manifest.checksum === riskExecB.data?.manifest.checksum, 'Quality Gate: RiskEngine produces 100% deterministic calculation checksum');
 
-  // 17. Sprint 6A Application Service Layer & DTO Mapper Tests
+  // 17. Sprint 6A Application Service Layer & DTO Mappers
   console.log('\n--- 17. Testing Sprint 6A Application Service Layer & DTO Mappers ---');
 
-  // Test DTOMapper currency formatting (Indian & US)
   const inrFormatted = DTOMapper.formatCurrency(10350000.50, 'INR');
   assert(inrFormatted === '₹1,03,50,000.50', 'DTOMapper formats INR according to Indian numbering system (₹1,03,50,000.50)');
 
   const usdFormatted = DTOMapper.formatCurrency(10000.50, 'USD');
   assert(usdFormatted === '$10,000.50', 'DTOMapper formats USD according to International currency standards ($10,000.50)');
 
-  // Test SnapshotCoordinator lineage tracking
   const lineageEnv = snapshotCoordinator.coordinateSnapshotLineage(
     family.id,
     '2026-07-26',
@@ -609,7 +612,6 @@ async function runTestSuite() {
   const fetchedLineage = snapshotCoordinator.getSnapshotLineage(lineageEnv.masterSnapshotId);
   assert(fetchedLineage?.familyId === family.id, 'SnapshotCoordinator retrieves persisted snapshot lineage by master ID');
 
-  // Test PortfolioApplicationService end-to-end execution
   const pasResponse = await portfolioApplicationService.getConsolidatedPortfolio({
     familyId: family.id,
     asOfDate: '2026-07-26',
@@ -623,19 +625,16 @@ async function runTestSuite() {
   assert(pasResponse.risk !== undefined, 'PortfolioApplicationService orchestrates RiskEngine');
   assert(pasResponse.masterChecksum.length === 64, 'PortfolioApplicationService attaches SHA-256 calculation manifest checksum');
 
-  // Test DashboardApplicationService high-level overview
   const dashResponse = await dashboardApplicationService.getDashboardOverview(family.id, '2026-07-26');
   assert(dashResponse.familyId === family.id, 'DashboardApplicationService returns familyId');
   assert(dashResponse.formattedTotalWealth.startsWith('₹'), 'DashboardApplicationService returns formatted total wealth string');
   assert(dashResponse.memberSummaries.length === 1, 'DashboardApplicationService maps member net worth summaries');
 
-  // Test ImportApplicationService batch execution
   const importRes = await importApplicationService.importTransactionBatch([
     { holdingId: holding.id, assetId: stockAsset.id, type: 'BUY', date: '2026-07-26', quantity: 10, price: 3000, amount: 30000, source: 'ZERODHA' }
   ], 'idempotency_key_9901');
   assert(importRes.status === 'COMPLETED' && importRes.importBatchId === 'idempotency_key_9901', 'ImportApplicationService respects idempotency keys');
 
-  // Test ReportingApplicationService workflow
   const reportRes = await reportingApplicationService.generateReport({
     familyId: family.id,
     reportType: 'PORTFOLIO_SUMMARY',
@@ -643,6 +642,72 @@ async function runTestSuite() {
   });
   assert(reportRes.reportId.startsWith('rep_portfolio_summary_'), 'ReportingApplicationService generates reportId');
   assert(reportRes.downloadUrl !== undefined, 'ReportingApplicationService returns valid download URL');
+
+  // 18. Sprint 6B REST API Layer & Middleware Tests
+  console.log('\n--- 18. Testing Sprint 6B REST API Endpoints & Middlewares ---');
+
+  // Start ephemeral Express HTTP server
+  const server: Server = await new Promise((resolve) => {
+    const srv = app.listen(0, () => resolve(srv));
+  });
+  const address = server.address() as any;
+  const baseUrl = `http://127.0.0.1:${address.port}/api/v1`;
+
+  // Test API-001: GET /api/v1/portfolio/summary
+  const customCorrId = `test_corr_${Date.now()}`;
+  const portSummaryHttpRes = await axios.get(`${baseUrl}/portfolio/summary?familyId=${family.id}&includeRiskMetrics=true`, {
+    headers: { 'X-Correlation-ID': customCorrId }
+  });
+  
+  assert(portSummaryHttpRes.status === 200, 'GET /api/v1/portfolio/summary returns HTTP 200 OK');
+  assert(portSummaryHttpRes.headers['x-correlation-id'] === customCorrId, 'CorrelationId Middleware echoes X-Correlation-ID header');
+  assert(portSummaryHttpRes.data.success === true, 'Standard response envelope contains success = true');
+  assert(portSummaryHttpRes.data.data.familyId === family.id, 'API-001 returns DTO with matching familyId');
+  assert(portSummaryHttpRes.data.metadata.executionTimeMs >= 0, 'API-001 attaches executionTimeMs in metadata');
+  assert(portSummaryHttpRes.data.metadata.apiVersion === 'v1.0', 'API-001 attaches apiVersion in metadata');
+
+  // Test API-002: GET /api/v1/dashboard/overview
+  const dashHttpRes = await axios.get(`${baseUrl}/dashboard/overview?familyId=${family.id}`);
+  assert(dashHttpRes.status === 200, 'GET /api/v1/dashboard/overview returns HTTP 200 OK');
+  assert(dashHttpRes.data.data.formattedTotalWealth.startsWith('₹'), 'API-002 returns formatted total wealth string');
+
+  // Test API-003: POST /api/v1/reports/generate
+  const reportHttpRes = await axios.post(`${baseUrl}/reports/generate`, {
+    familyId: family.id,
+    reportType: 'PORTFOLIO_SUMMARY',
+    format: 'PDF'
+  });
+  assert(reportHttpRes.status === 200, 'POST /api/v1/reports/generate returns HTTP 200 OK');
+  assert(reportHttpRes.data.data.downloadUrl.includes('.pdf'), 'API-003 returns PDF download URL');
+
+  // Test Error Handling: 400 Bad Request on missing familyId query param
+  let caught400 = false;
+  try {
+    await axios.get(`${baseUrl}/portfolio/summary`);
+  } catch (err: any) {
+    if (err.response) {
+      assert(err.response.status === 400, 'Request Validation Middleware triggers 400 Bad Request on missing familyId');
+      assert(err.response.data.errors[0].code === 'VALIDATION_ERROR', 'Error Middleware formats standard error envelope with VALIDATION_ERROR');
+      caught400 = true;
+    }
+  }
+  assert(caught400, 'API validation rejects invalid request query');
+
+  // Test Error Handling: 404 Not Found on invalid familyId
+  let caught404 = false;
+  try {
+    await axios.get(`${baseUrl}/portfolio/summary?familyId=999999`);
+  } catch (err: any) {
+    if (err.response) {
+      assert(err.response.status === 404, 'Error Middleware transforms NotFoundError to HTTP 404 Not Found');
+      assert(err.response.data.errors[0].code === 'NOT_FOUND', 'Error Middleware formats standard error envelope with NOT_FOUND');
+      caught404 = true;
+    }
+  }
+  assert(caught404, 'API handles non-existent entity with HTTP 404');
+
+  // Close HTTP server
+  await new Promise((resolve) => server.close(resolve));
 
   // Cleanup test entities & holdings
   transactionRepository.delete(holdingTx.id);

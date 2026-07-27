@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "Family Wealth OS REST API",
+    "description": "Production-ready Postman collection for Family Wealth OS REST API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "API-001 Portfolio Summary",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Correlation-ID", "value": "postman_req_101" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/portfolio/summary?familyId=1&includeRiskMetrics=true",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "portfolio", "summary"],
+          "query": [
+            { "key": "familyId", "value": "1" },
+            { "key": "includeRiskMetrics", "value": "true" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "API-002 Dashboard Overview",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Correlation-ID", "value": "postman_req_102" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/dashboard/overview?familyId=1",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "dashboard", "overview"],
+          "query": [
+            { "key": "familyId", "value": "1" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "API-003 Report Generation",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-Correlation-ID", "value": "postman_req_103" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"familyId\": 1,\n  \"reportType\": \"PORTFOLIO_SUMMARY\",\n  \"format\": \"PDF\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reports/generate",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reports", "generate"]
+        }
+      }
+    },
+    {
+      "name": "Health Check Overall",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    }
+  ]
+}

@@ -18,6 +18,8 @@ import { assetMasterService } from '../services/AssetMasterService';
 import { holdingService } from '../services/HoldingService';
 import { runInTransaction } from '../db/transactionHelper';
 import { AppError, ValidationError, NotFoundError } from '../errors/AppError';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Sprint 1D Engines & Infrastructure
 import { FinancialMath } from '../engines/common/FinancialMath';
@@ -81,7 +83,7 @@ async function runTestSuite() {
   initDb();
 
   console.log('\n==================================================');
-  console.log(' RUNNING REGRESSION & SPRINT 6C SECURITY TESTS    ');
+  console.log(' RUNNING REGRESSION & SPRINT 6D DEVELOPER TESTS   ');
   console.log('==================================================\n');
 
   let passed = 0;
@@ -704,17 +706,14 @@ async function runTestSuite() {
   // 19. Sprint 6C Security Foundation & Observability Health Tests
   console.log('\n--- 19. Testing Sprint 6C Security Foundation & Health Endpoints ---');
 
-  // Test Security HTTP Headers (Helmet)
   assert(portSummaryHttpRes.headers['x-content-type-options'] === 'nosniff', 'Helmet Middleware attaches X-Content-Type-Options: nosniff');
   assert(portSummaryHttpRes.headers['x-frame-options'] === 'DENY', 'Helmet Middleware attaches X-Frame-Options: DENY');
   assert(portSummaryHttpRes.headers['x-xss-protection'] === '1; mode=block', 'Helmet Middleware attaches X-XSS-Protection');
   assert(portSummaryHttpRes.headers['strict-transport-security'] !== undefined, 'Helmet Middleware attaches Strict-Transport-Security');
 
-  // Test Rate Limiter Headers
   assert(portSummaryHttpRes.headers['x-ratelimit-limit'] === '100', 'RateLimiter Middleware attaches X-RateLimit-Limit header (100)');
   assert(portSummaryHttpRes.headers['x-ratelimit-remaining'] !== undefined, 'RateLimiter Middleware attaches X-RateLimit-Remaining header');
 
-  // Test Health Endpoints: GET /health, GET /health/liveness, GET /health/readiness
   const healthRes = await axios.get(`${baseUrl}/health`);
   assert(healthRes.status === 200 && healthRes.data.status === 'UP', 'GET /health returns HTTP 200 OK with status UP');
   assert(healthRes.data.components.database.status === 'HEALTHY', 'GET /health verifies SQLite database health');
@@ -725,7 +724,6 @@ async function runTestSuite() {
   const readinessRes = await axios.get(`${baseUrl}/health/readiness`);
   assert(readinessRes.status === 200 && readinessRes.data.status === 'READY', 'GET /health/readiness returns HTTP 200 OK');
 
-  // Test Payload Size Limit Enforcement (Max 1MB)
   let caught413 = false;
   try {
     const hugePayload = { familyId: family.id, reportType: 'PORTFOLIO_SUMMARY', format: 'PDF', padding: 'X'.repeat(1.5 * 1024 * 1024) };
@@ -737,6 +735,29 @@ async function runTestSuite() {
     }
   }
   assert(caught413, 'Body size limiter enforces max 1MB JSON limit');
+
+  // 20. Sprint 6D Developer Portal & Swagger UI Tests
+  console.log('\n--- 20. Testing Sprint 6D Developer Portal & Interactive Swagger UI ---');
+
+  const swaggerHtmlRes = await axios.get(`${baseUrl}/api-docs`);
+  assert(swaggerHtmlRes.status === 200, 'GET /api-docs returns HTTP 200 OK');
+  assert(String(swaggerHtmlRes.headers['content-type'] || '').includes('text/html'), 'GET /api-docs returns HTML document content');
+  assert(swaggerHtmlRes.data.includes('SwaggerUIBundle'), 'GET /api-docs serves Swagger UI bundle initialization HTML');
+
+  const swaggerJsonRes = await axios.get(`${baseUrl}/api-docs/swagger.json`);
+  assert(swaggerJsonRes.status === 200, 'GET /api-docs/swagger.json returns HTTP 200 OK');
+  assert(swaggerJsonRes.data.openapi === '3.0.3', 'GET /api-docs/swagger.json returns OpenAPI 3.0.3 schema object');
+  assert(swaggerJsonRes.data.paths['/portfolio/summary'] !== undefined, 'OpenAPI JSON spec documents /portfolio/summary path');
+
+  const postmanPath = path.join(__dirname, '../../../docs/POSTMAN_COLLECTION.json');
+  const postmanExists = fs.existsSync(postmanPath);
+  assert(postmanExists, 'Postman Collection JSON file exists in docs directory');
+
+  if (postmanExists) {
+    const postmanJson = JSON.parse(fs.readFileSync(postmanPath, 'utf8'));
+    assert(postmanJson.info.name === 'Family Wealth OS REST API', 'Postman Collection JSON contains valid info.name');
+    assert(postmanJson.item.length >= 3, 'Postman Collection JSON defines request items');
+  }
 
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));

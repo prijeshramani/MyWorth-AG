@@ -8,6 +8,7 @@ import { requestTimeoutMiddleware } from './middleware/requestTimeoutMiddleware'
 import { errorHandlerMiddleware } from './middleware/errorHandlerMiddleware';
 import routes from './routes';
 import healthRoutes from './routes/healthRoutes';
+import swaggerRoutes from './routes/swaggerRoutes';
 
 export function createApp(): Express {
   const app = express();
@@ -32,6 +33,9 @@ export function createApp(): Express {
   app.use(rateLimiterMiddleware);
   app.use(requestTimeoutMiddleware);
   app.use(requestLoggingMiddleware);
+
+  // Developer Portal & Interactive Swagger Documentation
+  app.use('/api-docs', swaggerRoutes);
 
   // Observability Health Routes
   app.use('/health', healthRoutes);

@@ -1,52 +1,54 @@
 # Current Phase
-- **Phase Name**: Phase 5B-2 (Atomic Component Library Implementation)
-- **Phase Goal**: Implement atomic UI component library (MetricCard, PortfolioCard, AssetTile, HoldingTable, InsightCard, RiskGauge, Timeline, ComponentDemo) and documentation enhancements.
+- **Phase Name**: Phase 5B-3A (Frontend Data Layer Implementation)
+- **Phase Goal**: Implement typed API client services, TanStack Query hooks, query key factory, response envelope parsing, correlation ID header propagation, and documentation enhancements.
 - **Current Status**: Complete
 - **Completion Percentage**: 100%
 
 # Current Branch
 - **Git Branch**: main
-- **Last Commit**: Phase 5B-2 Atomic Component Library Implementation
+- **Last Commit**: Phase 5B-3A Frontend Data Layer Implementation
 - **Pending Pull Requests**: None
 
 # Current Feature
-- **Feature Name**: Atomic Component Library & Story Demo
+- **Feature Name**: Typed API Services & TanStack Query Hooks
 - **Specification Documents**:
-  - `docs/COMPONENT_LIBRARY.md`
-  - `docs/WIDGET_LIFECYCLE_SPECIFICATION.md`
-  - `docs/GLOBAL_NOTIFICATION_CENTER.md`
-  - `docs/FRONTEND_PERFORMANCE_BUDGET.md`
-  - `docs/THEME_EXPANSION_STRATEGY.md`
-  - `prompts/summary/Phase 5B-2 - Implementation Summary.md`
-- **Implementation Status**: MetricCard, PortfolioCard, AssetTile, HoldingTable, InsightCard, RiskGauge, Timeline, ComponentDemo, Retrospective & Tests Complete
-- **Dependencies**: React 18, Vite, TypeScript, Lucide Icons, Design System Tokens
+  - `docs/CHART_DESIGN_SYSTEM.md`
+  - `docs/ICON_REGISTRY.md`
+  - `docs/MICRO_INTERACTION_GUIDE.md`
+  - `docs/RESPONSIVE_BREAKPOINTS.md`
+  - `docs/COMPONENT_VERSIONING.md`
+  - `prompts/summary/Phase 5B-3A - Implementation Summary.md`
+- **Implementation Status**: Services (portfolio, dashboard, reporting, health), Hooks (usePortfolioSummary, useDashboardOverview, useReportGeneration, useHealthCheck), Query keys, Retrospective & Tests Complete
+- **Dependencies**: React 18, Vite, TypeScript, TanStack Query v5, Axios, Backend REST API Layer
 
 # Files Modified / Created
-- `frontend/src/components/ui/MetricCard.tsx`: KPI display card component.
-- `frontend/src/components/ui/PortfolioCard.tsx`: Family entity summary card component.
-- `frontend/src/components/ui/AssetTile.tsx`: Individual asset tile component.
-- `frontend/src/components/ui/HoldingTable.tsx`: Filterable, sortable 3-state holdings data table.
-- `frontend/src/components/ui/InsightCard.tsx`: Portfolio health alert card component.
-- `frontend/src/components/ui/RiskGauge.tsx`: Radial gauge meter component.
-- `frontend/src/components/ui/Timeline.tsx`: Activity feed component.
-- `frontend/src/components/ui/ComponentDemo.tsx`: Story/demo page demonstrating all atomic components.
-- `frontend/src/App.tsx`: Updated App mounting ComponentDemo inside AppLayout.
-- `docs/WIDGET_LIFECYCLE_SPECIFICATION.md`: Widget lifecycle specification.
-- `docs/GLOBAL_NOTIFICATION_CENTER.md`: Global notification center architecture.
-- `docs/FRONTEND_PERFORMANCE_BUDGET.md`: Performance budget specification.
-- `docs/THEME_EXPANSION_STRATEGY.md`: Theme expansion strategy.
-- `docs/Sprint_5B_2_Retrospective.md`: Phase 5B-2 retrospective.
-- `prompts/summary/Phase 5B-2 - Implementation Summary.md`: Phase 5B-2 summary.
+- `frontend/src/services/config.ts`: Environment configuration and mock data switch.
+- `frontend/src/services/portfolioService.ts`: Typed API client for `API-001`.
+- `frontend/src/services/dashboardService.ts`: Typed API client for `API-002`.
+- `frontend/src/services/reportingService.ts`: Typed API client for `API-003`.
+- `frontend/src/services/healthService.ts`: Typed API client for `/health` probes.
+- `frontend/src/hooks/queryKeys.ts`: Centralized TanStack Query key factory.
+- `frontend/src/hooks/usePortfolioSummary.ts`: Query hook for portfolio summary.
+- `frontend/src/hooks/useDashboardOverview.ts`: Query hook for dashboard overview.
+- `frontend/src/hooks/useReportGeneration.ts`: Mutation hook for report generation.
+- `frontend/src/hooks/useHealthCheck.ts`: Query hook for observability health checks.
+- `docs/CHART_DESIGN_SYSTEM.md`: Financial chart visual design guidelines.
+- `docs/ICON_REGISTRY.md`: Lucide React icon taxonomy mapping.
+- `docs/MICRO_INTERACTION_GUIDE.md`: Micro-interaction & animation guide.
+- `docs/RESPONSIVE_BREAKPOINTS.md`: Responsive breakpoint specification.
+- `docs/COMPONENT_VERSIONING.md`: Component library versioning strategy.
+- `docs/Sprint_5B_3A_Retrospective.md`: Phase 5B-3A retrospective.
+- `prompts/summary/Phase 5B-3A - Implementation Summary.md`: Phase 5B-3A summary.
 - `docs/AI_CHANGELOG.md`: AI changelog.
 
 # Build & Test Status
-- **Frontend Build**: Passed cleanly (`dist/assets/index.js` built in 6.98s).
+- **Frontend Build**: Passed cleanly (`dist/assets/index.js` built in 13.59s).
 - **Backend Build**: Passed cleanly (`tsc`).
 - **Backend Unit Tests**: 138 Passed, 0 Failed (`npm test`).
 
 # Next Recommended Task
-- **Recommended Action**: Proceed to **Phase 5B-3 (Charts & Data Layer Integration)**.
-- **Rationale**: The atomic UI component library, 3-state table handling, glassmorphic visual styling, and accessibility contracts are 100% built, verified, and tested.
+- **Recommended Action**: Proceed to **Phase 5B-3B (Financial Chart Visualizers Implementation)**.
+- **Rationale**: The frontend API client services, TanStack Query hooks, query key factory, and response envelope handling are 100% built, verified, and tested.
 
 # Blockers
 - None.

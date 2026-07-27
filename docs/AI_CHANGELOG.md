@@ -4,30 +4,33 @@ All changes executed by AI Coding Assistant are logged in reverse chronological 
 
 ---
 
-## [Phase 5B-2] - Atomic Component Library Implementation (2026-07-27)
+## [Phase 5B-3A] - Frontend Data Layer Implementation (2026-07-27)
 
 ### Summary
-Implemented the reusable **Atomic Component Library** (`MetricCard`, `PortfolioCard`, `AssetTile`, `HoldingTable`, `InsightCard`, `RiskGauge`, `Timeline`, `ComponentDemo`) under `frontend/src/components/ui/`. Built 3-state data handling (Loading, Empty, Error, Data) and mobile card view fallback for `HoldingTable`. Created `WIDGET_LIFECYCLE_SPECIFICATION.md`, `GLOBAL_NOTIFICATION_CENTER.md`, `FRONTEND_PERFORMANCE_BUDGET.md`, `THEME_EXPANSION_STRATEGY.md`, `Sprint_5B_2_Retrospective.md`, and `Phase 5B-2 - Implementation Summary.md`. Verified production bundle build via Vite (`dist/` built in 6.98s with 0 errors) and confirmed 138 backend unit tests passing cleanly.
+Implemented the **Frontend Data Layer** (`portfolioService`, `dashboardService`, `reportingService`, `healthService`, `queryKeys`, `usePortfolioSummary`, `useDashboardOverview`, `useReportGeneration`, `useHealthCheck`, `config`) under `frontend/src/services/` and `frontend/src/hooks/`. Configured Axios response envelope parsing, correlation ID header propagation, and 5-minute stale-time caching via TanStack Query v5. Created `CHART_DESIGN_SYSTEM.md`, `ICON_REGISTRY.md`, `MICRO_INTERACTION_GUIDE.md`, `RESPONSIVE_BREAKPOINTS.md`, `COMPONENT_VERSIONING.md`, `Sprint_5B_3A_Retrospective.md`, and `Phase 5B-3A - Implementation Summary.md`. Verified production bundle build via Vite (`dist/` built in 13.59s with 0 errors) and confirmed 138 backend unit tests passing cleanly.
 
 ### Added
-- `frontend/src/components/ui/MetricCard.tsx`: KPI display card component.
-- `frontend/src/components/ui/PortfolioCard.tsx`: Family entity summary card component.
-- `frontend/src/components/ui/AssetTile.tsx`: Individual asset tile component.
-- `frontend/src/components/ui/HoldingTable.tsx`: Filterable, sortable 3-state holdings data table.
-- `frontend/src/components/ui/InsightCard.tsx`: Portfolio health alert card component.
-- `frontend/src/components/ui/RiskGauge.tsx`: Radial gauge meter component.
-- `frontend/src/components/ui/Timeline.tsx`: Activity feed component.
-- `frontend/src/components/ui/ComponentDemo.tsx`: Story/demo page demonstrating all atomic components.
-- `docs/WIDGET_LIFECYCLE_SPECIFICATION.md`: Widget lifecycle specification.
-- `docs/GLOBAL_NOTIFICATION_CENTER.md`: Global notification center architecture.
-- `docs/FRONTEND_PERFORMANCE_BUDGET.md`: Performance budget specification.
-- `docs/THEME_EXPANSION_STRATEGY.md`: Theme expansion strategy.
-- `docs/Sprint_5B_2_Retrospective.md`: Phase 5B-2 retrospective report.
-- `prompts/summary/Phase 5B-2 - Implementation Summary.md`: Comprehensive Phase 5B-2 summary report.
+- `frontend/src/services/config.ts`: Environment configuration and mock data switch.
+- `frontend/src/services/portfolioService.ts`: Typed API client for `API-001`.
+- `frontend/src/services/dashboardService.ts`: Typed API client for `API-002`.
+- `frontend/src/services/reportingService.ts`: Typed API client for `API-003`.
+- `frontend/src/services/healthService.ts`: Typed API client for `/health` probes.
+- `frontend/src/hooks/queryKeys.ts`: Centralized TanStack Query key factory.
+- `frontend/src/hooks/usePortfolioSummary.ts`: Query hook for portfolio summary.
+- `frontend/src/hooks/useDashboardOverview.ts`: Query hook for dashboard overview.
+- `frontend/src/hooks/useReportGeneration.ts`: Mutation hook for report generation.
+- `frontend/src/hooks/useHealthCheck.ts`: Query hook for observability health checks.
+- `docs/CHART_DESIGN_SYSTEM.md`: Financial chart visual design guidelines.
+- `docs/ICON_REGISTRY.md`: Lucide React icon taxonomy mapping.
+- `docs/MICRO_INTERACTION_GUIDE.md`: Micro-interaction & animation guide.
+- `docs/RESPONSIVE_BREAKPOINTS.md`: Responsive breakpoint specification.
+- `docs/COMPONENT_VERSIONING.md`: Component library versioning strategy.
+- `docs/Sprint_5B_3A_Retrospective.md`: Phase 5B-3A retrospective report.
+- `prompts/summary/Phase 5B-3A - Implementation Summary.md`: Comprehensive Phase 5B-3A summary report.
 
 ---
 
-## [Phase 5B-1] - Frontend Foundation Implementation (2026-07-27)
+## [Phase 5B-2] - Atomic Component Library Implementation (2026-07-27)
 
 ### Summary
-Implemented the **Frontend Foundation & Infrastructure Shell** (`AppLayout`, `TopNavbar`, `NavigationDrawer`, `MobileNavigation`, `ResponsiveGrid`, `ThemeProvider`, `useUiStore`, `apiClient`, `ErrorBoundary`, `PageSkeleton`, `index.css`).
+Implemented the reusable **Atomic Component Library** (`MetricCard`, `PortfolioCard`, `AssetTile`, `HoldingTable`, `InsightCard`, `RiskGauge`, `Timeline`, `ComponentDemo`).

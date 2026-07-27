@@ -4,40 +4,40 @@ All changes executed by AI Coding Assistant are logged in reverse chronological 
 
 ---
 
-## [Phase 6UX] - Product Integration, UI Wiring & Data Management (2026-07-27)
+## [Phase 6B.0] - Knowledge Graph Foundation & Relationship Engine (2026-07-27)
 
 ### Summary
-Executed complete **Product Integration, UI Wiring & Data Management** phase for FamilyWealthOS. Wired all completed modules into a single production-ready application. Expanded NavigationDrawer to 17 reachable menu tabs (`Dashboard`, `Family`, `Portfolio`, `Holdings`, `Transactions`, `Accounts`, `Protection`, `Tax`, `Documents`, `Import Center`, `Data Manager`, `Data Quality`, `Reconciliation`, `Estate`, `Reports`, `Settings`, `Developer Mode`). Created `GlobalSearchModal.tsx` (`Ctrl+K` cross-domain search), `FamilyManager.tsx` (Family & Member CRUD), `AccountsManager.tsx` (Bank & Demat Accounts CRUD), `DocumentVault.tsx` (Document Repository), `DataManager.tsx` (Import Reviews, Duplicate Resolution with Merge/Skip/Overwrite, Column Mappings, Rollback), `DataQualityCenter.tsx` (Missing PAN/Nominee Audits), `ReconciliationDashboard.tsx` (Multi-way matching), `OnboardingWizard.tsx` (8-Step Setup Workflow), `SettingsView.tsx` (Settings & Backup exports), `DeveloperConsole.tsx` (DB Inspector, API Logs, Migrations), and `EstatePlaceholder.tsx`. Verified zero compilation errors via Vite build (`dist/` built in 21.09s) and 161 passing backend unit tests.
+Implemented the canonical **Knowledge Graph Foundation & Relationship Engine** across backend and frontend. Created SQLite database migration `007_knowledge_graph.ts` (`relationship_types`, `graph_nodes`, `graph_edges`, `entity_references`, `graph_metadata`). Created configuration-driven `KnowledgeGraphSeedLoader.ts` populating baseline relationship types (`OWNS`, `JOINT_OWNER`, `NOMINEE`, `BENEFICIARY`, `INSURED`, `POLICY_HOLDER`, `DEPENDENT`, `GUARDIAN`, `PARENT_OF`, `CHILD_OF`, `SPOUSE_OF`, `DOCUMENT_FOR`, `TAX_PROFILE_OF`, `ACCOUNT_HOLDER`) with inverse code support. Implemented `SQLiteKnowledgeGraphRepository.ts`, `GraphQueryService.ts` (ego-networks, asset ownership trees, nominee readiness score), `RelationshipService.ts` (automatic domain entity graph extraction), `GraphController.ts`, and `graphRoutes.ts` serving `/api/v1/graph`. Built frontend `graphService.ts`, `useGraphOverview.ts` query hook, and `RelationshipExplorer.tsx` visual graph explorer view. Created 5 architectural documentation files. Added Section 24 unit tests (**169 PASSED, 0 FAILED**). Verified production bundle build via Vite (`dist/` built cleanly in 37.55s with 0 errors).
 
 ### Added
-- `frontend/src/components/common/GlobalSearchModal.tsx`: Global search modal (`Ctrl+K`).
-- `frontend/src/components/family/FamilyManager.tsx`: Family Member CRUD management view.
-- `frontend/src/components/accounts/AccountsManager.tsx`: Bank & Demat Accounts CRUD view.
-- `frontend/src/components/documents/DocumentVault.tsx`: Document Repository & Vault view.
-- `frontend/src/components/data/DataManager.tsx`: Data Manager operational console.
-- `frontend/src/components/quality/DataQualityCenter.tsx`: Data Quality audit console.
-- `frontend/src/components/reconciliation/ReconciliationDashboard.tsx`: Reconciliation Dashboard view.
-- `frontend/src/components/onboarding/OnboardingWizard.tsx`: 8-Step Interactive Onboarding Wizard.
-- `frontend/src/components/settings/SettingsView.tsx`: Platform Settings view.
-- `frontend/src/components/developer/DeveloperConsole.tsx`: Extended Developer Mode console.
-- `frontend/src/components/estate/EstatePlaceholder.tsx`: Estate Planning preview panel.
-- `docs/PRODUCT_INTEGRATION_ARCHITECTURE.md`: Product integration architecture.
-- `docs/IMPORT_CENTER_ARCHITECTURE.md`: Import center architecture.
-- `docs/DATA_MANAGER_GUIDE.md`: Data manager guide.
-- `docs/UI_NAVIGATION_GUIDE.md`: UI navigation guide.
-- `docs/USER_ONBOARDING_GUIDE.md`: User onboarding guide.
-- `docs/Sprint_6UX_Retrospective.md`: Phase 6UX retrospective report.
-- `prompts/summary/Phase 6UX - Implementation Summary.md`: Comprehensive Phase 6UX summary report.
+- `backend/src/db/migrations/007_knowledge_graph.ts`: Database migration 007 for Knowledge Graph.
+- `backend/src/engines/graph/KnowledgeGraphSeedLoader.ts`: Idempotent seed loader for relationship types.
+- `backend/src/repositories/SQLiteKnowledgeGraphRepository.ts`: SQLite graph repository.
+- `backend/src/services/GraphQueryService.ts`: Graph traversal and estate readiness service.
+- `backend/src/services/RelationshipService.ts`: Relationship management and automatic domain entity graph sync service.
+- `backend/src/controllers/GraphController.ts`: Graph REST API controller.
+- `backend/src/routes/graphRoutes.ts`: Express router for graph endpoints.
+- `frontend/src/services/graphService.ts`: Typed API client for graph endpoints.
+- `frontend/src/hooks/useGraphOverview.ts`: TanStack Query hook for graph overview data.
+- `frontend/src/components/graph/RelationshipExplorer.tsx`: Knowledge Graph Explorer page view.
+- `docs/KNOWLEDGE_GRAPH_ARCHITECTURE.md`: Knowledge Graph architecture document.
+- `docs/RELATIONSHIP_MODEL.md`: Relationship matrix specification document.
+- `docs/GRAPH_QUERY_GUIDE.md`: Graph query guide document.
+- `docs/GRAPH_SEED_GUIDE.md`: Relationship seed loader guide document.
+- `docs/Sprint_6B0_Retrospective.md`: Phase 6B.0 retrospective report.
+- `prompts/summary/Phase 6B0 - Implementation Summary.md`: Comprehensive Phase 6B.0 summary report.
 
 ### Updated
-- `frontend/src/store/useUiStore.ts`: Added state for `datasetMode`, `isGlobalSearchOpen`, `onboardingStep`, `dashboardWidgets`.
-- `frontend/src/components/layout/NavigationDrawer.tsx`: Expanded menu items to 17 reachable tabs.
-- `frontend/src/components/layout/TopNavbar.tsx`: Added `Ctrl+K` search trigger, dataset toggle switch, and onboarding launcher.
-- `frontend/src/App.tsx`: Wired view routing for all 17 navigation views and global search modal.
+- `backend/src/db.ts`: Registered `migration007`.
+- `backend/src/routes/index.ts`: Mounted `graphRouter`.
+- `backend/src/__tests__/runTests.ts`: Added Section 24 Knowledge Graph tests (**169 PASSED, 0 FAILED**).
+- `frontend/src/hooks/queryKeys.ts`: Added graph query keys.
+- `frontend/src/components/layout/NavigationDrawer.tsx`: Added Knowledge Graph drawer link.
+- `frontend/src/App.tsx`: Added `/graph` view switching.
 
 ---
 
-## [Phase 6A] - Indian Tax Intelligence Engine (2026-07-27)
+## [Phase 6UX] - Product Integration, UI Wiring & Data Management (2026-07-27)
 
 ### Summary
-Implemented the **Indian Tax Intelligence Engine** across backend and frontend. Created SQLite database migration `006_taxation.ts`.
+Executed complete **Product Integration, UI Wiring & Data Management** phase for FamilyWealthOS.

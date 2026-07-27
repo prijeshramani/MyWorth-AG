@@ -8,6 +8,7 @@ import { migration003 } from './db/migrations/003_transaction_holding_link';
 import { migration004 } from './db/migrations/004_insurance_policies';
 import { migration005 } from './db/migrations/005_security';
 import { migration006 } from './db/migrations/006_taxation';
+import { migration007 } from './db/migrations/007_knowledge_graph';
 
 // Resolve database path
 const dbDir = path.resolve(__dirname, '../../data');
@@ -217,7 +218,7 @@ export function initDb() {
   `).run();
 
   // Execute Versioned Database Migrations
-  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006], dbPath);
+  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007], dbPath);
 
   console.log('Database tables successfully verified/created.');
 }

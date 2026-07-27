@@ -10,6 +10,7 @@ import CashFlowDashboard from './components/CashFlowDashboard';
 import { FamilyManager } from './components/family/FamilyManager';
 import { AccountsManager } from './components/accounts/AccountsManager';
 import { DocumentVault } from './components/documents/DocumentVault';
+import { RelationshipExplorer } from './components/graph/RelationshipExplorer';
 import { DataManager } from './components/data/DataManager';
 import { DataQualityCenter } from './components/quality/DataQualityCenter';
 import { ReconciliationDashboard } from './components/reconciliation/ReconciliationDashboard';
@@ -49,6 +50,8 @@ function AppContent() {
         return <Dashboard onNavigate={(tab) => setActiveTab(tab)} />;
       case 'family':
         return <FamilyManager />;
+      case 'graph':
+        return <RelationshipExplorer />;
       case 'portfolio':
         return <Portfolio />;
       case 'holdings':

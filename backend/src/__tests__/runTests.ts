@@ -857,6 +857,38 @@ async function runTestSuite() {
   assert(taxSummaryRes.data.data.recommendedRegime !== undefined, 'GET /api/v1/tax/summary identifies recommended tax regime');
   assert(taxSummaryRes.data.data.deductions.length >= 4, 'GET /api/v1/tax/summary returns deduction tracker array');
 
+  // Section 24: Testing Phase 6B.0 Knowledge Graph Foundation & Relationship Engine
+  console.log('\n--- 24. Testing Phase 6B.0 Knowledge Graph Foundation & Relationship Engine ---');
+  const { KnowledgeGraphSeedLoader } = require('../engines/graph/KnowledgeGraphSeedLoader');
+  const { SQLiteKnowledgeGraphRepository } = require('../repositories/SQLiteKnowledgeGraphRepository');
+  const { GraphQueryService } = require('../services/GraphQueryService');
+  const { RelationshipService } = require('../services/RelationshipService');
+
+  KnowledgeGraphSeedLoader.seedRelationshipTypes(db);
+  const graphTestRepo = new SQLiteKnowledgeGraphRepository(db);
+  const graphTestQuery = new GraphQueryService(graphTestRepo);
+  const graphTestService = new RelationshipService(db, graphTestRepo);
+
+  const nodePerson = graphTestRepo.getOrCreateNode(family.id, 'PERSON', 1, 'Rajesh Sharma');
+  const nodeAsset = graphTestRepo.getOrCreateNode(family.id, 'ASSET', 101, 'HDFC Top 100 Fund');
+  assert(nodePerson.id !== undefined, 'SQLiteKnowledgeGraphRepository creates PERSON node');
+  assert(nodeAsset.id !== undefined, 'SQLiteKnowledgeGraphRepository creates ASSET node');
+
+  const ownsRel = graphTestRepo.getRelationshipTypeByCode('OWNS');
+  assert(ownsRel !== undefined, 'KnowledgeGraphSeedLoader seeds baseline OWNS relationship type');
+
+  const edge = graphTestRepo.addEdge(family.id, nodePerson.id, nodeAsset.id, ownsRel.id);
+  assert(edge.id !== undefined, 'SQLiteKnowledgeGraphRepository connects nodes with directed edge');
+
+  graphTestService.syncKnowledgeGraphFromDomainEntities(family.id);
+  const graphOverview = graphTestQuery.getOverviewGraph(family.id);
+  assert(graphOverview.nodeCount > 0, 'GraphQueryService retrieves node count');
+  assert(graphOverview.edgeCount > 0, 'GraphQueryService retrieves edge count');
+
+  const graphApiRes = await axios.get(`${baseUrl}/api/v1/graph/overview?familyId=${family.id}`);
+  assert(graphApiRes.status === 200, 'GET /api/v1/graph/overview returns HTTP 200 OK');
+  assert(graphApiRes.data.data.estateReadiness !== undefined, 'GET /api/v1/graph/overview computes estateReadiness graph');
+
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));
 

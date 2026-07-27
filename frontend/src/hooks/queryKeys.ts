@@ -23,5 +23,9 @@ export const queryKeys = {
   tax: {
     all: ['tax'] as const,
     summary: (familyId: number) => ['tax', 'summary', familyId] as const
+  },
+  graph: {
+    all: ['graph'] as const,
+    overview: (familyId: number) => ['graph', 'overview', familyId] as const
   }
 };

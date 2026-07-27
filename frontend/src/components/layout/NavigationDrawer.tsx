@@ -3,6 +3,7 @@ import { useUiStore } from '../../store/useUiStore';
 import {
   LayoutDashboard,
   Users,
+  GitFork,
   PieChart,
   Table,
   TrendingUp,
@@ -29,6 +30,7 @@ interface NavItem {
 export const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: 'family', label: 'Family & Members', icon: <Users className="w-4 h-4" /> },
+  { id: 'graph', label: 'Knowledge Graph', icon: <GitFork className="w-4 h-4 text-sky-400" /> },
   { id: 'portfolio', label: 'Portfolio Tree', icon: <PieChart className="w-4 h-4" /> },
   { id: 'holdings', label: 'Holdings', icon: <Table className="w-4 h-4" /> },
   { id: 'transactions', label: 'Transactions', icon: <TrendingUp className="w-4 h-4" /> },

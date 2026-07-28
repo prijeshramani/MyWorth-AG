@@ -32,5 +32,9 @@ export const queryKeys = {
     all: ['estate'] as const,
     dashboard: (familyId: number) => ['estate', 'dashboard', familyId] as const,
     emergency: (familyId: number) => ['estate', 'emergency', familyId] as const
+  },
+  planning: {
+    all: ['planning'] as const,
+    dashboard: (familyId: number) => ['planning', 'dashboard', familyId] as const
   }
 };

@@ -1,42 +1,32 @@
-# Sprint 6C Retrospective — Platform Security Foundation Implementation
+# Phase 6C Retrospective — Financial Goals, Retirement & Life Planning
 
-**Sprint Name**: Sprint 6C – Platform Security Foundation  
-**Date**: July 27, 2026  
+**Sprint Name**: Phase 6C – Financial Goals, Retirement & Life Planning  
+**Date**: July 28, 2026  
 **Status**: Complete  
 
 ---
 
 ## 1. Accomplishments
 
-1. **Platform Security Middlewares (`backend/src/middleware/` & `app.ts`)**:
-   - `helmetSecurityMiddleware.ts`: Attaches security HTTP headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, `Strict-Transport-Security`).
-   - `rateLimiterMiddleware.ts`: High-performance sliding-window IP rate limiter (100 requests / minute) with standard `X-RateLimit-*` headers.
-   - `requestTimeoutMiddleware.ts`: Enforces 15-second execution timeouts.
-   - `app.ts`: Configures CORS origins, trusted proxy settings (`app.set('trust proxy', 1)`), and body size limits (`1mb`).
-2. **Observability Health Endpoints (`backend/src/controllers/HealthController.ts`)**:
-   - `GET /health`: Overall system health (SQLite database check, engine registry count, uptime).
-   - `GET /health/liveness`: Kubernetes/container liveness probe (`200 OK`).
-   - `GET /health/readiness`: Database & repository readiness probe (`200 OK`).
-3. **Architecture & Security Specifications (`docs/`)**:
-   - `SECURITY_ARCHITECTURE.md`: JWT bearer token strategy, refresh token rotation, RBAC role model (`FAMILY_OWNER`, `FAMILY_MEMBER`, `ADVISOR`, `READ_ONLY`).
-   - `API_SECURITY_GUIDE.md`: Developer guide for securing API endpoints.
-   - `DEPLOYMENT_SECURITY_CHECKLIST.md`: Production readiness security checklist.
-4. **Automated Unit Tests & Quality Gates**:
-   - Expanded test suite section 19 verifying security HTTP headers, rate limit headers, observability health endpoints, and 1MB JSON body size limit enforcement (HTTP 413).
-   - All tests pass cleanly (`129 PASSED, 0 FAILED`).
-   - Both backend (`tsc`) and frontend (`vite build`) compile with 0 errors.
+1. **Database Schema (`009_financial_planning.ts`)**:
+   - Migration 009 creating `projection_assumptions`, `financial_goals`, `goal_allocations`, `projection_scenarios`, `retirement_profiles`, `cashflow_profiles`, `goal_recommendations`, and `planning_timeline`.
+2. **Backend Repositories & Projection Services (`backend/src/`)**:
+   - `SQLiteGoalRepository.ts`: Data access repository for financial goals, assumptions, retirement profiles, cashflow profiles, and recommendations.
+   - `ProjectionEngineService.ts`: Single compound interest & cash-flow simulation engine supporting inflation, return rates, monthly SIP step-up, and lump-sum injections.
+   - `GoalPlanningService.ts`: Serves Goal Manager (Retirement, Education, House, Vehicle, Emergency Fund) & computes Goal Health Score ($S_{\text{Goal}}$).
+   - `RetirementPlanningService.ts`: Inflation-adjusted corpus requirements and retirement readiness percentage.
+   - `CashflowProjectionService.ts`: 10-year and 30-year cash flow forecasting.
+   - `PlanningRecommendationService.ts`: Explainable AI-ready recommendation engine.
+   - `PlanningController.ts` & `planningRoutes.ts`: REST API endpoints mounted at `/api/v1/planning`.
+   - Unit tests: Added Section 26 tests (**188 PASSED, 0 FAILED**).
+3. **Frontend Production Dashboard (`frontend/src/`)**:
+   - `planningService.ts` & `usePlanningDashboard.ts`: Typed API client and TanStack Query hooks.
+   - `PlanningDashboard.tsx`: Production Financial Planning Dashboard featuring Goal Manager, Retirement Readiness Calculator, Cashflow Forecast, Scenario Comparison, and Recommendations Feed. Added to Navigation Drawer.
 
 ---
 
 ## 2. What Went Well
 
-- **Zero-Dependency Security Middlewares**: Written directly in clean, strict TypeScript without adding bloated external runtime dependencies.
-- **Production Observability**: Health probes (`/health`, `/health/liveness`, `/health/readiness`) enable seamless container monitoring.
-- **100% Backward Compatibility**: Extended test suite from 117 to 129 tests with 0 regressions.
-
----
-
-## 3. Lessons Learned & Recommendations for Sprint 6D
-
-- **Lesson**: Restricting JSON body payload size to 1MB at the Express application entry point prevents memory exhaustion attacks before controllers run.
-- **Recommendation before Sprint 6D**: Proceed to **Sprint 6D – Interactive Swagger UI Documentation & Developer API Portal** to mount `swagger-ui-express` at `/api-docs` using the generated OpenAPI 3.0 specification.
+- **Single Projection Engine**: All planners consume `ProjectionEngineService.ts`. Zero duplicate math logic.
+- **Zero Engine Modifications**: All existing calculation engines remain 100% untouched.
+- **188 Tests Passing**: All tests passed cleanly on the first run.

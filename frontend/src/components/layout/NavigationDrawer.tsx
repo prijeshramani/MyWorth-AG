@@ -17,7 +17,8 @@ import {
   FileUp,
   CheckCircle2,
   GitCompare,
-  Scroll
+  Scroll,
+  Target
 } from 'lucide-react';
 
 interface NavItem {
@@ -37,6 +38,7 @@ export const navItems: NavItem[] = [
   { id: 'accounts', label: 'Bank & Demat Accounts', icon: <Landmark className="w-4 h-4" /> },
   { id: 'protection', label: 'Protection & Insurance', icon: <ShieldAlert className="w-4 h-4" /> },
   { id: 'tax', label: 'Tax Intelligence', icon: <Calculator className="w-4 h-4" /> },
+  { id: 'planning', label: 'Financial Planning & Goals', icon: <Target className="w-4 h-4 text-sky-400" /> },
   { id: 'documents', label: 'Document Vault', icon: <FileText className="w-4 h-4" /> },
   { id: 'import', label: 'Import Center', icon: <FileUp className="w-4 h-4" /> },
   { id: 'data-manager', label: 'Data Manager', icon: <CheckCircle2 className="w-4 h-4" /> },

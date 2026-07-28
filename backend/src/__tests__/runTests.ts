@@ -936,6 +936,66 @@ async function runTestSuite() {
   assert(estateDashRes.status === 200, 'GET /api/v1/estate/dashboard returns HTTP 200 OK');
   assert(estateDashRes.data.data.health.overallScore !== undefined, 'GET /api/v1/estate/dashboard returns health score');
 
+  // Section 26: Testing Phase 6C Financial Goals, Retirement & Life Planning
+  console.log('\n--- 26. Testing Phase 6C Financial Goals, Retirement & Life Planning ---');
+  const { SQLiteGoalRepository } = require('../repositories/SQLiteGoalRepository');
+  const { ProjectionEngineService } = require('../services/ProjectionEngineService');
+  const { GoalPlanningService } = require('../services/GoalPlanningService');
+  const { RetirementPlanningService } = require('../services/RetirementPlanningService');
+  const { CashflowProjectionService } = require('../services/CashflowProjectionService');
+  const { PlanningRecommendationService } = require('../services/PlanningRecommendationService');
+
+  const goalTestRepo = new SQLiteGoalRepository(db);
+  const projEngineTest = new ProjectionEngineService();
+  const goalTestService = new GoalPlanningService(goalTestRepo, projEngineTest);
+  const retirementTestService = new RetirementPlanningService(goalTestRepo, projEngineTest);
+  const cashflowTestService = new CashflowProjectionService(goalTestRepo, projEngineTest);
+  const recTestService = new PlanningRecommendationService(goalTestRepo, retirementTestService, goalTestService);
+
+  const projResult = projEngineTest.projectCorpus({
+    initialLumpSum: 500000,
+    monthlySip: 25000,
+    sipStepUpPct: 10,
+    expectedReturnPct: 12,
+    inflationPct: 6,
+    years: 10
+  });
+  assert(projResult.totalProjectedCorpus > projResult.totalInvested, 'ProjectionEngineService computes compound interest with annual SIP step-up');
+  assert(projResult.yearlySchedule.length === 10, 'ProjectionEngineService returns yearly schedule array');
+
+  const assumptions = goalTestRepo.getOrCreateAssumptions(family.id);
+  assert(assumptions.default_inflation_pct === 6.0, 'SQLiteGoalRepository loads central assumptions registry');
+
+  const newGoal = goalTestRepo.createGoal({
+    family_id: family.id,
+    goal_type: 'EDUCATION',
+    title: 'Child Higher Education Fund 2035',
+    target_amount: 5000000,
+    target_year: 2035,
+    current_allocated_amount: 500000,
+    monthly_sip_amount: 20000,
+    expected_return_pct: 12.0,
+    inflation_pct: 10.0,
+    priority: 'HIGH',
+    status: 'ON_TRACK'
+  });
+  assert(newGoal.id !== undefined, 'SQLiteGoalRepository creates financial goal record');
+
+  const retirementAnalysis = retirementTestService.getRetirementAnalysis(family.id);
+  assert(retirementAnalysis.corpusRequiredAtRetirement > 0, 'RetirementPlanningService computes inflation-adjusted corpus requirement');
+  assert(retirementAnalysis.readinessPct !== undefined, 'RetirementPlanningService computes retirement readiness percentage');
+
+  const cashflowForecast = cashflowTestService.getCashflowForecast(family.id);
+  assert(cashflowForecast.yearlyForecast.length === 10, 'CashflowProjectionService projects 10-year cash flow surplus');
+
+  const recs = recTestService.generatePlanningRecommendations(family.id);
+  assert(recs.length >= 2, 'PlanningRecommendationService generates explainable planning recommendations');
+
+  const planDashRes = await axios.get(`${baseUrl}/api/v1/planning/dashboard?familyId=${family.id}`);
+  assert(planDashRes.status === 200, 'GET /api/v1/planning/dashboard returns HTTP 200 OK');
+  assert(planDashRes.data.data.retirement.readinessPct !== undefined, 'GET /api/v1/planning/dashboard returns retirement readiness');
+  assert(planDashRes.data.data.recommendations.length >= 2, 'GET /api/v1/planning/dashboard returns recommendations array');
+
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));
 

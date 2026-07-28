@@ -19,7 +19,7 @@ import { ProtectionDashboard } from './components/protection/ProtectionDashboard
 import { TaxDashboard } from './components/tax/TaxDashboard';
 import { SettingsView } from './components/settings/SettingsView';
 import { DeveloperConsole } from './components/developer/DeveloperConsole';
-import { EstatePlaceholder } from './components/estate/EstatePlaceholder';
+import { EstateDashboard } from './components/estate/EstateDashboard';
 import { LoginPage } from './components/auth/LoginPage';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
 import { ComponentDemo } from './components/ui/ComponentDemo';
@@ -77,7 +77,7 @@ function AppContent() {
       case 'onboarding':
         return <OnboardingWizard />;
       case 'estate':
-        return <EstatePlaceholder />;
+        return <EstateDashboard />;
       case 'reports':
         return <CashFlowDashboard />;
       case 'settings':

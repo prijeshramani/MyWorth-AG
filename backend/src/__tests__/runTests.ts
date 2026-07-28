@@ -889,6 +889,53 @@ async function runTestSuite() {
   assert(graphApiRes.status === 200, 'GET /api/v1/graph/overview returns HTTP 200 OK');
   assert(graphApiRes.data.data.estateReadiness !== undefined, 'GET /api/v1/graph/overview computes estateReadiness graph');
 
+  // Section 25: Testing Phase 6B Estate Planning, Legacy & Wealth Succession
+  console.log('\n--- 25. Testing Phase 6B Estate Planning, Legacy & Wealth Succession ---');
+  const { SQLiteEstateRepository } = require('../repositories/SQLiteEstateRepository');
+  const { EstateHealthService } = require('../services/EstateHealthService');
+  const { EstateSimulationService } = require('../services/EstateSimulationService');
+  const { EmergencyModeService } = require('../services/EmergencyModeService');
+
+  const estateTestRepo = new SQLiteEstateRepository(db);
+  const estateHealth = new EstateHealthService(estateTestRepo);
+  const estateSim = new EstateSimulationService(estateTestRepo);
+  const emergencyTest = new EmergencyModeService(estateTestRepo);
+
+  const profile = estateTestRepo.getOrCreateProfile(family.id);
+  assert(profile.id !== undefined, 'SQLiteEstateRepository initializes estate profile');
+
+  const newWill = estateTestRepo.createWill({
+    family_id: family.id,
+    testator_id: 1,
+    title: 'Primary Testator Will FY2026',
+    status: 'REGISTERED',
+    executor_name: 'Adv. Ramesh Varma'
+  });
+  assert(newWill.id !== undefined, 'SQLiteEstateRepository creates registered Will record');
+
+  const newTrust = estateTestRepo.createTrust({
+    family_id: family.id,
+    trust_name: 'Sharma Family Private Trust',
+    trust_type: 'FAMILY',
+    corpus_amount: 5000000,
+    settlor_id: 1,
+    status: 'ACTIVE'
+  });
+  assert(newTrust.id !== undefined, 'SQLiteEstateRepository creates Family Trust record');
+
+  const healthScore = estateHealth.calculateEstateHealth(family.id);
+  assert(healthScore.overallScore >= 80, 'EstateHealthService computes configurable Estate Health Score');
+
+  const simResult = estateSim.runDeathScenarioSimulation(family.id);
+  assert(simResult.distributions.length >= 2, 'EstateSimulationService computes death scenario distribution tree');
+
+  const emergencyConsole = emergencyTest.getEmergencyConsoleData(family.id);
+  assert(emergencyConsole.emergencyAccessAuditLogged === true, 'EmergencyModeService logs emergency access audit event');
+
+  const estateDashRes = await axios.get(`${baseUrl}/api/v1/estate/dashboard?familyId=${family.id}`);
+  assert(estateDashRes.status === 200, 'GET /api/v1/estate/dashboard returns HTTP 200 OK');
+  assert(estateDashRes.data.data.health.overallScore !== undefined, 'GET /api/v1/estate/dashboard returns health score');
+
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));
 

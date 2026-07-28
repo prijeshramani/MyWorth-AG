@@ -6,10 +6,12 @@ import { insuranceRouter } from './insuranceRoutes';
 import { authRouter } from './authRoutes';
 import { taxRouter } from './taxRoutes';
 import { graphRouter } from './graphRoutes';
+import { estateRouter } from './estateRoutes';
 
 const router = Router();
 
 router.use('/auth', authRouter);
+router.use('/estate', estateRouter);
 router.use('/graph', graphRouter);
 router.use('/tax', taxRouter);
 router.use('/portfolio', portfolioRoutes);

@@ -27,5 +27,10 @@ export const queryKeys = {
   graph: {
     all: ['graph'] as const,
     overview: (familyId: number) => ['graph', 'overview', familyId] as const
+  },
+  estate: {
+    all: ['estate'] as const,
+    dashboard: (familyId: number) => ['estate', 'dashboard', familyId] as const,
+    emergency: (familyId: number) => ['estate', 'emergency', familyId] as const
   }
 };

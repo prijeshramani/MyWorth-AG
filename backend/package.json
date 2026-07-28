@@ -7,7 +7,13 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "npx ts-node src/__tests__/runTests.ts"
+    "test": "npx ts-node src/__tests__/runTests.ts",
+    "db:reset": "npx ts-node src/scripts/dbLifecycle.ts reset",
+    "db:rebuild": "npx ts-node src/scripts/dbLifecycle.ts rebuild",
+    "db:backup": "npx ts-node src/scripts/dbLifecycle.ts backup",
+    "db:restore": "npx ts-node src/scripts/dbLifecycle.ts restore",
+    "db:seed-demo": "npx ts-node src/scripts/dbLifecycle.ts seed-demo",
+    "db:seed-empty": "npx ts-node src/scripts/dbLifecycle.ts seed-empty"
   },
   "keywords": [],
   "author": "",

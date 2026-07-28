@@ -10,10 +10,12 @@ import { estateRouter } from './estateRoutes';
 import { planningRouter } from './planningRoutes';
 import { recommendationRouter } from './recommendationRoutes';
 import { aiContextRouter } from './aiContextRoutes';
+import { dxRouter } from './dxRoutes';
 
 const router = Router();
 
 router.use('/auth', authRouter);
+router.use('/dx', dxRouter);
 router.use('/ai', aiContextRouter);
 router.use('/recommendations', recommendationRouter);
 router.use('/planning', planningRouter);

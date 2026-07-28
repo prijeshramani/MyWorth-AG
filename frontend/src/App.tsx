@@ -23,6 +23,7 @@ import { EstateDashboard } from './components/estate/EstateDashboard';
 import { PlanningDashboard } from './components/planning/PlanningDashboard';
 import { RecommendationsDashboard } from './components/recommendations/RecommendationsDashboard';
 import { AIReadinessDashboard } from './components/ai/AIReadinessDashboard';
+import { FeedbackWidget } from './components/common/FeedbackWidget';
 import { LoginPage } from './components/auth/LoginPage';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
 import { ComponentDemo } from './components/ui/ComponentDemo';
@@ -102,6 +103,7 @@ function AppContent() {
     <AppLayout>
       {renderTabContent()}
       <GlobalSearchModal />
+      <FeedbackWidget />
     </AppLayout>
   );
 }

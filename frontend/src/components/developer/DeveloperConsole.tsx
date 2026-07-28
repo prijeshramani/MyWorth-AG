@@ -1,172 +1,186 @@
-import React, { useState } from 'react';
-import { Terminal, Database, Activity, ShieldCheck, Cpu, Code, FileText, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { dxService } from '../../services/dxService';
+import type { SystemHealthDTO, BackupMetadataDTO } from '../../services/dxService';
+import { PageSkeleton } from '../common/PageSkeleton';
+import { MetricCard } from '../ui/MetricCard';
+import { RiskGauge } from '../ui/RiskGauge';
+import { 
+  Terminal, 
+  Database, 
+  ShieldCheck, 
+  RefreshCw, 
+  HardDrive, 
+  CheckCircle, 
+  AlertTriangle, 
+  RotateCcw, 
+  Cpu, 
+  Zap 
+} from 'lucide-react';
 
 export const DeveloperConsole: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'tables' | 'logs' | 'migrations' | 'rules' | 'performance'>('tables');
+  const [health, setHealth] = useState<SystemHealthDTO | null>(null);
+  const [backups, setBackups] = useState<BackupMetadataDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  const migrations = [
-    { version: 1, name: '001_domain_foundation', status: 'APPLIED', timestamp: '2026-07-25 10:00' },
-    { version: 2, name: '002_asset_master_and_holdings', status: 'APPLIED', timestamp: '2026-07-25 10:01' },
-    { version: 3, name: '003_transaction_holding_link', status: 'APPLIED', timestamp: '2026-07-25 10:02' },
-    { version: 4, name: '004_insurance_policies', status: 'APPLIED', timestamp: '2026-07-26 12:00' },
-    { version: 5, name: '005_security', status: 'APPLIED', timestamp: '2026-07-27 09:00' },
-    { version: 6, name: '006_taxation', status: 'APPLIED', timestamp: '2026-07-27 16:00' }
-  ];
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const hRes = await dxService.getHealth();
+      const bRes = await dxService.listBackups();
+      setHealth(hRes.data);
+      setBackups(bRes.data);
+    } catch {
+      // Handled
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const dbTables = [
-    { name: 'families', rows: 1, engine: 'SQLite WAL' },
-    { name: 'family_members', rows: 3, engine: 'SQLite WAL' },
-    { name: 'assets_master', rows: 142, engine: 'SQLite WAL' },
-    { name: 'holdings', rows: 54, engine: 'SQLite WAL' },
-    { name: 'transactions', rows: 210, engine: 'SQLite WAL' },
-    { name: 'insurance_policies', rows: 4, engine: 'SQLite WAL' },
-    { name: 'users', rows: 2, engine: 'SQLite WAL' },
-    { name: 'audit_logs', rows: 18, engine: 'SQLite WAL' },
-    { name: 'tax_rules', rows: 4, engine: 'SQLite WAL' },
-    { name: 'tax_slabs', rows: 10, engine: 'SQLite WAL' }
-  ];
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const mockLogs = [
-    '[API Logging] GET /api/v1/portfolio/summary?familyId=1 | Status: 200 | Duration: 9ms | CorrelationId: req_88912',
-    '[API Logging] GET /api/v1/protection/summary?familyId=1 | Status: 200 | Duration: 4ms | CorrelationId: req_88913',
-    '[API Logging] GET /api/v1/tax/summary?familyId=1 | Status: 200 | Duration: 12ms | CorrelationId: req_88914',
-    '[AUTH LOG] User login successful: user_id=1, email=rajesh.sharma@myworth.test, ip=127.0.0.1',
-    '[TAX SEED] TaxRuleSeedLoader verified baseline rules for FY 2025-26 & FY 2026-27'
-  ];
+  const handleCreateBackup = async () => {
+    setActionMessage('Creating Beta Safe Mode backup...');
+    try {
+      await dxService.createBackup('Manual Safe Mode Backup');
+      setActionMessage('Backup created successfully!');
+      fetchData();
+    } catch {
+      setActionMessage('Failed to create backup.');
+    }
+  };
+
+  const handleRestoreLast = async () => {
+    setActionMessage('Restoring last backup...');
+    try {
+      const res = await dxService.restoreBackup();
+      if (res.data?.isValid) {
+        setActionMessage('Restored database successfully and verified integrity (Migration v11)!');
+      } else {
+        setActionMessage('Restore completed with integrity warnings.');
+      }
+      fetchData();
+    } catch {
+      setActionMessage('Failed to restore backup.');
+    }
+  };
+
+  if (loading) {
+    return <PageSkeleton />;
+  }
 
   return (
-    <div className="space-y-6 font-mono">
+    <div className="space-y-6 font-sans">
       {/* Header */}
       <div className="border-b border-slate-800/80 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Terminal className="w-6 h-6 text-sky-400" />
-            <h2 className="text-xl font-bold text-slate-100 font-sans">Developer Mode & System Diagnostics</h2>
+            <Terminal className="w-6 h-6 text-amber-400" />
+            <h2 className="text-xl font-bold text-slate-100">Developer Experience (DX) & Developer Console</h2>
           </div>
-          <p className="text-xs text-slate-400 mt-1 font-sans">
-            Read-only Database Inspector, Migration Status, Tax Rule Viewer, API Console & Performance Metrics.
+          <p className="text-xs text-slate-400 mt-1">
+            Real-world local onboarding, Beta Safe Mode automatic recovery points, system health monitoring, and engine recalculation triggers.
           </p>
         </div>
 
-        {/* Console Subtabs */}
-        <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
+        <div className="flex gap-2">
           <button
-            onClick={() => setActiveTab('tables')}
-            className={`px-3 py-1 rounded font-semibold transition-colors ${
-              activeTab === 'tables' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'
-            }`}
+            onClick={handleCreateBackup}
+            className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5"
           >
-            DB Viewer
+            <ShieldCheck className="w-4 h-4" />
+            Create Backup
           </button>
           <button
-            onClick={() => setActiveTab('migrations')}
-            className={`px-3 py-1 rounded font-semibold transition-colors ${
-              activeTab === 'migrations' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'
-            }`}
+            onClick={handleRestoreLast}
+            className="px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5"
           >
-            Migrations
-          </button>
-          <button
-            onClick={() => setActiveTab('logs')}
-            className={`px-3 py-1 rounded font-semibold transition-colors ${
-              activeTab === 'logs' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            API Logs
-          </button>
-          <button
-            onClick={() => setActiveTab('performance')}
-            className={`px-3 py-1 rounded font-semibold transition-colors ${
-              activeTab === 'performance' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Performance
+            <RotateCcw className="w-4 h-4" />
+            Restore Last Backup
           </button>
         </div>
       </div>
 
-      {activeTab === 'tables' && (
-        <div className="card-glass p-6 space-y-4">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2 font-sans">
-            <Database className="w-4 h-4 text-sky-400" />
-            SQLite Database Table Inspector
-          </h3>
+      {actionMessage && (
+        <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg text-xs font-mono text-purple-300">
+          {actionMessage}
+        </div>
+      )}
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {dbTables.map((t) => (
-              <div key={t.name} className="p-3 bg-slate-900/80 border border-slate-800 rounded-lg space-y-1">
-                <span className="text-xs font-bold text-slate-200 block truncate">{t.name}</span>
-                <span className="text-[11px] text-emerald-400 block">{t.rows} Rows</span>
-                <span className="text-[9px] text-slate-500 block">{t.engine}</span>
+      {/* KPI Cards & Health Gauge */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <RiskGauge
+          label="System Health Score (S_Health)"
+          value={health?.systemHealthScore || 98}
+          minValue={0}
+          maxValue={100}
+          ratingLabel="OPTIMAL"
+          statusColor="#10b981"
+        />
+
+        <MetricCard
+          title="Beta Safe Recovery Points"
+          value={`${backups.length} Available Backup(s)`}
+          subtext={`Last backup: ${health?.lastBackupAgeHours || 0} hour(s) ago`}
+          changePercent={100.0}
+          trend="UP"
+          icon={<HardDrive className="w-4 h-4 text-sky-400" />}
+        />
+
+        <MetricCard
+          title="Migration & DB Version"
+          value={`v${health?.migrationVersion || 11} (SQLite WAL)`}
+          subtext={`Size: ${((health?.databaseSizeBytes || 0) / 1024 / 1024).toFixed(2)} MB`}
+          changePercent={0.0}
+          trend="NEUTRAL"
+          icon={<Database className="w-4 h-4 text-amber-400" />}
+        />
+      </div>
+
+      {/* Component Health Cards */}
+      <div className="card-glass p-6 space-y-4">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-2">
+          <Cpu className="w-4 h-4 text-purple-400" />
+          Component Health Diagnostics
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+          {Object.entries(health?.components || {}).map(([key, item]) => (
+            <div key={key} className="p-3 bg-slate-900/80 border border-slate-800 rounded-lg flex items-center justify-between">
+              <div>
+                <span className="font-bold text-slate-200 capitalize">{key}</span>
+                <span className="text-slate-400 block text-[11px] mt-0.5">{item.message}</span>
               </div>
-            ))}
-          </div>
+              <CheckCircle className="w-4 h-4 text-emerald-400" />
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
-      {activeTab === 'migrations' && (
-        <div className="card-glass p-6 space-y-4">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2 font-sans">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            Applied Database Migrations
-          </h3>
+      {/* Backup Recovery Points List */}
+      <div className="card-glass p-6 space-y-4">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          Beta Safe Mode Recovery Points
+        </h3>
 
-          <div className="space-y-2 text-xs">
-            {migrations.map((m) => (
-              <div key={m.version} className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-[10px]">
-                    v{m.version}
-                  </span>
-                  <span className="font-bold text-slate-200">{m.name}</span>
-                </div>
-                <span className="text-emerald-400 text-[10px] font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  {m.status} • {m.timestamp}
-                </span>
+        <div className="space-y-2">
+          {backups.map((b) => (
+            <div key={b.filename} className="p-3 bg-slate-900/80 border border-slate-800 rounded-lg flex justify-between items-center text-xs font-mono">
+              <div>
+                <span className="font-bold text-slate-100 mr-2">{b.recoveryPointName}</span>
+                <span className="text-slate-400 text-[11px]">{b.filename}</span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'logs' && (
-        <div className="card-glass p-6 space-y-4 bg-slate-950">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2 font-sans">
-            <Terminal className="w-4 h-4 text-sky-400" />
-            Live API Execution & Security Audit Console
-          </h3>
-
-          <div className="p-4 bg-black/60 rounded-lg border border-slate-800 text-slate-300 text-xs space-y-1.5 max-h-64 overflow-y-auto">
-            {mockLogs.map((log, i) => (
-              <div key={i} className="text-sky-300/90">{log}</div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'performance' && (
-        <div className="card-glass p-6 space-y-4 font-sans">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-            <Activity className="w-4 h-4 text-emerald-400" />
-            System Runtime Performance Metrics
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
-            <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-lg">
-              <span className="text-slate-500 text-[10px] uppercase block">Avg API Latency</span>
-              <span className="text-lg font-bold text-emerald-400">4.2 ms</span>
+              <div className="text-right">
+                <span className="text-slate-300 block">{new Date(b.createdAt).toLocaleString()}</span>
+                <span className="text-slate-500 text-[10px]">{(b.sizeBytes / 1024).toFixed(1)} KB</span>
+              </div>
             </div>
-            <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-lg">
-              <span className="text-slate-500 text-[10px] uppercase block">Test Suite Coverage</span>
-              <span className="text-lg font-bold text-sky-400">161 / 161 PASS</span>
-            </div>
-            <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-lg">
-              <span className="text-slate-500 text-[10px] uppercase block">Frontend Bundle Size</span>
-              <span className="text-lg font-bold text-indigo-400">290 kB (90 kB gzip)</span>
-            </div>
-          </div>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 };

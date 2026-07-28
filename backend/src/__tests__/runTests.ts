@@ -1078,6 +1078,41 @@ async function runTestSuite() {
   const evRes = await axios.get(`${baseUrl}/api/v1/ai/evidence/${proof.id}`);
   assert(evRes.status === 200, 'GET /api/v1/ai/evidence/:id returns HTTP 200 OK with proof data');
 
+  // Section 29: Testing Phase 7B.0 DX, Onboarding & Beta Readiness
+  console.log('\n--- 29. Testing Phase 7B.0 DX, Onboarding & Beta Readiness ---');
+  const { BackupService } = require('../services/BackupService');
+  const { SystemHealthService } = require('../services/SystemHealthService');
+  const { OnboardingService } = require('../services/OnboardingService');
+
+  const backupTestService = new BackupService();
+  const healthTestService = new SystemHealthService(backupTestService);
+  const onboardingTestService = new OnboardingService(db);
+
+  const backupMeta = backupTestService.createBackup('Test Recovery Point');
+  assert(backupMeta.filename !== undefined, 'BackupService creates named recovery point in Beta Safe Mode');
+
+  const backupsList = backupTestService.listBackups();
+  assert(backupsList.length > 0, 'BackupService lists available recovery backups');
+
+  const integrityCheck = backupTestService.verifyIntegrity(db);
+  assert(integrityCheck.isValid === true, 'BackupService verifies data integrity (Migration v11, FK check)');
+
+  const healthData = healthTestService.getSystemHealth();
+  assert(healthData.systemHealthScore >= 90, 'SystemHealthService computes System Health Score S_Health');
+  assert(healthData.readinessScore === 100, 'SystemHealthService evaluates Beta Readiness Checklist');
+
+  const onboardingStatus = onboardingTestService.getStatus();
+  assert(onboardingStatus.hasFamily === true, 'OnboardingService evaluates first-run status');
+
+  const dxHealthRes = await axios.get(`${baseUrl}/api/v1/dx/health`);
+  assert(dxHealthRes.status === 200, 'GET /api/v1/dx/health returns HTTP 200 OK');
+
+  const dxOnboardingRes = await axios.get(`${baseUrl}/api/v1/dx/onboarding/status`);
+  assert(dxOnboardingRes.status === 200, 'GET /api/v1/dx/onboarding/status returns HTTP 200 OK');
+
+  const dxBackupRes = await axios.post(`${baseUrl}/api/v1/dx/backup`, { name: 'API Backup' });
+  assert(dxBackupRes.status === 201, 'POST /api/v1/dx/backup creates backup file');
+
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));
 

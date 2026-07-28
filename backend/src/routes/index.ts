@@ -8,10 +8,12 @@ import { taxRouter } from './taxRoutes';
 import { graphRouter } from './graphRoutes';
 import { estateRouter } from './estateRoutes';
 import { planningRouter } from './planningRoutes';
+import { recommendationRouter } from './recommendationRoutes';
 
 const router = Router();
 
 router.use('/auth', authRouter);
+router.use('/recommendations', recommendationRouter);
 router.use('/planning', planningRouter);
 router.use('/estate', estateRouter);
 router.use('/graph', graphRouter);

@@ -996,6 +996,43 @@ async function runTestSuite() {
   assert(planDashRes.data.data.retirement.readinessPct !== undefined, 'GET /api/v1/planning/dashboard returns retirement readiness');
   assert(planDashRes.data.data.recommendations.length >= 2, 'GET /api/v1/planning/dashboard returns recommendations array');
 
+  // Section 27: Testing Phase 6D Intelligent Recommendation & Insight Engine
+  console.log('\n--- 27. Testing Phase 6D Intelligent Recommendation & Insight Engine ---');
+  const { SQLiteRecommendationRuleRepository } = require('../repositories/SQLiteRecommendationRuleRepository');
+  const { SQLiteRecommendationRepository } = require('../repositories/SQLiteRecommendationRepository');
+  const { InsightScoringService } = require('../services/InsightScoringService');
+  const { RecommendationOrchestrator } = require('../services/RecommendationOrchestrator');
+  const { RecommendationEngineService } = require('../services/RecommendationEngineService');
+  const recRuleRepo = new SQLiteRecommendationRuleRepository(db);
+  const recRepoTest = new SQLiteRecommendationRepository(db);
+  const scoringTestService = new InsightScoringService();
+
+  const taxSeedLoaderTest = new TaxRuleSeedLoader(db);
+  const taxEngineTest = new TaxCalculationEngine(taxSeedLoaderTest);
+
+  const activeRules = recRuleRepo.getActiveRules();
+  assert(activeRules.length >= 6, 'SQLiteRecommendationRuleRepository seeds configurable baseline rules');
+
+  const orchestratorTest = new RecommendationOrchestrator(recRuleRepo, recRepoTest, scoringTestService, taxEngineTest, estateHealth, goalTestService);
+  const recEngineTest = new RecommendationEngineService(recRepoTest, orchestratorTest);
+
+  const generatedRecs = orchestratorTest.evaluateAndGenerateAll(family.id);
+  assert(generatedRecs.length >= 2, 'RecommendationOrchestrator evaluates rules across domain engines');
+
+  const scoreResult = scoringTestService.calculateScores(generatedRecs[0]);
+  assert(scoreResult.overallRankScore > 0, 'InsightScoringService computes multi-dimensional overall rank score');
+
+  const explanation = recEngineTest.explainRecommendation(generatedRecs[0].id);
+  assert(explanation.whyGenerated !== undefined, 'RecommendationEngineService generates 100% explainable AI context');
+
+  recEngineTest.updateRecommendationStatus(generatedRecs[0].id, family.id, 'ACCEPTED', 'User accepted tax optimization recommendation');
+  const updatedRec = recRepoTest.getRecommendationById(generatedRecs[0].id);
+  assert(updatedRec?.status === 'ACCEPTED', 'SQLiteRecommendationRepository updates status and logs audit history');
+
+  const recDashRes = await axios.get(`${baseUrl}/api/v1/recommendations/dashboard?familyId=${family.id}`);
+  assert(recDashRes.status === 200, 'GET /api/v1/recommendations/dashboard returns HTTP 200 OK');
+  assert(recDashRes.data.data.journeys.length >= 2, 'GET /api/v1/recommendations/dashboard returns active journeys');
+
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));
 

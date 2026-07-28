@@ -21,6 +21,7 @@ import { SettingsView } from './components/settings/SettingsView';
 import { DeveloperConsole } from './components/developer/DeveloperConsole';
 import { EstateDashboard } from './components/estate/EstateDashboard';
 import { PlanningDashboard } from './components/planning/PlanningDashboard';
+import { RecommendationsDashboard } from './components/recommendations/RecommendationsDashboard';
 import { LoginPage } from './components/auth/LoginPage';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
 import { ComponentDemo } from './components/ui/ComponentDemo';
@@ -67,6 +68,8 @@ function AppContent() {
         return <TaxDashboard />;
       case 'planning':
         return <PlanningDashboard />;
+      case 'recommendations':
+        return <RecommendationsDashboard />;
       case 'documents':
         return <DocumentVault />;
       case 'import':

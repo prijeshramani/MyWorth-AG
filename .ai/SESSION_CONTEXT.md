@@ -1,56 +1,51 @@
 # Current Phase
-- **Phase Name**: Phase 6C (Financial Goals, Retirement & Life Planning)
-- **Phase Goal**: Build reusable Financial Planning Intelligence layer & Unified Projection Engine powering Goal Planning, Retirement Readiness, Cashflow Forecasting, Goal Health Scoring ($S_{\text{Goal}}$), Scenario Comparison, and AI-ready Planning Recommendations without modifying existing calculation engines.
+- **Phase Name**: Phase 6D (Intelligent Recommendation & Insight Engine)
+- **Phase Goal**: Build explainable intelligence layer orchestrating all 7 domain calculation engines (Investment, Tax, Estate, Financial Planning, Protection, Security, Knowledge Graph) to produce actionable, prioritized recommendations and multi-step journeys.
 - **Current Status**: Complete
 - **Completion Percentage**: 100%
 
 # Current Branch
 - **Git Branch**: main
-- **Last Commit**: Phase 6C Financial Goals, Retirement & Life Planning Implementation
+- **Last Commit**: Phase 6D Intelligent Recommendation & Insight Engine Implementation
 - **Pending Pull Requests**: None
 
 # Current Feature
-- **Feature Name**: Financial Goals, Retirement & Life Planning
+- **Feature Name**: Intelligent Recommendation & Insight Engine
 - **Specification Documents**:
-  - `docs/FINANCIAL_PLANNING_ARCHITECTURE.md`
-  - `docs/PROJECTION_ENGINE_GUIDE.md`
-  - `docs/RETIREMENT_PLANNER_GUIDE.md`
-  - `docs/GOAL_PLANNING_GUIDE.md`
-  - `docs/CASHFLOW_FORECAST_ENGINE.md`
-  - `docs/GOAL_HEALTH_SCORE.md`
-  - `prompts/summary/Phase 6C - Implementation Summary.md`
-- **Implementation Status**: Migration 009, SQLiteGoalRepository, ProjectionEngineService, GoalPlanningService, RetirementPlanningService, CashflowProjectionService, PlanningRecommendationService, PlanningController, planningRoutes, planningService, usePlanningDashboard, PlanningDashboard, Tests (188 PASSED) Complete
+  - `docs/RECOMMENDATION_ENGINE_ARCHITECTURE.md`
+  - `docs/RECOMMENDATION_RULE_ENGINE.md`
+  - `docs/INSIGHT_SCORING_MODEL.md`
+  - `docs/RECOMMENDATION_EXPLAINABILITY.md`
+  - `prompts/summary/Phase 6D - Implementation Summary.md`
+- **Implementation Status**: Migration 010, SQLiteRecommendationRuleRepository, SQLiteRecommendationRepository, InsightScoringService, RecommendationOrchestrator, RecommendationEngineService, RecommendationController, recommendationRoutes, recommendationService, useRecommendationsDashboard, RecommendationsDashboard, Tests (195 PASSED) Complete
 - **Dependencies**: React 18, Vite, TypeScript, TanStack Query v5, Express, Better-SQLite3, Lucide Icons
 
 # Files Modified / Created
-- `backend/src/db/migrations/009_financial_planning.ts`: Migration 009.
-- `backend/src/repositories/SQLiteGoalRepository.ts`: SQLite goal repository.
-- `backend/src/services/ProjectionEngineService.ts`: Unified projection engine service.
-- `backend/src/services/GoalPlanningService.ts`: Goal planning and health scoring service.
-- `backend/src/services/RetirementPlanningService.ts`: Retirement planning service.
-- `backend/src/services/CashflowProjectionService.ts`: Cashflow forecasting service.
-- `backend/src/services/PlanningRecommendationService.ts`: Planning recommendation service.
-- `backend/src/controllers/PlanningController.ts`: REST API controller.
-- `backend/src/routes/planningRoutes.ts`: Express router.
-- `frontend/src/services/planningService.ts`: Typed API client.
-- `frontend/src/hooks/usePlanningDashboard.ts`: TanStack Query hook.
-- `frontend/src/components/planning/PlanningDashboard.tsx`: Production Planning Dashboard UI view.
-- `frontend/src/components/layout/NavigationDrawer.tsx`: Updated drawer with active Financial Planning link.
-- `frontend/src/App.tsx`: Updated App layout with PlanningDashboard routing.
-- `docs/FINANCIAL_PLANNING_ARCHITECTURE.md`: Architecture doc.
-- `docs/PROJECTION_ENGINE_GUIDE.md`: Projection engine guide.
-- `docs/RETIREMENT_PLANNER_GUIDE.md`: Retirement planner guide.
-- `docs/GOAL_PLANNING_GUIDE.md`: Goal planning guide.
-- `docs/CASHFLOW_FORECAST_ENGINE.md`: Cashflow forecast engine.
-- `docs/GOAL_HEALTH_SCORE.md`: Health score specification.
-- `docs/Sprint_6C_Retrospective.md`: Retrospective.
-- `prompts/summary/Phase 6C - Implementation Summary.md`: Summary report.
+- `backend/src/db/migrations/010_recommendation_engine.ts`: Migration 010.
+- `backend/src/repositories/SQLiteRecommendationRuleRepository.ts`: SQLite recommendation rule repository.
+- `backend/src/repositories/SQLiteRecommendationRepository.ts`: SQLite recommendation repository.
+- `backend/src/services/InsightScoringService.ts`: Ranking engine service.
+- `backend/src/services/RecommendationOrchestrator.ts`: Recommendation orchestrator.
+- `backend/src/services/RecommendationEngineService.ts`: Core service.
+- `backend/src/controllers/RecommendationController.ts`: REST API controller.
+- `backend/src/routes/recommendationRoutes.ts`: Express router.
+- `frontend/src/services/recommendationService.ts`: Typed API client.
+- `frontend/src/hooks/useRecommendationsDashboard.ts`: TanStack Query hook.
+- `frontend/src/components/recommendations/RecommendationsDashboard.tsx`: Production Recommendations Dashboard UI view.
+- `frontend/src/components/layout/NavigationDrawer.tsx`: Updated drawer with active Recommendations link.
+- `frontend/src/App.tsx`: Updated App layout with RecommendationsDashboard routing.
+- `docs/RECOMMENDATION_ENGINE_ARCHITECTURE.md`: Architecture doc.
+- `docs/RECOMMENDATION_RULE_ENGINE.md`: Rule engine guide.
+- `docs/INSIGHT_SCORING_MODEL.md`: Scoring model specification.
+- `docs/RECOMMENDATION_EXPLAINABILITY.md`: Explainability specification.
+- `docs/Sprint_6D_Retrospective.md`: Retrospective.
+- `prompts/summary/Phase 6D - Implementation Summary.md`: Summary report.
 - `docs/AI_CHANGELOG.md`: AI changelog.
 
 # Build & Test Status
-- **Frontend Build**: Passed cleanly (`dist/assets/index.js` built in 12.46s).
+- **Frontend Build**: Passed cleanly (`dist/assets/index.js` built in 17.21s).
 - **Backend Build**: Passed cleanly (`tsc`).
-- **Backend Unit Tests**: 188 Passed, 0 Failed (`npm test`).
+- **Backend Unit Tests**: 195 Passed, 0 Failed (`npm test`).
 
 # Blockers
 - None.

@@ -1,40 +1,31 @@
-# Sprint 6D Retrospective — Developer Experience Platform Implementation
+# Phase 6D Retrospective — Intelligent Recommendation & Insight Engine
 
-**Sprint Name**: Sprint 6D – Developer Experience Platform  
-**Date**: July 27, 2026  
+**Sprint Name**: Phase 6D – Intelligent Recommendation & Insight Engine  
+**Date**: July 28, 2026  
 **Status**: Complete  
 
 ---
 
 ## 1. Accomplishments
 
-1. **Developer Portal & Interactive Swagger UI (`backend/src/controllers/SwaggerController.ts` & `/api-docs`)**:
-   - Serves interactive Swagger UI HTML interface at `GET /api-docs`.
-   - Serves raw OpenAPI 3.0 JSON specification at `GET /api-docs/swagger.json`.
-   - Enables browser-based interactive endpoint testing for `/portfolio/summary`, `/dashboard/overview`, and `/reports/generate`.
-2. **Developer Documentation Suite (`docs/`)**:
-   - `DEVELOPER_ONBOARDING.md`: Quick-start developer guide and local environment setup.
-   - `API_EXAMPLES.md`: Concrete sample HTTP requests, successful JSON DTO envelopes, and error payloads.
-   - `POSTMAN_COLLECTION.json`: Production-ready Postman collection for instant API client import.
-   - `SECURITY_HEADERS_POLICY.md`: Detailed specification for Helmet security headers, CSP, and Referrer policy.
-   - `API_VERSIONING_POLICY.md`: Standard URI versioning (`/api/v1/`) and API lifecycle policies (`STABLE`, `DEPRECATED`, `RETIRED`).
-   - `ENVIRONMENT_CONFIGURATION.md`: Environment variables (`PORT`, `NODE_ENV`, `DB_PATH`, `ENCRYPTION_KEY`) reference guide.
-3. **Automated Test Suite & Quality Gates**:
-   - Expanded test suite section 20 verifying `GET /api-docs`, `GET /api-docs/swagger.json`, and `POSTMAN_COLLECTION.json` structure.
-   - **138 Total Automated Unit & Integration Tests Passing (0 Failures)**.
-   - Both backend (`tsc`) and frontend (`vite build`) compile with 0 errors.
+1. **Database Schema (`010_recommendation_engine.ts`)**:
+   - Migration 010 creating `recommendation_rules`, `recommendations`, `recommendation_journeys`, `recommendation_actions`, `recommendation_history`, and `recommendation_scores`.
+2. **Backend Repositories, Orchestrator & Services (`backend/src/`)**:
+   - `SQLiteRecommendationRuleRepository.ts`: Data access repository for configurable rules and baseline seeds.
+   - `SQLiteRecommendationRepository.ts`: Data access repository for generated recommendations, journeys, audit history, and scores.
+   - `InsightScoringService.ts`: Multi-dimensional ranking engine evaluating Priority, Financial Impact, Confidence, Urgency, and Overall Rank.
+   - `RecommendationOrchestrator.ts`: Domain orchestrator invoking Tax, Estate, Protection, Planning, and Knowledge Graph services to evaluate rules.
+   - `RecommendationEngineService.ts`: Core service managing recommendation refresh, status transitions (`accept`, `dismiss`, `complete`), AI context helpers, and history.
+   - `RecommendationController.ts` & `recommendationRoutes.ts`: REST API endpoints mounted at `/api/v1/recommendations`.
+   - Unit tests: Added Section 27 tests (**195 PASSED, 0 FAILED**).
+3. **Frontend Production Dashboard (`frontend/src/`)**:
+   - `recommendationService.ts` & `useRecommendationsDashboard.ts`: Typed API client and TanStack Query hooks.
+   - `RecommendationsDashboard.tsx`: Production Recommendations Dashboard featuring Open Wealth Risks, Priority Queue, Category Filters, Recommendation Journeys, Explainability Drawer, Action Controls, and Audit Trail. Added to Navigation Drawer.
 
 ---
 
 ## 2. What Went Well
 
-- **Zero-Dependency Swagger UI Integration**: Embedded responsive Swagger UI renderer without adding external npm clutter or runtime risks.
-- **Complete Developer Guidance**: Provided Postman collection, onboarding guide, API examples, versioning rules, and environment specs in one cohesive sprint.
-- **100% Backward Compatibility**: Calculation engines, application services, and repository layers remain 100% UNTOUCHED and fully passing.
-
----
-
-## 3. Lessons Learned & Recommendation Before Frontend Platform
-
-- **Lesson**: Providing an in-browser interactive OpenAPI portal (`/api-docs`) dramatically reduces developer friction when building frontend components.
-- **Recommendation before starting Frontend Platform**: **Proceed to Phase 5 (Frontend Platform Engineering)** to build the modern React + Vite wealth dashboard UI, connecting directly to our 100% verified Backend REST API v1.0!
+- **100% Orchestration First**: Consumes all 7 domain calculation engines without duplicating calculation math.
+- **Zero Hardcoded Logic**: All recommendation definitions powered by configurable `recommendation_rules`.
+- **195 Tests Passing**: All tests passed cleanly.

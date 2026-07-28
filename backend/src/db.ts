@@ -12,6 +12,7 @@ import { migration007 } from './db/migrations/007_knowledge_graph';
 import { migration008 } from './db/migrations/008_estate_planning';
 import { migration009 } from './db/migrations/009_financial_planning';
 import { migration010 } from './db/migrations/010_recommendation_engine';
+import { migration011 } from './db/migrations/011_ai_context';
 
 // Resolve database path
 const dbDir = path.resolve(__dirname, '../../data');
@@ -221,7 +222,7 @@ export function initDb() {
   `).run();
 
   // Execute Versioned Database Migrations
-  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010], dbPath);
+  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011], dbPath);
 
   console.log('Database tables successfully verified/created.');
 }

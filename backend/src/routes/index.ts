@@ -9,10 +9,12 @@ import { graphRouter } from './graphRoutes';
 import { estateRouter } from './estateRoutes';
 import { planningRouter } from './planningRoutes';
 import { recommendationRouter } from './recommendationRoutes';
+import { aiContextRouter } from './aiContextRoutes';
 
 const router = Router();
 
 router.use('/auth', authRouter);
+router.use('/ai', aiContextRouter);
 router.use('/recommendations', recommendationRouter);
 router.use('/planning', planningRouter);
 router.use('/estate', estateRouter);

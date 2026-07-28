@@ -22,6 +22,7 @@ import { DeveloperConsole } from './components/developer/DeveloperConsole';
 import { EstateDashboard } from './components/estate/EstateDashboard';
 import { PlanningDashboard } from './components/planning/PlanningDashboard';
 import { RecommendationsDashboard } from './components/recommendations/RecommendationsDashboard';
+import { AIReadinessDashboard } from './components/ai/AIReadinessDashboard';
 import { LoginPage } from './components/auth/LoginPage';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
 import { ComponentDemo } from './components/ui/ComponentDemo';
@@ -70,6 +71,8 @@ function AppContent() {
         return <PlanningDashboard />;
       case 'recommendations':
         return <RecommendationsDashboard />;
+      case 'ai-context':
+        return <AIReadinessDashboard />;
       case 'documents':
         return <DocumentVault />;
       case 'import':

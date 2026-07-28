@@ -41,5 +41,10 @@ export const queryKeys = {
     all: ['recommendations'] as const,
     dashboard: (familyId: number) => ['recommendations', 'dashboard', familyId] as const,
     detail: (id: number) => ['recommendations', 'detail', id] as const
+  },
+  aiContext: {
+    all: ['aiContext'] as const,
+    context: (familyId: number) => ['aiContext', 'context', familyId] as const,
+    memory: (familyId: number) => ['aiContext', 'memory', familyId] as const
   }
 };

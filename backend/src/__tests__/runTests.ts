@@ -1033,6 +1033,51 @@ async function runTestSuite() {
   assert(recDashRes.status === 200, 'GET /api/v1/recommendations/dashboard returns HTTP 200 OK');
   assert(recDashRes.data.data.journeys.length >= 2, 'GET /api/v1/recommendations/dashboard returns active journeys');
 
+  // Section 28: Testing Phase 7A AI Context, Memory & Evidence Layer
+  console.log('\n--- 28. Testing Phase 7A AI Context, Memory & Evidence Layer ---');
+  const { SQLiteAIContextRepository } = require('../repositories/SQLiteAIContextRepository');
+  const { EvidenceService } = require('../services/EvidenceService');
+  const { AIMemoryService } = require('../services/AIMemoryService');
+  const { AISafetyService } = require('../services/AISafetyService');
+  const { PromptBuilderService } = require('../services/PromptBuilderService');
+  const { AIContextService } = require('../services/AIContextService');
+
+  const aiTestRepo = new SQLiteAIContextRepository(db);
+  const evidenceTestService = new EvidenceService(aiTestRepo);
+  const memoryTestService = new AIMemoryService(aiTestRepo);
+  const safetyTestService = new AISafetyService();
+  const promptTestBuilder = new PromptBuilderService(aiTestRepo);
+  const contextTestService = new AIContextService(aiTestRepo, evidenceTestService, new TaxCalculationEngine(), estateHealth, goalTestService, recEngineTest);
+
+  const capabilities = aiTestRepo.getCapabilities();
+  assert(capabilities.length >= 4, 'SQLiteAIContextRepository seeds AI Capability Registry');
+
+  const proof = evidenceTestService.createEvidence(family.id, 'TEST_PROOF_CODE', 'TestEngine', { calculationResult: 42 });
+  assert(proof.id !== undefined, 'EvidenceService generates immutable evidence proof with SHA-256 calculation hash');
+  assert(proof.calculation_hash.length === 16, 'EvidenceService computes calculation hash');
+
+  const memoryItem = memoryTestService.saveMemoryItem(family.id, 'PERMANENT', 'RISK_PROFILE', { profile: 'AGGRESSIVE' });
+  assert(memoryItem.id !== undefined, 'AIMemoryService stores long-term memory item');
+
+  const safetyEval = safetyTestService.evaluateQuery('My PAN is ABCDE1234F, what is my tax savings?');
+  assert(safetyEval.redactedQuery.includes('[REDACTED_PAN]'), 'AISafetyService redacts PII PAN patterns');
+
+  const compiledPrompt = promptTestBuilder.compilePrompt('WEALTH_ADVISOR_BASE', 'Summarize my retirement gap', { corpusGap: 5000000 }, { proofHash: 'abc12345' });
+  assert(compiledPrompt.userPrompt.includes('Summarize my retirement gap'), 'PromptBuilderService compiles system and user prompts');
+
+  const unifiedContext = contextTestService.getUnifiedAIContext(family.id);
+  assert(unifiedContext.contextHealthScore >= 90, 'AIContextService aggregates domain context across 7 engines');
+
+  const aiDashRes = await axios.get(`${baseUrl}/api/v1/ai/context?familyId=${family.id}`);
+  assert(aiDashRes.status === 200, 'GET /api/v1/ai/context returns HTTP 200 OK');
+  assert(aiDashRes.data.data.evidenceSummary.totalProofItems > 0, 'GET /api/v1/ai/context returns evidence summary proof');
+
+  const memRes = await axios.get(`${baseUrl}/api/v1/ai/memory?familyId=${family.id}`);
+  assert(memRes.status === 200, 'GET /api/v1/ai/memory returns HTTP 200 OK');
+
+  const evRes = await axios.get(`${baseUrl}/api/v1/ai/evidence/${proof.id}`);
+  assert(evRes.status === 200, 'GET /api/v1/ai/evidence/:id returns HTTP 200 OK with proof data');
+
   // Close HTTP server
   await new Promise((resolve) => server.close(resolve));
 

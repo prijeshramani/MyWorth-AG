@@ -19,7 +19,8 @@ import {
   GitCompare,
   Scroll,
   Target,
-  Sparkles
+  Sparkles,
+  Bot
 } from 'lucide-react';
 
 interface NavItem {
@@ -41,6 +42,7 @@ export const navItems: NavItem[] = [
   { id: 'tax', label: 'Tax Intelligence', icon: <Calculator className="w-4 h-4" /> },
   { id: 'planning', label: 'Financial Planning & Goals', icon: <Target className="w-4 h-4 text-sky-400" /> },
   { id: 'recommendations', label: 'AI Insights & Recommendations', icon: <Sparkles className="w-4 h-4 text-amber-400" /> },
+  { id: 'ai-context', label: 'AI Readiness & Context', icon: <Bot className="w-4 h-4 text-purple-400" /> },
   { id: 'documents', label: 'Document Vault', icon: <FileText className="w-4 h-4" /> },
   { id: 'import', label: 'Import Center', icon: <FileUp className="w-4 h-4" /> },
   { id: 'data-manager', label: 'Data Manager', icon: <CheckCircle2 className="w-4 h-4" /> },

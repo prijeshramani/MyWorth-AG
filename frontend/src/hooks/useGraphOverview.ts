@@ -6,8 +6,8 @@ export function useGraphOverview(familyId: number) {
   return useQuery({
     queryKey: queryKeys.graph.overview(familyId),
     queryFn: () => graphService.getOverview(familyId),
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    enabled: !!familyId
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    enabled: true
   });
 }

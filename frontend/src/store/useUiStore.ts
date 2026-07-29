@@ -29,7 +29,7 @@ export const useUiStore = create<UiState>((set) => ({
   reportingCurrency: 'INR',
   isDrawerOpen: true,
   activeTab: 'dashboard',
-  datasetMode: 'DEMO',
+  datasetMode: 'REAL',
   isGlobalSearchOpen: false,
   searchQuery: '',
   onboardingStep: 1,

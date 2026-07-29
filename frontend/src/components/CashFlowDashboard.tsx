@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiClient } from '../services/apiClient';
 import { 
   AreaChart, 
   Area, 
@@ -62,13 +63,8 @@ export default function CashFlowDashboard() {
   const fetchCashFlow = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/cashflow');
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
-      } else {
-        setError('Failed to fetch cash flow statistics.');
-      }
+      const res = await apiClient.get('/cashflow');
+      setData(res.data);
     } catch (err: any) {
       setError(err.message || 'Error communicating with backend.');
     } finally {
@@ -78,11 +74,8 @@ export default function CashFlowDashboard() {
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/import/bankinsights/config');
-      if (res.ok) {
-        const json = await res.json();
-        setDbPath(json.dbPath);
-      }
+      const res = await apiClient.get('/import/bankinsights/config');
+      setDbPath(res.data?.dbPath || '');
     } catch (err) {
       console.error(err);
     }
@@ -97,19 +90,12 @@ export default function CashFlowDashboard() {
     e.preventDefault();
     setSavingPath(true);
     try {
-      const res = await fetch('http://localhost:5000/api/import/bankinsights/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dbPath })
-      });
-      if (res.ok) {
-        setEditingPath(false);
-        alert('BankInsights database path updated!');
-      } else {
-        alert('Failed to update path');
-      }
+      await apiClient.post('/import/bankinsights/config', { dbPath });
+      setEditingPath(false);
+      alert('BankInsights database path updated!');
     } catch (err) {
       console.error(err);
+      alert('Failed to update path');
     } finally {
       setSavingPath(false);
     }
@@ -120,13 +106,9 @@ export default function CashFlowDashboard() {
     setSyncSuccess('');
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/import/bankinsights/sync', {
-        method: 'POST'
-      });
-      
-      const json = await res.json();
-      if (res.ok && json.success) {
-        // Confetti!
+      const res = await apiClient.post('/import/bankinsights/sync');
+      const json = res.data;
+      if (json.success) {
         confetti({
           particleCount: 150,
           spread: 80,
@@ -134,7 +116,7 @@ export default function CashFlowDashboard() {
         });
         
         setSyncSuccess(`Success! Synced ${json.importedCount} new transactions. Current balance: Rs. ${json.latestBalance.toLocaleString()}`);
-        fetchCashFlow(); // Refetch dashboard details
+        fetchCashFlow();
       } else {
         setError(json.error || 'Failed to sync with BankInsights database.');
       }

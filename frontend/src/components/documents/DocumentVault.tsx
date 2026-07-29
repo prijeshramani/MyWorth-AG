@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, Upload, Trash2, Eye, Tag, Lock, ShieldCheck, Filter } from 'lucide-react';
+import { useUiStore } from '../../store/useUiStore';
 
 interface DocumentItem {
   id: string;
@@ -19,9 +20,18 @@ const INITIAL_DOCS: DocumentItem[] = [
 ];
 
 export const DocumentVault: React.FC = () => {
-  const [docs, setDocs] = useState<DocumentItem[]>(INITIAL_DOCS);
+  const { datasetMode } = useUiStore();
+  const [docs, setDocs] = useState<DocumentItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (datasetMode === 'DEMO') {
+      setDocs(INITIAL_DOCS);
+    } else {
+      setDocs([]);
+    }
+  }, [datasetMode]);
 
   const filteredDocs = selectedCategory === 'ALL'
     ? docs

@@ -8,8 +8,8 @@ import { EstateController } from '../controllers/EstateController';
 
 const estateRepo = new SQLiteEstateRepository(db);
 const healthService = new EstateHealthService(estateRepo);
-const simService = new EstateSimulationService(estateRepo);
-const emergencyService = new EmergencyModeService(estateRepo);
+const simService = new EstateSimulationService(estateRepo, db);
+const emergencyService = new EmergencyModeService(estateRepo, db);
 const estateController = new EstateController(estateRepo, healthService, simService, emergencyService);
 
 export const estateRouter = Router();

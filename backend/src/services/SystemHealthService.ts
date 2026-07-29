@@ -21,7 +21,7 @@ export interface SystemHealthDTO {
 }
 
 export class SystemHealthService {
-  private dbPath = path.resolve(__dirname, '../../../data/familywealth.db');
+  private dbPath = path.resolve(__dirname, '../../../data/myworth.db');
 
   constructor(private backupService: BackupService) {}
 

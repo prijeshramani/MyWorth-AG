@@ -60,4 +60,18 @@ export class InsuranceController {
       next(err);
     }
   };
+
+  public getPolicies = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const familyIdStr = req.query.familyId as string;
+      const familyId = parseInt(familyIdStr || '1', 10);
+      const policies = this.insuranceAppService.getPoliciesByFamily(familyId);
+      res.status(200).json({
+        success: true,
+        data: policies
+      });
+    } catch (err: any) {
+      next(err);
+    }
+  };
 }

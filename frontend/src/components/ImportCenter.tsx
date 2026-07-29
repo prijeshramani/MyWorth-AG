@@ -35,7 +35,7 @@ interface ImportCenterProps {
 }
 
 export default function ImportCenter({ initialKiteRequestToken, clearKiteRequestToken }: ImportCenterProps = {}) {
-  const [importMethod, setImportMethod] = useState<'file' | 'kite' | 'angelone' | 'indmoney' | 'epf'>('file');
+  const [importMethod, setImportMethod] = useState<'file' | 'kite' | 'angelone' | 'indmoney' | 'epf' | 'bankinsights'>('file');
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState<string>('');
   const [parsing, setParsing] = useState<boolean>(false);
@@ -62,6 +62,13 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
   const [showAngelConfigForm, setShowAngelConfigForm] = useState<boolean>(false);
   const [savingAngelConfig, setSavingAngelConfig] = useState<boolean>(false);
 
+  // BankInsights configuration states
+  const [bankInsightsDbPath, setBankInsightsDbPath] = useState<string>('');
+  const [editingBankInsightsPath, setEditingBankInsightsPath] = useState<boolean>(false);
+  const [savingBankInsightsPath, setSavingBankInsightsPath] = useState<boolean>(false);
+  const [syncingBankInsights, setSyncingBankInsights] = useState<boolean>(false);
+  const [bankInsightsSyncSuccess, setBankInsightsSyncSuccess] = useState<string>('');
+
   // EPF Sync states
   const [epfAsset, setEpfAsset] = useState<{ id: number; name: string } | null>(null);
   const [manualEpfBalance, setManualEpfBalance] = useState<string>('');
@@ -84,10 +91,72 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const fetchBankInsightsConfig = async () => {
+    try {
+      const res = await fetch('/api/import/bankinsights/config');
+      if (res.ok) {
+        const data = await res.json();
+        setBankInsightsDbPath(data.dbPath || '');
+      }
+    } catch (err) {
+      console.error('Failed to fetch BankInsights config:', err);
+    }
+  };
+
+  const handleSaveBankInsightsPath = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingBankInsightsPath(true);
+    setError('');
+    try {
+      const res = await fetch('/api/import/bankinsights/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dbPath: bankInsightsDbPath })
+      });
+      if (res.ok) {
+        setEditingBankInsightsPath(false);
+        alert('BankInsights database path updated!');
+      } else {
+        alert('Failed to update BankInsights path');
+      }
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setSavingBankInsightsPath(false);
+    }
+  };
+
+  const handleBankInsightsSync = async () => {
+    setSyncingBankInsights(true);
+    setBankInsightsSyncSuccess('');
+    setError('');
+    try {
+      const res = await fetch('/api/import/bankinsights/sync', {
+        method: 'POST'
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+        setBankInsightsSyncSuccess(`Success! Synced ${json.importedCount} new bank transactions. Current balance: Rs. ${json.latestBalance.toLocaleString()}`);
+      } else {
+        setError(json.error || 'Failed to sync with BankInsights database.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error connecting to backend server.');
+    } finally {
+      setSyncingBankInsights(false);
+    }
+  };
+
   useEffect(() => {
     fetchKiteConfig();
     fetchAngelConfig();
     fetchIndMoneyConfig();
+    fetchBankInsightsConfig();
     fetchEpfAsset();
   }, []);
 
@@ -100,7 +169,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
 
   const fetchEpfAsset = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/assets');
+      const res = await fetch('/api/assets');
       if (res.ok) {
         const assets = await res.json();
         const found = assets.find((a: any) => a.type === 'EPF');
@@ -119,7 +188,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     setBootstrappingEpf(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/assets', {
+      const res = await fetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -157,7 +226,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     setUpdatingEpfBalance(true);
     setError('');
     try {
-      const res = await fetch(`http://localhost:5000/api/assets/${epfAsset.id}/prices`, {
+      const res = await fetch(`/api/assets/${epfAsset.id}/prices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -174,7 +243,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
         setManualEpfBalance('');
         alert('EPF balance successfully updated.');
         // Trigger a background market sync to update timeline
-        fetch('http://localhost:5000/api/sync', { method: 'POST' }).catch(e => console.error(e));
+        fetch('/api/sync', { method: 'POST' }).catch(e => console.error(e));
       } else {
         const data = await res.json();
         setError(data.error || 'Failed to update EPF balance.');
@@ -188,7 +257,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
 
   const fetchKiteConfig = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/import/kite/config');
+      const res = await fetch('/api/import/kite/config');
       if (res.ok) {
         const data = await res.json();
         setIsConfigured(data.configured);
@@ -201,7 +270,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
 
   const fetchAngelConfig = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/import/angelone/config');
+      const res = await fetch('/api/import/angelone/config');
       if (res.ok) {
         const data = await res.json();
         setIsAngelConfigured(data.hasPassword && data.hasTotpSecret && !!data.apiKey && !!data.clientCode);
@@ -218,7 +287,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     setSavingAngelConfig(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/import/angelone/config', {
+      const res = await fetch('/api/import/angelone/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -250,7 +319,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     setError('');
     setImportSummary(null);
     try {
-      const res = await fetch('http://localhost:5000/api/import/angelone/sync', {
+      const res = await fetch('/api/import/angelone/sync', {
         method: 'POST'
       });
       if (res.ok) {
@@ -287,7 +356,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
 
   const fetchIndMoneyConfig = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/import/indmoney/config');
+      const res = await fetch('/api/import/indmoney/config');
       if (res.ok) {
         const data = await res.json();
         setIsIndMoneyConfigured(data.configured);
@@ -302,7 +371,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     setSavingIndMoneyConfig(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/import/indmoney/config', {
+      const res = await fetch('/api/import/indmoney/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessToken: indMoneyToken })
@@ -328,7 +397,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     setError('');
     setImportSummary(null);
     try {
-      const res = await fetch('http://localhost:5000/api/import/indmoney/sync', {
+      const res = await fetch('/api/import/indmoney/sync', {
         method: 'POST'
       });
       if (res.ok) {
@@ -368,7 +437,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     setSavingConfig(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/import/kite/config', {
+      const res = await fetch('/api/import/kite/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey, apiSecret })
@@ -393,7 +462,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     setError('');
     setParsing(true);
     try {
-      const res = await fetch('http://localhost:5000/api/import/kite/login-url');
+      const res = await fetch('/api/import/kite/login-url');
       if (res.ok) {
         const data = await res.json();
         // Redirect the browser to Zerodha connect login!
@@ -416,7 +485,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     setImportMethod('kite'); // Switch visual tab to Kite
     
     try {
-      const res = await fetch('http://localhost:5000/api/import/kite/session', {
+      const res = await fetch('/api/import/kite/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ requestToken: token })
@@ -434,7 +503,21 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
         });
         setSelectedTxs(selectionMap);
 
-        if (data.transactions.length === 0) {
+        if (data.transactions.length > 0) {
+          // Auto-commit holdings to database upon Zerodha OAuth redirect
+          console.log(`Auto-committing ${data.transactions.length} parsed Zerodha holdings...`);
+          const confirmRes = await fetch('/api/import/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transactions: data.transactions })
+          });
+          if (confirmRes.ok) {
+            const summary = await confirmRes.json();
+            setImportSummary(summary);
+            confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+            fetch('/api/sync', { method: 'POST' }).catch(() => {});
+          }
+        } else {
           setError('Zerodha Kite session validated, but returned 0 active holdings.');
         }
       } else {
@@ -489,7 +572,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/import/parse', {
+      const res = await fetch('/api/import/parse', {
         method: 'POST',
         body: formData
       });
@@ -547,7 +630,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
 
     setImporting(true);
     try {
-      const res = await fetch('http://localhost:5000/api/import/confirm', {
+      const res = await fetch('/api/import/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactions: txsToImport })
@@ -571,7 +654,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
 
         // Automatically trigger a background market price sync to pull live stock closing prices!
         console.log('Ingestion success. Dispatching silent background market price sync...');
-        fetch('http://localhost:5000/api/sync', { method: 'POST' })
+        fetch('/api/sync', { method: 'POST' })
           .then(r => r.json())
           .then(data => {
             console.log('Silent auto-sync success:', data.message);
@@ -693,6 +776,18 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
             >
               <RefreshCw className="w-4 h-4" />
               EPF (Provident Fund)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setImportMethod('bankinsights'); fetchBankInsightsConfig(); }}
+              className={`flex-1 min-w-[80px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                importMethod === 'bankinsights' 
+                  ? 'bg-indigo-600 text-white shadow shadow-indigo-600/10' 
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <RefreshCw className="w-4 h-4 text-emerald-400" />
+              BankInsights Sync
             </button>
           </div>
 
@@ -1051,7 +1146,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
                 </form>
               )}
             </div>
-          ) : (
+          ) : importMethod === 'epf' ? (
             /* EPF (PROVIDENT FUND) SYNC BOARD */
             <div className="space-y-8 max-w-4xl mx-auto py-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1189,6 +1284,80 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
                   )}
                 </div>
 
+              </div>
+            </div>
+          ) : (
+            /* BANKINSIGHTS APP DIRECT SYNC BOARD */
+            <div className="space-y-6 max-w-2xl mx-auto py-2 text-center">
+              <div className="w-14 h-14 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/5">
+                <RefreshCw className="w-7 h-7 text-indigo-400" />
+              </div>
+              <h4 className="font-bold text-slate-100 text-lg">BankInsights Local SQLite Direct Sync</h4>
+              <p className="text-slate-400 text-xs leading-relaxed max-w-md mx-auto">
+                Connect directly to your local <span className="font-bold text-indigo-400">BankInsights</span> app database file to dynamically pull and classify bank accounts, credits, debits, and salary deposits into your local ledger.
+              </p>
+
+              <div className="space-y-4 max-w-md mx-auto text-left text-xs bg-slate-950/40 p-4 border border-slate-900 rounded-2xl">
+                <div className="space-y-1">
+                  <label className="text-slate-400 font-semibold block">Configured SQLite Database Path</label>
+                  {editingBankInsightsPath ? (
+                    <form onSubmit={handleSaveBankInsightsPath} className="space-y-3 pt-1">
+                      <input 
+                        type="text" 
+                        value={bankInsightsDbPath} 
+                        onChange={(e) => setBankInsightsDbPath(e.target.value)}
+                        placeholder="Path to bank_insights.db"
+                        className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-3.5 py-2 outline-none font-mono text-[11px]"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingBankInsightsPath(false)}
+                          className="flex-1 py-2 border border-slate-800 text-slate-400 rounded-xl font-semibold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={savingBankInsightsPath}
+                          className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold disabled:opacity-50"
+                        >
+                          Save Path
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <span className="font-mono text-[11px] text-slate-300 break-all bg-slate-900/60 p-2 rounded-xl border border-slate-800/60 flex-1">
+                        {bankInsightsDbPath || 'Not configured'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setEditingBankInsightsPath(true)}
+                        className="px-3 py-2 border border-slate-800 text-indigo-400 hover:text-indigo-300 rounded-xl font-semibold flex-shrink-0"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {bankInsightsSyncSuccess && (
+                  <div className="p-3 bg-emerald-950/30 border border-emerald-900/50 text-emerald-400 text-[11px] rounded-xl flex items-center gap-2">
+                    <Check className="w-4 h-4 flex-shrink-0" />
+                    <span>{bankInsightsSyncSuccess}</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleBankInsightsSync}
+                  disabled={syncingBankInsights}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 flex items-center justify-center gap-2 transition-all mt-2"
+                >
+                  {syncingBankInsights ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  {syncingBankInsights ? 'Connecting & Syncing Bank Transactions...' : 'Establish Direct App Sync'}
+                </button>
               </div>
             </div>
           )}

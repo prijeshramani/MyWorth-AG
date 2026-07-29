@@ -39,12 +39,11 @@ export class TaxApplicationService {
     const deductions = this.taxRepo.getDeductions(familyId, profile.id);
 
     let grossIncome = incomeSources.reduce((acc, curr) => acc + curr.gross_amount, 0);
-    if (grossIncome === 0) grossIncome = 1800000; // Default ₹18 Lakhs sample salary gross
 
-    let claimed80C = deductions.find((d) => d.section === '80C')?.claimed_amount || 150000;
-    let claimed80D = deductions.find((d) => d.section === '80D')?.claimed_amount || 25000;
-    let claimed80CCD1B = deductions.find((d) => d.section === '80CCD1B')?.claimed_amount || 50000;
-    let claimed24B = deductions.find((d) => d.section === '24B')?.claimed_amount || 200000;
+    let claimed80C = deductions.find((d) => d.section === '80C')?.claimed_amount || 0;
+    let claimed80D = deductions.find((d) => d.section === '80D')?.claimed_amount || 0;
+    let claimed80CCD1B = deductions.find((d) => d.section === '80CCD1B')?.claimed_amount || 0;
+    let claimed24B = deductions.find((d) => d.section === '24B')?.claimed_amount || 0;
 
     const calcInput = {
       grossIncome,
@@ -60,38 +59,16 @@ export class TaxApplicationService {
     const recommendedRegime = newRegimeRes.totalTaxPayable <= oldRegimeRes.totalTaxPayable ? 'NEW' : 'OLD';
     const estimatedSavings = Math.abs(oldRegimeRes.totalTaxPayable - newRegimeRes.totalTaxPayable);
 
-    // Sample Capital Gains calculation
-    const capitalGainsRes = [
-      CapitalGainTaxEngine.calculateCapitalGain({
-        assetType: 'EQUITY',
-        buyDate: '2023-04-15',
-        sellDate: '2025-06-20',
-        buyAmount: 200000,
-        sellAmount: 350000
-      }),
-      CapitalGainTaxEngine.calculateCapitalGain({
-        assetType: 'MUTUAL_FUND',
-        buyDate: '2025-01-10',
-        sellDate: '2025-05-15',
-        buyAmount: 100000,
-        sellAmount: 125000
-      })
-    ];
+    const capitalGainsRes: any[] = [];
 
-    const recommendations = [
+    const recommendations = grossIncome > 0 ? [
       {
         title: 'Opt for New Tax Regime for FY 2025-26',
         description: `New regime provides ₹${estimatedSavings.toLocaleString('en-IN')} lower tax liability due to expanded slabs and ₹75k standard deduction.`,
         estimatedSavings,
         priority: 'HIGH'
-      },
-      {
-        title: 'Complete Section 80CCD(1B) NPS Contribution',
-        description: 'Invest additional ₹50,000 in Tier-1 NPS to claim exclusive tax deduction.',
-        estimatedSavings: 15600,
-        priority: 'MEDIUM'
       }
-    ];
+    ] : [];
 
     const calendarEvents = this.taxRepo.getCalendarEvents().map((e) => ({
       title: e.title,

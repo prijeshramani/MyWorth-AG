@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Users, Plus, Edit2, Trash2, Check, ShieldCheck, Mail, Phone, FileText } from 'lucide-react';
+import { useUiStore } from '../../store/useUiStore';
+import { apiClient } from '../../services/apiClient';
 
 interface FamilyMemberItem {
   id: number;
   name: string;
-  relationship: 'Head' | 'Spouse' | 'Child' | 'Parent';
+  relationship: 'Head' | 'Spouse' | 'Child' | 'Parent' | 'SELF' | 'SIBLING';
   pan: string;
   aadhaarLinked: boolean;
   email: string;
@@ -19,7 +21,9 @@ const INITIAL_MEMBERS: FamilyMemberItem[] = [
 ];
 
 export const FamilyManager: React.FC = () => {
-  const [members, setMembers] = useState<FamilyMemberItem[]>(INITIAL_MEMBERS);
+  const { datasetMode, activeFamilyId } = useUiStore();
+  const [members, setMembers] = React.useState<FamilyMemberItem[]>([]);
+  const [loading, setLoading] = React.useState<boolean>(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newMember, setNewMember] = useState<Partial<FamilyMemberItem>>({
     name: '',
@@ -31,26 +35,92 @@ export const FamilyManager: React.FC = () => {
     status: 'ACTIVE'
   });
 
-  const handleAddMember = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    if (datasetMode === 'DEMO') {
+      setMembers(INITIAL_MEMBERS);
+      setLoading(false);
+    } else {
+      setLoading(true);
+      apiClient.get<any[]>(`/family-members?familyId=${activeFamilyId}`)
+        .then(res => {
+          const raw = Array.isArray(res.data) ? res.data : [];
+          const mapped: FamilyMemberItem[] = raw.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            relationship: m.relationship || 'Member',
+            pan: m.pan || m.pan_number || 'N/A',
+            aadhaarLinked: m.aadhaarLinked ?? true,
+            email: m.email || '',
+            phone: m.phone || '',
+            status: 'ACTIVE'
+          }));
+          setMembers(mapped);
+        })
+        .catch(() => setMembers([]))
+        .finally(() => setLoading(false));
+    }
+  }, [datasetMode, activeFamilyId]);
+
+  const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMember.name) return;
-    const item: FamilyMemberItem = {
-      id: Date.now(),
-      name: newMember.name,
-      relationship: newMember.relationship as any || 'Child',
-      pan: newMember.pan?.toUpperCase() || 'NOT_PROVIDED',
-      aadhaarLinked: !!newMember.aadhaarLinked,
-      email: newMember.email || '',
-      phone: newMember.phone || '',
-      status: 'ACTIVE'
-    };
-    setMembers([...members, item]);
+
+    if (datasetMode === 'DEMO') {
+      const item: FamilyMemberItem = {
+        id: Date.now(),
+        name: newMember.name,
+        relationship: newMember.relationship as any || 'Child',
+        pan: newMember.pan?.toUpperCase() || 'NOT_PROVIDED',
+        aadhaarLinked: !!newMember.aadhaarLinked,
+        email: newMember.email || '',
+        phone: newMember.phone || '',
+        status: 'ACTIVE'
+      };
+      setMembers([...members, item]);
+    } else {
+      try {
+        await apiClient.post('/family-members', {
+          familyId: activeFamilyId,
+          family_id: activeFamilyId,
+          name: newMember.name,
+          relationship: (newMember.relationship === 'Head' ? 'SELF' : newMember.relationship?.toUpperCase()) || 'OTHER',
+          dateOfBirth: '1990-01-01',
+          date_of_birth: '1990-01-01'
+        });
+        const res = await apiClient.get<any[]>(`/family-members?familyId=${activeFamilyId}`);
+        const raw = Array.isArray(res.data) ? res.data : [];
+        setMembers(raw.map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          relationship: m.relationship || 'Member',
+          pan: m.pan || 'N/A',
+          aadhaarLinked: true,
+          email: m.email || '',
+          phone: m.phone || '',
+          status: 'ACTIVE'
+        })));
+        setShowAddModal(false);
+        setNewMember({ name: '', relationship: 'Head', pan: '', email: '', phone: '' });
+      } catch (err: any) {
+        console.error('Failed to add member to database', err);
+        alert(err.response?.data?.error?.message || err.message || 'Failed to add family member');
+      }
+    }
     setShowAddModal(false);
     setNewMember({ name: '', relationship: 'Child', pan: '', aadhaarLinked: true, email: '', phone: '' });
   };
 
-  const handleDeleteMember = (id: number) => {
-    setMembers(members.filter(m => m.id !== id));
+  const handleDeleteMember = async (id: number) => {
+    if (datasetMode === 'DEMO') {
+      setMembers(members.filter(m => m.id !== id));
+    } else {
+      try {
+        await apiClient.delete(`/v1/family-members/${id}`);
+        setMembers(members.filter(m => m.id !== id));
+      } catch (err) {
+        console.error('Failed to delete family member', err);
+      }
+    }
   };
 
   return (

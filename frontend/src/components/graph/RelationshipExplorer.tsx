@@ -22,7 +22,7 @@ import {
 
 export const RelationshipExplorer: React.FC = () => {
   const { activeFamilyId } = useUiStore();
-  const { data: response, isLoading, refetch } = useGraphOverview(activeFamilyId);
+  const { data: response, isLoading, isError, error, refetch } = useGraphOverview(activeFamilyId);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('ALL');
@@ -31,20 +31,41 @@ export const RelationshipExplorer: React.FC = () => {
     return <PageSkeleton />;
   }
 
-  const graphData = response?.data;
-  const nodes = graphData?.nodes || [];
-  const edges = graphData?.edges || [];
-  const estateReadiness = graphData?.estateReadiness;
+  const rawData = (response as any)?.data || response;
+  const graphData = (rawData as any)?.data || rawData || {};
+  const rawNodes = (graphData as any)?.nodes || [];
+  const rawEdges = (graphData as any)?.edges || [];
+
+  const nodes = Array.isArray(rawNodes) ? rawNodes : [];
+  const edges = Array.isArray(rawEdges) ? rawEdges : [];
+  const estateReadiness = (graphData as any)?.estateReadiness;
+
+  const nodeCount = (graphData as any)?.nodeCount ?? nodes.length;
+  const edgeCount = (graphData as any)?.edgeCount ?? edges.length;
+
+  console.log('[RELATIONSHIP_EXPLORER] Render state:', {
+    activeFamilyId,
+    isLoading,
+    isError,
+    error,
+    rawResponse: response,
+    parsedGraphData: graphData,
+    nodeCount,
+    edgeCount,
+    extractedNodesLength: nodes.length
+  });
 
   const filteredNodes = nodes.filter(n => {
+    if (!n) return false;
     const matchesType = filterType === 'ALL' || n.entity_type === filterType;
-    const matchesSearch = n.label.toLowerCase().includes(searchQuery.toLowerCase());
+    const labelStr = String(n.label || n.name || '');
+    const matchesSearch = labelStr.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesType && matchesSearch;
   });
 
-  const selectedNode = nodes.find(n => n.id === selectedNodeId);
+  const selectedNode = nodes.find(n => n && n.id === selectedNodeId);
   const selectedNodeEdges = selectedNode
-    ? edges.filter(e => e.source_node_id === selectedNode.id || e.target_node_id === selectedNode.id)
+    ? edges.filter(e => e && (e.source_node_id === selectedNode.id || e.target_node_id === selectedNode.id))
     : [];
 
   const getNodeIcon = (type: string) => {
@@ -74,6 +95,15 @@ export const RelationshipExplorer: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="px-3 py-1 rounded-full text-xs font-semibold bg-sky-600/20 hover:bg-sky-600/30 text-sky-400 border border-sky-500/30 flex items-center gap-1.5 transition-colors"
+          >
+            <GitFork className="w-3.5 h-3.5" />
+            Sync Graph
+          </button>
+
           <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5 font-mono">
             <ShieldCheck className="w-3.5 h-3.5" />
             Estate Readiness: {estateReadiness?.readinessScore || 100}%
@@ -94,7 +124,7 @@ export const RelationshipExplorer: React.FC = () => {
 
         <MetricCard
           title="Total Graph Nodes"
-          value={graphData?.nodeCount.toString() || '0'}
+          value={nodeCount.toString()}
           subtext="Persons, Assets, Policies & Accounts"
           changePercent={8.5}
           trend="UP"
@@ -103,7 +133,7 @@ export const RelationshipExplorer: React.FC = () => {
 
         <MetricCard
           title="Active Directed Edges"
-          value={graphData?.edgeCount.toString() || '0'}
+          value={edgeCount.toString()}
           subtext="Ownership, Nominee & Dependents"
           changePercent={12.0}
           trend="UP"

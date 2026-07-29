@@ -12,3 +12,5 @@ const insuranceController = new InsuranceController(insuranceAppService);
 export const insuranceRouter = Router();
 
 insuranceRouter.get('/protection/summary', insuranceController.getProtectionSummary);
+insuranceRouter.get('/insurance/policies', insuranceController.getPolicies);
+insuranceRouter.get('/policies', insuranceController.getPolicies);

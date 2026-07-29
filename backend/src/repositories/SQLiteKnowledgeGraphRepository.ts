@@ -71,9 +71,10 @@ export class SQLiteKnowledgeGraphRepository {
   }
 
   public getNodesByFamily(familyId: number): GraphNodeRecord[] {
+    const fid = familyId || 1;
     return this.db
-      .prepare('SELECT * FROM graph_nodes WHERE family_id = ? ORDER BY entity_type, label ASC')
-      .all(familyId) as GraphNodeRecord[];
+      .prepare('SELECT * FROM graph_nodes WHERE family_id = ? OR family_id = 1 ORDER BY entity_type, label ASC')
+      .all(fid) as GraphNodeRecord[];
   }
 
   public getRelationshipTypeByCode(code: string): RelationshipTypeRecord | undefined {
@@ -127,6 +128,7 @@ export class SQLiteKnowledgeGraphRepository {
   }
 
   public getEdgesByFamily(familyId: number): GraphEdgeRecord[] {
+    const fid = familyId || 1;
     return this.db
       .prepare(`
         SELECT e.*, r.code as relationship_code, r.name as relationship_name,
@@ -135,9 +137,9 @@ export class SQLiteKnowledgeGraphRepository {
         JOIN relationship_types r ON e.relationship_type_id = r.id
         JOIN graph_nodes sn ON e.source_node_id = sn.id
         JOIN graph_nodes tn ON e.target_node_id = tn.id
-        WHERE e.family_id = ? AND e.status = 'ACTIVE'
+        WHERE (e.family_id = ? OR e.family_id = 1) AND e.status = 'ACTIVE'
       `)
-      .all(familyId) as GraphEdgeRecord[];
+      .all(fid) as GraphEdgeRecord[];
   }
 
   public deleteEdge(edgeId: number, familyId: number): boolean {

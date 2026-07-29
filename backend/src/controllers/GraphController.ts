@@ -21,10 +21,13 @@ export class GraphController {
       }
 
       const familyId = parseInt(familyIdStr, 10);
+      console.log(`[GRAPH_CONTROLLER] getOverview invoked for familyId=${familyId}`);
       this.relationshipService.syncKnowledgeGraphFromDomainEntities(familyId);
 
       const overview = this.graphQueryService.getOverviewGraph(familyId);
       const readiness = this.graphQueryService.evaluateEstateReadiness(familyId);
+
+      console.log(`[GRAPH_CONTROLLER] Overview result for familyId=${familyId}: nodes=${overview.nodeCount}, edges=${overview.edgeCount}`);
 
       res.status(200).json({
         success: true,

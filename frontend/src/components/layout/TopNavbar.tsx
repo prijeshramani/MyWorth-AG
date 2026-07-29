@@ -1,5 +1,6 @@
 import React from 'react';
 import { useUiStore } from '../../store/useUiStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { 
   ShieldCheck, 
   Menu, 
@@ -8,7 +9,8 @@ import {
   IndianRupee, 
   Search, 
   Database, 
-  Compass 
+  Compass,
+  LogOut
 } from 'lucide-react';
 
 export const TopNavbar: React.FC = () => {
@@ -133,6 +135,15 @@ export const TopNavbar: React.FC = () => {
         >
           <Bell className="w-4 h-4" />
           <span className="w-2 h-2 bg-emerald-500 rounded-full absolute top-1.5 right-1.5"></span>
+        </button>
+
+        {/* Logout Button */}
+        <button
+          onClick={() => useAuthStore.getState().logout()}
+          className="p-2 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors"
+          title="Sign Out / Log Out"
+        >
+          <LogOut className="w-4 h-4" />
         </button>
       </div>
     </header>

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUiStore } from '../../store/useUiStore';
 import { usePlanningDashboard } from '../../hooks/usePlanningDashboard';
 import { planningService } from '../../services/planningService';
 import type { ScenarioResultDTO } from '../../services/planningService';
+import { queryKeys } from '../../hooks/queryKeys';
 import { PageSkeleton } from '../common/PageSkeleton';
 import { MetricCard } from '../ui/MetricCard';
 import { RiskGauge } from '../ui/RiskGauge';
@@ -22,12 +24,14 @@ import {
   DollarSign,
   CheckCircle,
   HelpCircle,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 
 export const PlanningDashboard: React.FC = () => {
   const { activeFamilyId } = useUiStore();
   const { data: response, isLoading, refetch } = usePlanningDashboard(activeFamilyId);
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'retirement' | 'cashflow' | 'scenarios' | 'recommendations'>('overview');
   
@@ -46,6 +50,8 @@ export const PlanningDashboard: React.FC = () => {
   const [targetAmount, setTargetAmount] = useState(5000000);
   const [targetYear, setTargetYear] = useState(2035);
   const [monthlySip, setMonthlySip] = useState(20000);
+  const [isSubmittingGoal, setIsSubmittingGoal] = useState(false);
+  const [goalError, setGoalError] = useState<string | null>(null);
 
   if (isLoading) {
     return <PageSkeleton />;
@@ -80,20 +86,31 @@ export const PlanningDashboard: React.FC = () => {
 
   const handleCreateGoal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!goalTitle) return;
-    await planningService.createGoal({
-      familyId: activeFamilyId,
-      goalType,
-      title: goalTitle,
-      targetAmount,
-      targetYear,
-      monthlySipAmount: monthlySip,
-      expectedReturnPct: 12.0,
-      inflationPct: 6.0
-    });
-    setShowAddGoalModal(false);
-    setGoalTitle('');
-    refetch();
+    if (!goalTitle.trim()) return;
+    setIsSubmittingGoal(true);
+    setGoalError(null);
+    try {
+      await planningService.createGoal({
+        familyId: activeFamilyId,
+        goalType,
+        title: goalTitle.trim(),
+        targetAmount: Number(targetAmount),
+        targetYear: Number(targetYear),
+        monthlySipAmount: Number(monthlySip),
+        expectedReturnPct: 12.0,
+        inflationPct: 6.0
+      });
+      setShowAddGoalModal(false);
+      setGoalTitle('');
+      await queryClient.invalidateQueries({ queryKey: queryKeys.planning.all });
+      await refetch();
+      setActiveTab('goals');
+    } catch (err: any) {
+      console.error('Failed to create goal:', err);
+      setGoalError(err.response?.data?.error?.message || err.message || 'Failed to save goal');
+    } finally {
+      setIsSubmittingGoal(false);
+    }
   };
 
   const getGoalIcon = (type: string) => {
@@ -400,14 +417,26 @@ export const PlanningDashboard: React.FC = () => {
       {/* Add Goal Modal */}
       {showAddGoalModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleCreateGoal} className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 w-full max-w-md space-y-4">
-            <h3 className="text-sm font-bold text-slate-100">Add Financial Goal</h3>
+          <form onSubmit={handleCreateGoal} className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 w-full max-w-md space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-bold text-slate-100">Add Financial Goal</h3>
+              <button type="button" onClick={() => setShowAddGoalModal(false)} className="text-slate-400 hover:text-slate-200">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {goalError && (
+              <div className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-lg text-xs text-rose-400">
+                {goalError}
+              </div>
+            )}
+
             <div>
               <label className="text-xs text-slate-400 block mb-1">Goal Type</label>
               <select
                 value={goalType}
                 onChange={e => setGoalType(e.target.value as any)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100"
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
               >
                 <option value="EDUCATION">Education</option>
                 <option value="RETIREMENT">Retirement</option>
@@ -424,8 +453,8 @@ export const PlanningDashboard: React.FC = () => {
                 required
                 value={goalTitle}
                 onChange={e => setGoalTitle(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100"
-                placeholder="e.g. Child Abroad Education 2035"
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+                placeholder="e.g. Child Education"
               />
             </div>
             <div>
@@ -433,9 +462,10 @@ export const PlanningDashboard: React.FC = () => {
               <input
                 type="number"
                 required
+                min={1000}
                 value={targetAmount}
-                onChange={e => setTargetAmount(parseFloat(e.target.value))}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100"
+                onChange={e => setTargetAmount(parseFloat(e.target.value) || 0)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-mono"
               />
             </div>
             <div>
@@ -443,14 +473,41 @@ export const PlanningDashboard: React.FC = () => {
               <input
                 type="number"
                 required
+                min={new Date().getFullYear()}
+                max={2100}
                 value={targetYear}
-                onChange={e => setTargetYear(parseInt(e.target.value, 10))}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100"
+                onChange={e => setTargetYear(parseInt(e.target.value, 10) || new Date().getFullYear())}
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-mono"
               />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setShowAddGoalModal(false)} className="px-3 py-1.5 text-xs text-slate-400">Cancel</button>
-              <button type="submit" className="px-4 py-1.5 bg-sky-600 text-white rounded text-xs font-semibold">Save Goal</button>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">Monthly SIP (₹)</label>
+              <input
+                type="number"
+                min={0}
+                value={monthlySip}
+                onChange={e => setMonthlySip(parseFloat(e.target.value) || 0)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-mono"
+                placeholder="e.g. 20000"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                disabled={isSubmittingGoal}
+                onClick={() => setShowAddGoalModal(false)}
+                className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingGoal}
+                className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded text-xs font-semibold flex items-center gap-1.5"
+              >
+                {isSubmittingGoal && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {isSubmittingGoal ? 'Saving Goal...' : 'Save Goal'}
+              </button>
             </div>
           </form>
         </div>

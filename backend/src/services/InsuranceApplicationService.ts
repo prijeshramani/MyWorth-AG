@@ -121,4 +121,8 @@ export class InsuranceApplicationService {
       policies: mappedPolicies
     };
   }
+
+  public getPoliciesByFamily(familyId: number) {
+    return this.insuranceRepo.findByFamilyId(familyId);
+  }
 }

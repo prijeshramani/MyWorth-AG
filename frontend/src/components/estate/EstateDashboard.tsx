@@ -37,7 +37,7 @@ export const EstateDashboard: React.FC = () => {
   // New Will modal states
   const [showAddWillModal, setShowAddWillModal] = useState(false);
   const [newWillTitle, setNewWillTitle] = useState('');
-  const [newWillExecutor, setNewWillExecutor] = useState('Adv. Ramesh Varma');
+  const [newWillExecutor, setNewWillExecutor] = useState('');
 
   if (isLoading) {
     return <PageSkeleton />;
@@ -222,7 +222,7 @@ export const EstateDashboard: React.FC = () => {
 
                 <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono space-y-1 text-slate-300">
                   <div>Primary Executor: <span className="text-slate-100 font-bold">{w.executor_name}</span></div>
-                  <div>Registration No: <span className="text-amber-400 font-bold">{w.registration_number || 'REG-2026-9901'}</span></div>
+                  <div>Registration No: <span className="text-amber-400 font-bold">{w.registration_number || 'Pending Registration'}</span></div>
                 </div>
               </div>
             ))}

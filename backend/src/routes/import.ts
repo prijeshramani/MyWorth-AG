@@ -124,13 +124,13 @@ router.post('/confirm', (req: Request, res: Response) => {
 
         // 1. If asset does not exist in DB, create it
         if (!assetId) {
-          // Check again inside transaction to prevent race conditions
+          // Check again inside transaction to prevent race conditions & duplicates
           let existing = null;
           if (tx.identifier) {
-            existing = db.prepare('SELECT id FROM assets WHERE name = ? AND identifier = ? AND type = ?').get(tx.assetName, tx.identifier, tx.assetType) as { id: number } | undefined;
+            existing = db.prepare('SELECT id FROM assets WHERE identifier = ?').get(tx.identifier) as { id: number } | undefined;
           }
           if (!existing) {
-            existing = db.prepare('SELECT id FROM assets WHERE name = ? AND type = ?').get(tx.assetName, tx.assetType) as { id: number } | undefined;
+            existing = db.prepare('SELECT id FROM assets WHERE LOWER(name) = LOWER(?)').get(tx.assetName) as { id: number } | undefined;
           }
 
           if (existing) {
@@ -139,7 +139,7 @@ router.post('/confirm', (req: Request, res: Response) => {
             const result = db.prepare(`
               INSERT INTO assets (name, type, category, identifier)
               VALUES (?, ?, ?, ?)
-            `).run(tx.assetName, tx.assetType, tx.category, tx.identifier || null);
+            `).run(tx.assetName, tx.assetType || 'STOCK', tx.category || 'Stocks', tx.identifier || null);
             assetId = Number(result.lastInsertRowid);
             assetsCreated++;
           }

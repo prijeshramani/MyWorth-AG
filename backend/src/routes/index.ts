@@ -25,6 +25,6 @@ router.use('/tax', taxRouter);
 router.use('/portfolio', portfolioRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reports', reportingRoutes);
-router.use('/', insuranceRouter);
+router.use('/insurance', insuranceRouter);
 
 export default router;

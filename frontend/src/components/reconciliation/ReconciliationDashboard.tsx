@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GitCompare, CheckCircle, AlertCircle, ArrowRightLeft, RefreshCw, FileText } from 'lucide-react';
+import { useUiStore } from '../../store/useUiStore';
 
 interface ReconPair {
   id: string;
@@ -19,8 +20,17 @@ const RECON_ITEMS: ReconPair[] = [
 ];
 
 export const ReconciliationDashboard: React.FC = () => {
-  const [items, setItems] = useState<ReconPair[]>(RECON_ITEMS);
+  const { datasetMode } = useUiStore();
+  const [items, setItems] = useState<ReconPair[]>([]);
   const [reconciling, setReconciling] = useState(false);
+
+  useEffect(() => {
+    if (datasetMode === 'DEMO') {
+      setItems(RECON_ITEMS);
+    } else {
+      setItems([]);
+    }
+  }, [datasetMode]);
 
   const handleRunRecon = () => {
     setReconciling(true);

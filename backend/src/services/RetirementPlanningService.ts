@@ -41,8 +41,8 @@ export class RetirementPlanningService {
 
     // Project current savings & SIP to retirement age
     const projection = this.projectionEngine.projectCorpus({
-      initialLumpSum: 1500000,
-      monthlySip: 35000,
+      initialLumpSum: 0,
+      monthlySip: 0,
       sipStepUpPct: assumptions.sip_step_up_pct,
       expectedReturnPct: assumptions.equity_return_pct,
       inflationPct: assumptions.default_inflation_pct,

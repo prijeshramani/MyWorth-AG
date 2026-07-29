@@ -1,3 +1,4 @@
+import Database from 'better-sqlite3';
 import { SQLiteEstateRepository } from '../repositories/SQLiteEstateRepository';
 
 export interface EmergencyConsoleDTO {
@@ -11,7 +12,10 @@ export interface EmergencyConsoleDTO {
 }
 
 export class EmergencyModeService {
-  constructor(private estateRepo: SQLiteEstateRepository) {}
+  constructor(
+    private estateRepo: SQLiteEstateRepository,
+    private db: Database.Database
+  ) {}
 
   public getEmergencyConsoleData(familyId: number): EmergencyConsoleDTO {
     const profile = this.estateRepo.getOrCreateProfile(familyId);
@@ -19,20 +23,37 @@ export class EmergencyModeService {
     // Audit log emergency mode access
     this.estateRepo.logTimeline(familyId, 'EMERGENCY_MODE_ACCESS', 'Emergency Mode Accessed', 'Emergency console data accessed under secure audit protocol.');
 
+    // Fetch real insurance policies
+    let keyInsurancePolicies: Array<{ policyNumber: string; insurer: string; type: string; sumAssured: string }> = [];
+    try {
+      const realPolicies = this.db
+        .prepare("SELECT policy_number, insurer_name as insurer, policy_type as type, sum_assured FROM insurance_policies WHERE family_id = ? AND deleted_at IS NULL")
+        .all(familyId) as Array<{ policy_number: string; insurer: string; type: string; sum_assured: number }>;
+
+      keyInsurancePolicies = realPolicies.map(p => ({
+        policyNumber: p.policy_number,
+        insurer: p.insurer,
+        type: p.type,
+        sumAssured: `₹${p.sum_assured.toLocaleString('en-IN')}`
+      }));
+    } catch {}
+
+    // Fetch real documents if any
+    let criticalDocuments: Array<{ name: string; category: string; documentId: string }> = [];
+    try {
+      const docs = this.db
+        .prepare("SELECT name, category, id as documentId FROM entity_references WHERE deleted_at IS NULL")
+        .all() as Array<{ name: string; category: string; documentId: string }>;
+      criticalDocuments = docs;
+    } catch {}
+
     return {
-      primaryExecutor: profile.primary_executor_id ? 'Adv. Ramesh Varma (+91 9845012345)' : 'Adv. Ramesh Varma (+91 9845012345)',
-      lawyerContact: profile.lawyer_contact || 'Adv. Ramesh Varma (+91 9845012345)',
-      caContact: profile.ca_contact || 'CA Suresh Mehta (+91 9820011223)',
-      doctorContact: profile.doctor_contact || 'Dr. K. S. Rao (Manipal Hospital)',
-      keyInsurancePolicies: [
-        { policyNumber: 'POL-9901', insurer: 'Max Life Insurance', type: 'TERM', sumAssured: '₹1,00,00,000' },
-        { policyNumber: 'POL-4402', insurer: 'Star Health Insurance', type: 'HEALTH', sumAssured: '₹10,00,000' }
-      ],
-      criticalDocuments: [
-        { name: 'PAN_Card_Rajesh_Sharma.pdf', category: 'PAN', documentId: '1' },
-        { name: 'Max_Life_Policy_Document.pdf', category: 'Insurance', documentId: '3' },
-        { name: 'Property_Sale_Deed_Bangalore.pdf', category: 'Property', documentId: '5' }
-      ],
+      primaryExecutor: profile.lawyer_contact || 'Not Specified',
+      lawyerContact: profile.lawyer_contact || 'Not Specified',
+      caContact: profile.ca_contact || 'Not Specified',
+      doctorContact: profile.doctor_contact || 'Not Specified',
+      keyInsurancePolicies,
+      criticalDocuments,
       emergencyAccessAuditLogged: true
     };
   }

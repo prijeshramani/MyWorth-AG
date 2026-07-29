@@ -8,56 +8,101 @@ export class RelationshipService {
   ) {}
 
   public syncKnowledgeGraphFromDomainEntities(familyId: number): void {
-    // 1. Sync Family Members as PERSON nodes
-    const members = this.db
-      .prepare('SELECT * FROM family_members WHERE family_id = ? AND deleted_at IS NULL')
-      .all(familyId) as Array<{ id: number; name: string; relationship: string }>;
-
-    const personNodeMap = new Map<number, GraphNodeRecord>();
-    for (const m of members) {
-      const node = this.graphRepo.getOrCreateNode(familyId, 'PERSON', m.id, `${m.name} (${m.relationship})`, { relationship: m.relationship });
-      personNodeMap.set(m.id, node);
-    }
-
-    // 2. Sync Holdings as ASSET nodes & OWNS edges
-    const holdings = this.db
-      .prepare(`
-        SELECT h.id, h.account_id, a.name as asset_name, a.asset_type
-        FROM holdings h
-        JOIN assets_master a ON h.asset_id = a.id
-        WHERE h.deleted_at IS NULL AND a.deleted_at IS NULL
-      `)
-      .all() as Array<{ id: number; account_id: number; asset_name: string; asset_type: string }>;
+    const targetFamilyId = Number(familyId) || 1;
+    
+    // 0. Ensure family record exists for Foreign Keys
+    try {
+      this.db.prepare("INSERT OR IGNORE INTO families (id, name, currency) VALUES (?, 'My Family', 'INR')").run(targetFamilyId);
+    } catch {}
 
     const ownsRelType = this.graphRepo.getRelationshipTypeByCode('OWNS');
-    const headPerson = personNodeMap.values().next().value;
+    const policyHolderRel = this.graphRepo.getRelationshipTypeByCode('POLICY_HOLDER');
 
-    for (const h of holdings) {
-      const assetNode = this.graphRepo.getOrCreateNode(familyId, 'ASSET', h.id, h.asset_name, { assetType: h.asset_type });
-      if (headPerson && ownsRelType) {
-        try {
-          this.graphRepo.addEdge(familyId, headPerson.id, assetNode.id, ownsRelType.id, 1.0);
-        } catch {
-          // Ignore duplicate edge
-        }
+    // 1. Sync Family Members as PERSON nodes
+    const personNodeMap = new Map<number, GraphNodeRecord>();
+    try {
+      const members = this.db
+        .prepare('SELECT * FROM family_members WHERE family_id = ? AND deleted_at IS NULL')
+        .all(targetFamilyId) as Array<{ id: number; name: string; relationship: string }>;
+
+      for (const m of members) {
+        const node = this.graphRepo.getOrCreateNode(targetFamilyId, 'PERSON', m.id, `${m.name} (${m.relationship || 'Member'})`, { relationship: m.relationship });
+        personNodeMap.set(m.id, node);
+      }
+    } catch (e) {
+      console.error('KnowledgeGraph sync error (family_members):', e);
+    }
+
+    // Ensure at least one primary PERSON node exists to own assets
+    let headPerson = personNodeMap.values().next().value;
+    if (!headPerson) {
+      try {
+        headPerson = this.graphRepo.getOrCreateNode(targetFamilyId, 'PERSON', 1, 'Primary Account Holder', { relationship: 'Head' });
+      } catch (e) {
+        console.error('KnowledgeGraph sync error (headPerson):', e);
       }
     }
 
-    // 3. Sync Insurance Policies as POLICY nodes & POLICY_HOLDER edges
-    const policies = this.db
-      .prepare('SELECT id, policy_number, insurer_name, policy_type, sum_assured, nominee_name FROM insurance_policies WHERE family_id = ? AND deleted_at IS NULL')
-      .all(familyId) as Array<{ id: number; policy_number: string; insurer_name: string; policy_type: string; sum_assured: number; nominee_name?: string }>;
+    // 2. Sync Assets from `assets` table (Kite, AngelOne, NPS, EPF, Mutual Funds, Stocks)
+    try {
+      const assets = this.db
+        .prepare(`SELECT id, name, type, category, identifier FROM assets`)
+        .all() as Array<{ id: number; name: string; type: string; category: string; identifier: string | null }>;
 
-    const policyHolderRel = this.graphRepo.getRelationshipTypeByCode('POLICY_HOLDER');
-    const nomineeRel = this.graphRepo.getRelationshipTypeByCode('NOMINEE');
-
-    for (const p of policies) {
-      const polNode = this.graphRepo.getOrCreateNode(familyId, 'POLICY', p.id, `${p.insurer_name} (${p.policy_number})`, { policyType: p.policy_type, sumAssured: p.sum_assured });
-      if (headPerson && policyHolderRel) {
-        try {
-          this.graphRepo.addEdge(familyId, headPerson.id, polNode.id, policyHolderRel.id, 1.0);
-        } catch {}
+      for (const a of assets) {
+        const assetNode = this.graphRepo.getOrCreateNode(targetFamilyId, 'ASSET', a.id, a.name, { assetType: a.type, category: a.category, identifier: a.identifier });
+        if (headPerson && ownsRelType) {
+          try {
+            this.graphRepo.addEdge(targetFamilyId, headPerson.id, assetNode.id, ownsRelType.id, 1.0);
+          } catch {
+            // Ignore duplicate edge
+          }
+        }
       }
+    } catch (e) {
+      console.error('KnowledgeGraph sync error (assets):', e);
+    }
+
+    // 3. Sync Accounts from `accounts` table (safely check table columns)
+    try {
+      const accountsTable = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'").get();
+      if (accountsTable) {
+        const accounts = this.db
+          .prepare(`SELECT id, account_name as name, account_type as type, masked_account_number as account_number_masked, institution_name FROM accounts WHERE family_id = ? AND deleted_at IS NULL`)
+          .all(targetFamilyId) as Array<{ id: number; name: string; type: string; account_number_masked?: string; institution_name?: string }>;
+
+        for (const acc of accounts) {
+          const accNode = this.graphRepo.getOrCreateNode(targetFamilyId, 'ACCOUNT', acc.id, `${acc.institution_name || acc.name || 'Account'} (${acc.type})`, { type: acc.type });
+          if (headPerson && ownsRelType) {
+            try {
+              this.graphRepo.addEdge(targetFamilyId, headPerson.id, accNode.id, ownsRelType.id, 1.0);
+            } catch {}
+          }
+        }
+      }
+    } catch (e) {
+      console.error('KnowledgeGraph sync error (accounts):', e);
+    }
+
+    // 4. Sync Insurance Policies as POLICY nodes
+    try {
+      const policiesTable = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='insurance_policies'").get();
+      if (policiesTable) {
+        const policies = this.db
+          .prepare('SELECT id, policy_number, insurer_name, policy_type, sum_assured FROM insurance_policies WHERE family_id = ? AND deleted_at IS NULL')
+          .all(targetFamilyId) as Array<{ id: number; policy_number: string; insurer_name: string; policy_type: string; sum_assured: number }>;
+
+        for (const p of policies) {
+          const polNode = this.graphRepo.getOrCreateNode(targetFamilyId, 'POLICY', p.id, `${p.insurer_name} (${p.policy_number})`, { policyType: p.policy_type, sumAssured: p.sum_assured });
+          if (headPerson && policyHolderRel) {
+            try {
+              this.graphRepo.addEdge(targetFamilyId, headPerson.id, polNode.id, policyHolderRel.id, 1.0);
+            } catch {}
+          }
+        }
+      }
+    } catch (e) {
+      console.error('KnowledgeGraph sync error (policies):', e);
     }
   }
 

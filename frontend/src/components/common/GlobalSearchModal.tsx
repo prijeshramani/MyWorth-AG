@@ -37,7 +37,7 @@ const MOCK_SEARCH_INDEX: SearchResultItem[] = [
 ];
 
 export const GlobalSearchModal: React.FC = () => {
-  const { isGlobalSearchOpen, setIsGlobalSearchOpen, setActiveTab } = useUiStore();
+  const { isGlobalSearchOpen, setIsGlobalSearchOpen, setActiveTab, datasetMode } = useUiStore();
   const [query, setQuery] = useState('');
 
   // Keyboard shortcut listener (Ctrl+K)
@@ -57,9 +57,11 @@ export const GlobalSearchModal: React.FC = () => {
 
   if (!isGlobalSearchOpen) return null;
 
+  const searchIndex = datasetMode === 'DEMO' ? MOCK_SEARCH_INDEX : [];
+
   const filteredResults = query.trim() === ''
-    ? MOCK_SEARCH_INDEX
-    : MOCK_SEARCH_INDEX.filter(
+    ? searchIndex
+    : searchIndex.filter(
         item => item.title.toLowerCase().includes(query.toLowerCase()) ||
                 item.subtitle.toLowerCase().includes(query.toLowerCase()) ||
                 item.category.toLowerCase().includes(query.toLowerCase())

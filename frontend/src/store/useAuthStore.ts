@@ -15,9 +15,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: {
     id: 1,
     familyId: 1,
-    email: 'demo.owner@myworth.test',
-    firstName: 'Rajesh',
-    lastName: 'Sharma',
+    email: 'user@myworth.app',
+    firstName: 'Primary',
+    lastName: 'Member',
     roles: ['Owner'],
     permissions: [
       'Investment.Read', 'Investment.Write',

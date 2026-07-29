@@ -27,6 +27,7 @@ import { FeedbackWidget } from './components/common/FeedbackWidget';
 import { LoginPage } from './components/auth/LoginPage';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
 import { ComponentDemo } from './components/ui/ComponentDemo';
+import { HoldingsView } from './components/holdings/HoldingsView';
 import { useUiStore } from './store/useUiStore';
 import { useAuthStore } from './store/useAuthStore';
 
@@ -41,8 +42,27 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
-  const { activeTab, setActiveTab } = useUiStore();
+  const { activeTab, setActiveTab, isOnboardingComplete } = useUiStore();
   const { isAuthenticated } = useAuthStore();
+  const [kiteRequestToken, setKiteRequestToken] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    // Detect Zerodha Kite OAuth redirect request_token in URL query string
+    const searchParams = new URLSearchParams(window.location.search);
+    const token = searchParams.get('request_token');
+    if (token) {
+      console.log('Zerodha Kite OAuth redirect token detected:', token);
+      setKiteRequestToken(token);
+      setActiveTab('import');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (isAuthenticated && !isOnboardingComplete && activeTab === 'dashboard') {
+      setActiveTab('onboarding');
+    }
+  }, [isAuthenticated, isOnboardingComplete]);
 
   if (!isAuthenticated) {
     return <LoginPage />;
@@ -59,7 +79,7 @@ function AppContent() {
       case 'portfolio':
         return <Portfolio />;
       case 'holdings':
-        return <ComponentDemo />;
+        return <HoldingsView />;
       case 'transactions':
         return <Transactions />;
       case 'accounts':
@@ -77,7 +97,12 @@ function AppContent() {
       case 'documents':
         return <DocumentVault />;
       case 'import':
-        return <ImportCenter />;
+        return (
+          <ImportCenter 
+            initialKiteRequestToken={kiteRequestToken} 
+            clearKiteRequestToken={() => setKiteRequestToken(null)} 
+          />
+        );
       case 'data-manager':
         return <DataManager />;
       case 'data-quality':

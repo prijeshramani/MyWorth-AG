@@ -224,5 +224,8 @@ export function initDb() {
   // Execute Versioned Database Migrations
   runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011], dbPath);
 
+  // Ensure default Family (id = 1) exists to satisfy Foreign Keys
+  db.prepare("INSERT OR IGNORE INTO families (id, name, currency) VALUES (1, 'My Family', 'INR')").run();
+
   console.log('Database tables successfully verified/created.');
 }

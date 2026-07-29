@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertCircle, ShieldAlert, CheckCircle, ArrowRight, UserCheck, FileText, AlertTriangle } from 'lucide-react';
 import { useUiStore } from '../../store/useUiStore';
 
@@ -19,8 +19,16 @@ const INITIAL_ISSUES: QualityIssue[] = [
 ];
 
 export const DataQualityCenter: React.FC = () => {
-  const { setActiveTab } = useUiStore();
-  const [issues, setIssues] = useState<QualityIssue[]>(INITIAL_ISSUES);
+  const { datasetMode, setActiveTab } = useUiStore();
+  const [issues, setIssues] = useState<QualityIssue[]>([]);
+
+  useEffect(() => {
+    if (datasetMode === 'DEMO') {
+      setIssues(INITIAL_ISSUES);
+    } else {
+      setIssues([]);
+    }
+  }, [datasetMode]);
 
   const handleResolve = (id: string, targetTab: string) => {
     setIssues(issues.filter(i => i.id !== id));

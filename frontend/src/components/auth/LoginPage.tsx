@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useUiStore } from '../../store/useUiStore';
 import { authService } from '../../services/authService';
 import { ShieldCheck, Lock, Mail, Key } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { setAuth } = useAuthStore();
+  const { isOnboardingComplete, setActiveTab } = useUiStore();
   const [email, setEmail] = useState('demo.owner@myworth.test');
   const [password, setPassword] = useState('MyWorthSecurePass2026');
   const [loading, setLoading] = useState(false);
@@ -19,6 +21,9 @@ export const LoginPage: React.FC = () => {
       const res = await authService.login(email, password);
       if (res.success && res.data) {
         setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
+        if (!isOnboardingComplete) {
+          setActiveTab('onboarding');
+        }
       }
     } catch (err: any) {
       // Fallback for offline demo mode
@@ -40,6 +45,9 @@ export const LoginPage: React.FC = () => {
         'demo_access_token',
         'demo_refresh_token'
       );
+      if (!isOnboardingComplete) {
+        setActiveTab('onboarding');
+      }
     } finally {
       setLoading(false);
     }

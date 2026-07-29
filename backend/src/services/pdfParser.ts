@@ -107,23 +107,98 @@ export async function parsePdfStatement(pdfBuffer: Buffer, password?: string): P
   const transactions: ParsedTransaction[] = [];
 
   // 1. CAMS CAS Mutual Fund Ingestion
+// Helper to mathematically align CAMS transaction numbers (Amount, NAV/Price, Units/Quantity)
+function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number; price: number; quantity: number } {
+  const abs1 = Math.abs(n1);
+  const abs2 = Math.abs(n2);
+  const abs3 = Math.abs(n3);
+
+  // Case 1: abs1 ≈ abs2 * abs3 (n1 is Amount, n2 is NAV/Price, n3 is Quantity/Units)
+  if (abs1 > 0 && Math.abs(abs1 - abs2 * abs3) / abs1 < 0.08) {
+    return { amount: abs1, price: abs2, quantity: abs3 };
+  }
+  // Case 2: abs1 ≈ abs3 * abs2 (n1 is Amount, n3 is NAV/Price, n2 is Quantity/Units)
+  if (abs1 > 0 && Math.abs(abs1 - abs3 * abs2) / abs1 < 0.08) {
+    return { amount: abs1, price: abs3, quantity: abs2 };
+  }
+  // Case 3: abs2 ≈ abs1 * abs3 (n2 is Amount, n1 is Price, n3 is Quantity)
+  if (abs2 > 0 && Math.abs(abs2 - abs1 * abs3) / abs2 < 0.08) {
+    return { amount: abs2, price: abs1, quantity: abs3 };
+  }
+  // Case 4: abs3 ≈ abs1 * abs2 (n3 is Amount, abs2 is Price, abs1 is Quantity)
+  if (abs3 > 0 && Math.abs(abs3 - abs1 * abs2) / abs3 < 0.08) {
+    return { amount: abs3, price: abs2, quantity: abs1 };
+  }
+
+  // General Fallback: Largest number is Amount
+  const max = Math.max(abs1, abs2, abs3);
+  let rem1 = abs1;
+  let rem2 = abs2;
+  if (max === abs1) { rem1 = abs2; rem2 = abs3; }
+  else if (max === abs2) { rem1 = abs1; rem2 = abs3; }
+  else { rem1 = abs1; rem2 = abs2; }
+
+  // Higher value between remaining two is typically NAV/Price
+  const price = Math.max(rem1, rem2);
+  const quantity = Math.min(rem1, rem2);
+  return { amount: max, price, quantity };
+}
+
+  // 1. CAMS CAS Mutual Fund Ingestion
   if (statementType === 'CAMS_CAS') {
-    // Standard CAMS scheme row regex matching: Scheme Name - ISIN : INF 209 KB 1 H 99
-    // The ISIN is captured with spaces, and the Scheme Name is captured prior to it
-    const schemeRegex = /([A-Za-z0-9\s\-\.\&\(\)\/]+?)(?:\([^\)]*\))?\s*-\s*ISIN\s*:\s*(INF\s*[A-Z0-9\s]{9,22})/gi;
-    let schemeMatch;
     const schemes: { name: string; isin: string; index: number }[] = [];
-    
-    while ((schemeMatch = schemeRegex.exec(rawText)) !== null) {
-      const cleanIsin = schemeMatch[2].replace(/\s+/g, '').toUpperCase();
+
+    // Strategy A: ISIN Tag Matching (e.g. "HDFC Top 100 - ISIN: INF179K01BE2" or "ISIN : INF 209 KB 1 H 99")
+    const isinRegex = /(?:([A-Za-z0-9\s\-\.\&\(\)\/,\+\[\]\%]+?)\s*[-–—]?\s*)?ISIN\s*[:\-\s]*\s*(INF[A-Z0-9\s]{9,22})/gi;
+    let isinMatch;
+
+    while ((isinMatch = isinRegex.exec(rawText)) !== null) {
+      const rawSchemeName = isinMatch[1] ? isinMatch[1].trim() : '';
+      const cleanIsin = isinMatch[2].replace(/\s+/g, '').toUpperCase();
+      
+      let name = rawSchemeName
+        .replace(/^(?:PAN|KYC|OK|FOLIO\s*NO[\d\:\s\/]+|\s)+/gi, '')
+        .replace(/^[A-Z0-9\s]{1,6}\s*-\s*/i, '')
+        .trim();
+
+      if (!name || name.length < 3) {
+        const backChunk = rawText.slice(Math.max(0, isinMatch.index - 150), isinMatch.index);
+        const lines = backChunk.split('\n').filter(l => l.trim().length > 5);
+        if (lines.length > 0) {
+          name = lines[lines.length - 1].replace(/Folio\s*No[.\s\:]*[\d\/]+/gi, '').trim();
+        }
+      }
+
       schemes.push({
-        name: schemeMatch[1].trim(),
+        name: name || 'Mutual Fund Scheme',
         isin: cleanIsin,
-        index: schemeMatch.index
+        index: isinMatch.index
       });
     }
 
-    // Now, parse transactions for each scheme block range
+    // Strategy B: If no ISIN tag found, search for "Folio No" headers
+    if (schemes.length === 0) {
+      const folioRegex = /Folio\s*No[.\s\:]*([\d\/]+)\s+([A-Za-z0-9\s\-\.\&\(\)\/,\+]+)/gi;
+      let folioMatch;
+      while ((folioMatch = folioRegex.exec(rawText)) !== null) {
+        schemes.push({
+          name: folioMatch[2].trim(),
+          isin: 'CAMS-MF-' + folioMatch[1].replace(/[\/]/g, ''),
+          index: folioMatch.index
+        });
+      }
+    }
+
+    // Fallback: If still no schemes found, create a default global scheme covering full rawText
+    if (schemes.length === 0) {
+      schemes.push({
+        name: 'CAMS Mutual Fund Holding',
+        isin: 'CAMS-MF-HOLDING',
+        index: 0
+      });
+    }
+
+    // Parse transactions for each scheme block range
     for (let s = 0; s < schemes.length; s++) {
       const currentScheme = schemes[s];
       const startIdx = currentScheme.index;
@@ -131,29 +206,31 @@ export async function parsePdfStatement(pdfBuffer: Buffer, password?: string): P
       
       const schemeSection = rawText.slice(startIdx, endIdx);
       
-      // Global CAMS Transaction Regex Scanner for single-line extracts
-      // Matches: Date, Amount, Price, Units, Description, Balance
-      const globalTxRegex = /(\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{4})\s+([\d,\.\-\(\)]+)\s+([\d,\.\-]+)\s+([\d,\.\-\(\)]+)\s+(.+?)\s+([\d,\.\-]+)(?=\s+(?:\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{4}|Opening|Closing|NAV|Stamp|PAN|Total|Folio|ISIN|\*\*\*|Mutual\s+Fund|$))/gi;
+      // Strategy 1: Standard 6-Column CAMS CAS Table Layout Regex
+      // Date | Amount (INR) | Price Unit (INR) | Units | Transaction Description | Unit Balance
+      const camsRealTxRegex = /(\d{1,2}-[A-Za-z]{3}-\d{4}|\d{1,2}\/\d{2}\/\d{4})\s+([\d,\.\-\(\)]+)\s+([\d,\.\-]+)\s+([\d,\.\-\(\)]+)\s+(.+?)\s+([\d,\.\-]+)(?=\s+(?:\d{1,2}-[A-Za-z]{3}-\d{4}|\d{1,2}\/\d{2}\/\d{4}|NAV\s+on|Closing|Opening|Total|Folio|PAN|\*\*\*|Mutual\s+Fund|\d{1,2}-[A-Za-z]{3}-\d{4}\s+\d+\.\d+|$))/gi;
       
       let txMatch;
-      while ((txMatch = globalTxRegex.exec(schemeSection)) !== null) {
+      let txFoundCount = 0;
+
+      while ((txMatch = camsRealTxRegex.exec(schemeSection)) !== null) {
         const dateRaw = txMatch[1];
         const amountStr = txMatch[2];
         const priceStr = txMatch[3];
         const qtyStr = txMatch[4];
         const desc = txMatch[5].trim();
-        
-        // Parse numbers (remove commas and parse parentheses as negative signs)
+
         const amount = parseFloat(amountStr.replace(/,/g, '').replace(/\((.*?)\)/, '-$1'));
         const price = parseFloat(priceStr.replace(/,/g, ''));
         const quantity = parseFloat(qtyStr.replace(/,/g, '').replace(/\((.*?)\)/, '-$1'));
-        
-        if (isNaN(amount) || isNaN(price) || isNaN(quantity)) continue;
-        
+
+        if (isNaN(amount) || isNaN(price) || isNaN(quantity) || amount === 0 || quantity === 0) continue;
+
+        txFoundCount++;
         let txType: ParsedTransaction['type'] = 'BUY';
         const descUpper = desc.toUpperCase();
-        
-        if (descUpper.includes('REDEMPTION') || descUpper.includes('SELL') || descUpper.includes('SWITCH-OUT') || quantity < 0) {
+
+        if (descUpper.includes('REDEMPTION') || descUpper.includes('SELL') || descUpper.includes('SWITCH-OUT') || amount < 0 || quantity < 0) {
           txType = 'SELL';
         } else if (descUpper.includes('DIVIDEND') && descUpper.includes('REINVEST')) {
           txType = 'REINVEST';
@@ -161,15 +238,8 @@ export async function parsePdfStatement(pdfBuffer: Buffer, password?: string): P
           txType = 'DIVIDEND';
         }
 
-        // Clean Scheme Name from remnants of preceding KYC lines in single-line text
-        const cleanName = currentScheme.name
-          .replace(/^(?:PAN|KYC|OK|\s)+/gi, '') // strip PAN/KYC tags
-          .replace(/^[A-Z0-9\s]+\s*-\s*/i, '') // strip codes like B 55 B - or GD 340 -
-          .trim();
-
-        // Determine if Equity, Debt or Hybrid based on name
         let category: ParsedTransaction['category'] = 'Equity';
-        const nameLower = cleanName.toLowerCase();
+        const nameLower = currentScheme.name.toLowerCase();
         if (nameLower.includes('debt') || nameLower.includes('liquid') || nameLower.includes('gilt') || nameLower.includes('fixed')) {
           category = 'Debt';
         } else if (nameLower.includes('hybrid') || nameLower.includes('balanced') || nameLower.includes('retirement')) {
@@ -177,16 +247,89 @@ export async function parsePdfStatement(pdfBuffer: Buffer, password?: string): P
         }
 
         transactions.push({
-          assetName: cleanName,
+          assetName: currentScheme.name,
           assetType: 'MUTUAL_FUND',
           category,
           identifier: currentScheme.isin,
           type: txType,
           date: normalizeDate(dateRaw),
-          quantity: Math.abs(quantity),
-          price,
-          amount: Math.abs(amount)
+          quantity: parseFloat(Math.abs(quantity).toFixed(4)),
+          price: parseFloat(Math.abs(price).toFixed(4)),
+          amount: parseFloat(Math.abs(amount).toFixed(2))
         });
+      }
+
+      // Strategy 2: Fallback Line Scanner (for non-standard / single-line extracts)
+      if (txFoundCount === 0) {
+        const lines = schemeSection.split('\n');
+        for (const line of lines) {
+          const dateMatch = line.match(/(\d{1,2}\s+[A-Za-z]{3}\s+\d{4}|\d{1,2}[-\/\.](?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{1,2})[-\/\.]\d{2,4})/i);
+          if (!dateMatch) continue;
+
+          const kwMatch = line.match(/\b(BUY|SELL|PURCHASE|REDEMPTION|SWITCH-OUT|SWITCH-IN|REINVEST|DIVIDEND)\b/i);
+          let targetText = line;
+          let txType: ParsedTransaction['type'] = 'BUY';
+
+          if (kwMatch && kwMatch.index !== undefined) {
+            const kwStr = kwMatch[1].toUpperCase();
+            if (kwStr.includes('REDEMPTION') || kwStr.includes('SELL') || kwStr.includes('SWITCH-OUT')) {
+              txType = 'SELL';
+            } else if (kwStr.includes('REINVEST')) {
+              txType = 'REINVEST';
+            } else if (kwStr.includes('DIVIDEND')) {
+              txType = 'DIVIDEND';
+            }
+            targetText = line.substring(kwMatch.index + kwMatch[0].length);
+          } else {
+            const lineUpper = line.toUpperCase();
+            if (lineUpper.includes('REDEMPTION') || lineUpper.includes('SELL') || lineUpper.includes('SWITCH-OUT')) {
+              txType = 'SELL';
+            }
+          }
+
+          const matches = targetText.match(/[\d,\.]+/g) || [];
+          const rawNums = matches
+            .map(m => parseFloat(m.replace(/,/g, '')))
+            .filter(n => !isNaN(n) && n > 0);
+
+          const nums = rawNums.filter(n => n < 500000);
+          const uniqueNums: number[] = [];
+          for (const n of nums) {
+            if (uniqueNums.length === 0 || Math.abs(uniqueNums[uniqueNums.length - 1] - n) > 0.0001) {
+              uniqueNums.push(n);
+            }
+          }
+
+          if (uniqueNums.length < 2) continue;
+
+          const aligned = alignCamsNumbers(
+            uniqueNums[0],
+            uniqueNums[1],
+            uniqueNums.length > 2 ? uniqueNums[2] : 0
+          );
+
+          if (aligned.amount === 0 || aligned.quantity === 0) continue;
+
+          let category: ParsedTransaction['category'] = 'Equity';
+          const nameLower = currentScheme.name.toLowerCase();
+          if (nameLower.includes('debt') || nameLower.includes('liquid') || nameLower.includes('gilt') || nameLower.includes('fixed')) {
+            category = 'Debt';
+          } else if (nameLower.includes('hybrid') || nameLower.includes('balanced') || nameLower.includes('retirement')) {
+            category = 'Hybrid';
+          }
+
+          transactions.push({
+            assetName: currentScheme.name,
+            assetType: 'MUTUAL_FUND',
+            category,
+            identifier: currentScheme.isin,
+            type: txType,
+            date: normalizeDate(dateMatch[1]),
+            quantity: parseFloat(aligned.quantity.toFixed(4)),
+            price: parseFloat(aligned.price.toFixed(4)),
+            amount: parseFloat(aligned.amount.toFixed(2))
+          });
+        }
       }
     }
   }

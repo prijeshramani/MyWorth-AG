@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { db } from '../db';
 import { CreateAssetSchema } from '../schema';
 import { assetRepository } from '../repositories/SQLiteAssetRepository';
 import { transactionRepository } from '../repositories/SQLiteTransactionRepository';
@@ -10,6 +11,18 @@ const router = Router();
 // GET /api/assets - Retrieve all assets with current valuation metrics
 router.get('/', (req: Request, res: Response, next) => {
   try {
+    // 0. Auto-clean orphaned zero-unit duplicate assets with identical names
+    db.prepare(`
+      DELETE FROM assets 
+      WHERE (id NOT IN (SELECT DISTINCT asset_id FROM transactions) AND id NOT IN (SELECT DISTINCT asset_id FROM holdings))
+      AND (
+        name IN (SELECT name FROM assets GROUP BY name HAVING COUNT(*) > 1)
+        OR (type = 'OTHER' AND (name LIKE '%Reliance%' OR name LIKE '%HDFC%'))
+      )
+    `).run();
+
+    const includeZero = req.query.includeZero === 'true';
+
     // 1. Get all assets via Repository
     const assets = assetRepository.findAll();
 
@@ -109,6 +122,10 @@ router.get('/', (req: Request, res: Response, next) => {
         priceDate,
         lastTransactionDate: transactions.length > 0 ? transactions[transactions.length - 1].date : ''
       };
+    }).filter(asset => {
+      if (includeZero) return true;
+      // Exclude zero-units zero-value orphaned assets
+      return asset.currentUnits > 0 || asset.currentValue > 0;
     });
 
     res.json(result);

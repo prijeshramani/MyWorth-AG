@@ -72,22 +72,28 @@ export class SQLiteEstateRepository {
     if (!profile) {
       const stmt = this.db.prepare(`
         INSERT INTO estate_profiles (family_id, estate_health_score, estate_value, lawyer_contact, ca_contact)
-        VALUES (?, 85.0, 15000000.0, 'Adv. Ramesh Varma (+91 9845012345)', 'CA Suresh Mehta (+91 9820011223)')
+        VALUES (?, 85.0, 0.0, NULL, NULL)
       `);
       const res = stmt.run(familyId);
       profile = {
         id: Number(res.lastInsertRowid),
         family_id: familyId,
         estate_health_score: 85.0,
-        estate_value: 15000000.0,
-        lawyer_contact: 'Adv. Ramesh Varma (+91 9845012345)',
-        ca_contact: 'CA Suresh Mehta (+91 9820011223)',
+        estate_value: 0.0,
+        lawyer_contact: undefined,
+        ca_contact: undefined,
         last_reviewed_at: new Date().toISOString(),
         created_at: new Date().toISOString()
       };
 
       this.logTimeline(familyId, 'PROFILE_CREATED', 'Estate Profile Initialized', 'Initial estate profile generated for family.');
     }
+
+    try {
+      const assetWorth = (this.db.prepare(`SELECT SUM(current_value) as total FROM holdings WHERE deleted_at IS NULL`).get() as any)?.total || 0;
+      const bankWorth = (this.db.prepare(`SELECT SUM(balance) as total FROM accounts WHERE deleted_at IS NULL`).get() as any)?.total || 0;
+      profile.estate_value = assetWorth + bankWorth;
+    } catch {}
 
     return profile;
   }

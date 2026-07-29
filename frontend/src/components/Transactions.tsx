@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiClient } from '../services/apiClient';
 import { 
   History, 
   Trash2, 
@@ -66,13 +67,8 @@ export default function Transactions() {
   const fetchTxs = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/transactions');
-      if (res.ok) {
-        const data = await res.json();
-        setTxs(data);
-      } else {
-        setError('Failed to fetch ledger transactions.');
-      }
+      const res = await apiClient.get<Transaction[]>('/transactions');
+      setTxs(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
       setError(err.message || 'Error communicating with local server.');
     } finally {
@@ -82,11 +78,8 @@ export default function Transactions() {
 
   const fetchAssets = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/assets');
-      if (res.ok) {
-        const data = await res.json();
-        setAssets(data);
-      }
+      const res = await apiClient.get<Asset[]>('/assets');
+      setAssets(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error(err);
     }

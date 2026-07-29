@@ -1,3 +1,4 @@
+import Database from 'better-sqlite3';
 import { SQLiteEstateRepository } from '../repositories/SQLiteEstateRepository';
 
 export interface SimulationResultDTO {
@@ -13,30 +14,58 @@ export interface SimulationResultDTO {
 }
 
 export class EstateSimulationService {
-  constructor(private estateRepo: SQLiteEstateRepository) {}
+  constructor(
+    private estateRepo: SQLiteEstateRepository,
+    private db: Database.Database
+  ) {}
 
   public runDeathScenarioSimulation(familyId: number, scenario: string = 'TESTATOR_DECEASED'): SimulationResultDTO {
     const profile = this.estateRepo.getOrCreateProfile(familyId);
-    const totalValue = profile.estate_value || 15000000;
+    
+    let totalValue = profile.estate_value || 0;
+    try {
+      const assetWorth = (this.db.prepare(`SELECT SUM(current_value) as total FROM holdings WHERE deleted_at IS NULL`).get() as any)?.total || 0;
+      const bankWorth = (this.db.prepare(`SELECT SUM(balance) as total FROM accounts WHERE deleted_at IS NULL`).get() as any)?.total || 0;
+      if (assetWorth + bankWorth > 0) {
+        totalValue = assetWorth + bankWorth;
+      }
+    } catch {}
+
+    // Fetch real family members
+    let members: Array<{ name: string; relationship: string }> = [];
+    try {
+      members = this.db.prepare("SELECT name, relationship FROM family_members WHERE family_id = ? AND deleted_at IS NULL").all(familyId) as Array<{ name: string; relationship: string }>;
+    } catch {}
+
+    const primaryHead = members[0]?.name || 'Primary Account Holder';
+
+    const distributions = members.length > 0
+      ? members.map((m, idx) => {
+          const share = Math.floor(100 / members.length);
+          const percent = idx === 0 ? 100 - share * (members.length - 1) : share;
+          return {
+            beneficiaryName: m.name,
+            relationship: m.relationship || 'Family Member',
+            percentage: percent,
+            estimatedValue: `₹${((totalValue * percent) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+          };
+        })
+      : [{ beneficiaryName: primaryHead, relationship: 'Primary Owner', percentage: 100, estimatedValue: `₹${totalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` }];
 
     return {
       scenarioName: 'Testator Primary Succession Scenario',
-      deceasedPersonName: 'Rajesh Sharma (Head of Family)',
+      deceasedPersonName: `${primaryHead} (Head of Family)`,
       totalEstateValue: totalValue,
       formattedTotalEstateValue: `₹${totalValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
-      distributions: [
-        { beneficiaryName: 'Priya Sharma', relationship: 'Spouse', percentage: 50, estimatedValue: `₹${(totalValue * 0.5).toLocaleString('en-IN')}` },
-        { beneficiaryName: 'Aarav Sharma', relationship: 'Child', percentage: 25, estimatedValue: `₹${(totalValue * 0.25).toLocaleString('en-IN')}` },
-        { beneficiaryName: 'Sharma Family Trust', relationship: 'Trust', percentage: 25, estimatedValue: `₹${(totalValue * 0.25).toLocaleString('en-IN')}` }
-      ],
+      distributions,
       executorActions: [
-        'Notify Primary Executor (Adv. Ramesh Varma)',
+        'Notify Designated Legal Executor / Legal Advisor',
         'File Death Certificate with Sub-Registrar & Insurers',
         'Initiate Nominee Transmission across Demat Accounts & Bank Accounts',
         'Execute Trust Deed Transfer for Asset Holding'
       ],
       requiredDocuments: [
-        'Registered Will Copy (Will ID #1)',
+        'Registered Will Copy',
         'Original Death Certificate from Municipal Corporation',
         'PAN & Aadhaar Copies of Testator & Beneficiaries',
         'Form 26AS & Income Tax Clearance Certificate'

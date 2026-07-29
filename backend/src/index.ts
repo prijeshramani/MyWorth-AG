@@ -13,6 +13,7 @@ import entitiesRouter from './routes/v1/entities';
 import accountsRouter from './routes/v1/accounts';
 import assetsMasterRouter from './routes/v1/assetsMaster';
 import holdingsRouter from './routes/v1/holdings';
+import domainRoutes from './routes';
 import { syncAllAssets } from './services/marketSync';
 import { syncLogRepository } from './repositories/SQLiteSyncLogRepository';
 import { correlationMiddleware } from './middleware/correlationMiddleware';
@@ -50,20 +51,22 @@ app.use(correlationMiddleware);
 // Initialize Database Tables
 initDb();
 
-// Mount Routes
-app.use('/api/assets', assetsRouter);
-app.use('/api/transactions', transactionsRouter);
-app.use('/api/import', importRouter);
-app.use('/api/dashboard', dashboardRouter);
-app.use('/api/cashflow', cashflowRouter);
+// Mount Legacy & Domain v1 Routes with resilient path aliases
+app.use(['/api/assets', '/api/v1/assets', '/api/v1/v1/assets'], assetsRouter);
+app.use(['/api/transactions', '/api/v1/transactions', '/api/v1/v1/transactions'], transactionsRouter);
+app.use(['/api/import', '/api/v1/import', '/api/v1/v1/import'], importRouter);
+app.use(['/api/dashboard', '/api/v1/dashboard', '/api/v1/v1/dashboard'], dashboardRouter);
+app.use(['/api/cashflow', '/api/v1/cashflow', '/api/v1/v1/cashflow'], cashflowRouter);
 
-// Mount Domain v1 Routes
-app.use('/api/v1/families', familiesRouter);
-app.use('/api/v1/family-members', familyMembersRouter);
-app.use('/api/v1/entities', entitiesRouter);
-app.use('/api/v1/accounts', accountsRouter);
-app.use('/api/v1/assets-master', assetsMasterRouter);
-app.use('/api/v1/holdings', holdingsRouter);
+app.use(['/api/families', '/api/v1/families', '/api/v1/v1/families'], familiesRouter);
+app.use(['/api/family-members', '/api/v1/family-members', '/api/v1/v1/family-members'], familyMembersRouter);
+app.use(['/api/entities', '/api/v1/entities', '/api/v1/v1/entities'], entitiesRouter);
+app.use(['/api/accounts', '/api/v1/accounts', '/api/v1/v1/accounts'], accountsRouter);
+app.use(['/api/assets-master', '/api/v1/assets-master', '/api/v1/v1/assets-master'], assetsMasterRouter);
+app.use(['/api/holdings', '/api/v1/holdings', '/api/v1/v1/holdings'], holdingsRouter);
+
+// Mount domain routes (/graph, /estate, /planning, /tax, /recommendations, /ai, /dx, /auth)
+app.use(['/api/v1', '/api/v1/v1', '/api'], domainRoutes);
 
 // Sync Market Data Trigger Route
 app.post('/api/sync', async (req, res, next) => {

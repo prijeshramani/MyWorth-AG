@@ -41,7 +41,9 @@ export interface GraphOverviewResponseDTO {
 
 export const graphService = {
   async getOverview(familyId: number): Promise<ApiResponseEnvelope<GraphOverviewResponseDTO>> {
+    console.log(`[GRAPH_SERVICE] Requesting /graph/overview?familyId=${familyId}`);
     const response = await apiClient.get<ApiResponseEnvelope<GraphOverviewResponseDTO>>(`/graph/overview?familyId=${familyId}`);
+    console.log('[GRAPH_SERVICE] Received response:', response.data);
     return response.data;
   },
 

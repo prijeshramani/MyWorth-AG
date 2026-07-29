@@ -22,46 +22,34 @@ export class RecommendationOrchestrator {
     // 1. Evaluate TAX_80C_OPTIMIZATION rule
     const taxRule = rules.find(r => r.rule_code === 'TAX_80C_OPTIMIZATION');
     if (taxRule) {
-      const taxCalc = TaxCalculationEngine.calculateOldRegimeTax({
-        grossIncome: 2500000,
-        claimed80C: 75000
+      const unutilizedAmount = 75000;
+      const taxSaving = Math.round(unutilizedAmount * 0.312);
+      const title = taxRule.title_template.replace('{taxSaving}', taxSaving.toLocaleString('en-IN'));
+      const description = taxRule.description_template
+        .replace('{unutilizedAmount}', unutilizedAmount.toLocaleString('en-IN'))
+        .replace('{taxSaving}', taxSaving.toLocaleString('en-IN'));
+
+      const rec = this.recRepo.saveRecommendation({
+        family_id: familyId,
+        rule_id: taxRule.id,
+        rule_code: taxRule.rule_code,
+        category: 'TAX',
+        journey_id: taxRule.journey_id,
+        title,
+        description,
+        priority: taxRule.priority_default,
+        confidence_pct: 98.0,
+        financial_impact_amount: taxSaving,
+        urgency: 'HIGH',
+        status: 'ACTIVE',
+        source_engines_json: JSON.stringify(['TaxCalculationEngine']),
+        supporting_evidence_json: JSON.stringify({ unutilized80C: unutilizedAmount }),
+        next_action_json: JSON.stringify({ label: 'Invest in ELSS Funds', path: '/investments' }),
+        ai_context_json: JSON.stringify({ summary: title })
       });
-
-      const unutilizedAmount = 150000 - 75000;
-      if (unutilizedAmount > 0) {
-        const taxSaving = Math.round(unutilizedAmount * 0.312); // 30% slab + 4% cess
-
-        const title = taxRule.title_template.replace('{taxSaving}', taxSaving.toLocaleString('en-IN'));
-        const description = taxRule.description_template
-          .replace('{unutilizedAmount}', unutilizedAmount.toLocaleString('en-IN'))
-          .replace('{taxSaving}', taxSaving.toLocaleString('en-IN'));
-
-        const rec = this.recRepo.saveRecommendation({
-          family_id: familyId,
-          rule_id: taxRule.id,
-          rule_code: taxRule.rule_code,
-          category: 'TAX',
-          journey_id: taxRule.journey_id,
-          title,
-          description,
-          priority: taxRule.priority_default,
-          confidence_pct: 98.0,
-          financial_impact_amount: taxSaving,
-          urgency: 'HIGH',
-          status: 'ACTIVE',
-          source_engines_json: JSON.stringify(['TaxCalculationEngine', 'DeductionEngine']),
-          supporting_evidence_json: JSON.stringify({ unutilized80C: unutilizedAmount, taxSlab: '30%', cess: '4%' }),
-          next_action_json: JSON.stringify({ label: 'Invest in ELSS Funds', path: '/investments' }),
-          ai_context_json: JSON.stringify({
-            summary: `Invest ₹${unutilizedAmount.toLocaleString('en-IN')} in ELSS before March 31 to save ₹${taxSaving.toLocaleString('en-IN')}.`,
-            technicalExplanation: 'Section 80C allows deductions up to ₹1,50,000 under Old Tax Regime.',
-            sourceEngines: ['TaxCalculationEngine'],
-            suggestedNextActions: ['Compare top ELSS mutual funds', 'Schedule SIP transfer']
-          })
-        });
-        generatedRecs.push(rec);
-      }
+      generatedRecs.push(rec);
     }
+
 
     // 2. Evaluate ESTATE_WILL_MISSING rule
     const estateRule = rules.find(r => r.rule_code === 'ESTATE_WILL_MISSING');

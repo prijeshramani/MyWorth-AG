@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Landmark, Plus, Trash2, CheckCircle, RefreshCw, Key, ShieldCheck } from 'lucide-react';
+import { useUiStore } from '../../store/useUiStore';
+import { apiClient } from '../../services/apiClient';
 
 interface AccountItem {
   id: number;
@@ -19,16 +21,38 @@ const INITIAL_ACCOUNTS: AccountItem[] = [
 ];
 
 export const AccountsManager: React.FC = () => {
-  const [accounts, setAccounts] = useState<AccountItem[]>(INITIAL_ACCOUNTS);
+  const { datasetMode, activeFamilyId } = useUiStore();
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newAcc, setNewAcc] = useState<Partial<AccountItem>>({
     institutionName: '',
     accountNumber: '',
     accountType: 'SAVINGS',
-    holderName: 'Rajesh Sharma',
+    holderName: 'Primary Member',
     balance: 0,
     syncStatus: 'CONNECTED'
   });
+
+  useEffect(() => {
+    if (datasetMode === 'DEMO') {
+      setAccounts(INITIAL_ACCOUNTS);
+    } else {
+      apiClient.get<any[]>(`/accounts?familyId=${activeFamilyId}`)
+        .then(res => {
+          const raw = Array.isArray(res.data) ? res.data : [];
+          setAccounts(raw.map((a: any) => ({
+            id: a.id,
+            institutionName: a.institutionName || a.provider || 'Bank/Broker',
+            accountNumber: a.accountNumber || a.maskedAccountNumber || 'N/A',
+            accountType: (a.accountType === 'BANK' ? 'SAVINGS' : a.accountType) || 'SAVINGS',
+            holderName: a.accountName || 'Primary Member',
+            balance: a.balance || 0,
+            syncStatus: 'CONNECTED'
+          })));
+        })
+        .catch(() => setAccounts([]));
+    }
+  }, [datasetMode, activeFamilyId]);
 
   const handleAddAccount = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +62,7 @@ export const AccountsManager: React.FC = () => {
       institutionName: newAcc.institutionName,
       accountNumber: newAcc.accountNumber,
       accountType: newAcc.accountType as any || 'SAVINGS',
-      holderName: newAcc.holderName || 'Rajesh Sharma',
+      holderName: newAcc.holderName || 'Primary Member',
       balance: Number(newAcc.balance) || 0,
       syncStatus: 'CONNECTED'
     };

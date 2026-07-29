@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiClient } from '../services/apiClient';
 import { 
   AreaChart, 
   Area, 
@@ -36,17 +37,11 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     try {
       setLoading(true);
       const [dashRes, cfRes] = await Promise.all([
-        fetch('http://localhost:5000/api/dashboard'),
-        fetch('http://localhost:5000/api/cashflow')
+        apiClient.get('/dashboard'),
+        apiClient.get('/cashflow')
       ]);
-      if (dashRes.ok && cfRes.ok) {
-        const dashJson = await dashRes.json();
-        const cfJson = await cfRes.json();
-        setData(dashJson);
-        setCashflowData(cfJson);
-      } else {
-        setError('Failed to fetch dashboard statistics.');
-      }
+      setData(dashRes.data);
+      setCashflowData(cfRes.data);
     } catch (err: any) {
       setError(err.message || 'Error communicating with backend.');
     } finally {

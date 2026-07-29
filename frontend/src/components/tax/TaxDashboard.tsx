@@ -52,27 +52,27 @@ export const TaxDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <RiskGauge
           label="Tax Efficiency Score"
-          value={taxData?.taxHealthScore || 88}
+          value={taxData ? taxData.taxHealthScore : 100}
           minValue={0}
           maxValue={100}
-          ratingLabel="OPTIMAL"
+          ratingLabel={taxData && taxData.grossIncome > 0 ? 'OPTIMAL' : 'N/A'}
           statusColor="#10b981"
         />
 
         <MetricCard
           title="Gross Annual Income"
-          value={taxData?.formattedGrossIncome || '₹18,00,000.00'}
+          value={taxData ? taxData.formattedGrossIncome : '₹0.00'}
           subtext="Salary & Investment Incomes"
-          changePercent={12.0}
+          changePercent={0}
           trend="UP"
           icon={<FileText className="w-4 h-4 text-sky-400" />}
         />
 
         <MetricCard
           title="Estimated Tax Savings"
-          value={taxData?.formattedEstimatedSavings || '₹32,500.00'}
-          subtext={`By choosing ${taxData?.recommendedRegime} Regime`}
-          changePercent={15.0}
+          value={taxData ? taxData.formattedEstimatedSavings : '₹0.00'}
+          subtext={`By choosing ${taxData?.recommendedRegime || 'NEW'} Regime`}
+          changePercent={0}
           trend="UP"
           icon={<ArrowRightLeft className="w-4 h-4 text-emerald-400" />}
         />

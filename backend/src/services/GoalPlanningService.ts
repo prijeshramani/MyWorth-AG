@@ -44,8 +44,8 @@ export class GoalPlanningService {
       }
     }
 
-    const healthScore = goals.length === 0 ? 100 : Math.min(100, Math.round((totalProjected / (totalTarget || 1)) * 100));
-    let ratingLabel: 'OPTIMAL' | 'GOOD' | 'NEEDS_ATTENTION' | 'CRITICAL' = 'GOOD';
+    const healthScore = goals.length === 0 ? 0 : Math.min(100, Math.round((totalProjected / (totalTarget || 1)) * 100));
+    let ratingLabel: 'OPTIMAL' | 'GOOD' | 'NEEDS_ATTENTION' | 'CRITICAL' = goals.length === 0 ? 'NEEDS_ATTENTION' : 'GOOD';
     if (healthScore >= 90) ratingLabel = 'OPTIMAL';
     else if (healthScore >= 75) ratingLabel = 'GOOD';
     else if (healthScore >= 50) ratingLabel = 'NEEDS_ATTENTION';

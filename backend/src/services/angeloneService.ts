@@ -3,18 +3,24 @@ import * as crypto from 'crypto';
 import { credentialRepository } from '../repositories/SQLiteCredentialRepository';
 import { ParsedTransaction } from './pdfParser';
 
-// Helper: Decode Base32 to hex string
+// Helper: Decode Base32 to hex string with digit replacement for typos (0->O, 1->I, 8->B, 9->G)
 function base32tohex(base32: string): string {
   const base32chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
   let bits = "";
   let hex = "";
 
-  const cleanBase32 = base32.toUpperCase().replace(/[\s\=]/g, "");
+  // Replace common typos in Base32 (0->O, 1->I, 8->B, 9->G)
+  const cleanBase32 = base32.toUpperCase()
+    .replace(/[\s\=\-]/g, "")
+    .replace(/0/g, 'O')
+    .replace(/1/g, 'I')
+    .replace(/8/g, 'B')
+    .replace(/9/g, 'G');
 
   for (let i = 0; i < cleanBase32.length; i++) {
     const val = base32chars.indexOf(cleanBase32.charAt(i));
     if (val === -1) {
-      throw new Error(`Invalid Base32 character: ${cleanBase32.charAt(i)}`);
+      throw new Error(`Invalid Base32 character '${cleanBase32.charAt(i)}' in secret key.`);
     }
     bits += val.toString(2).padStart(5, '0');
   }
@@ -34,12 +40,29 @@ function dec2hex(s: number): string {
 // Helper: Dynamic 6-digit TOTP generator from secret key using node:crypto
 export function generateTOTP(secret: string): string {
   try {
-    const key = base32tohex(secret);
-    const epoch = Math.round(new Date().getTime() / 1000.0);
+    const trimmed = (secret || '').trim();
+    if (!trimmed) {
+      throw new Error('TOTP Secret key is required.');
+    }
+
+    // Case A: User entered the 6-digit TOTP PIN directly (e.g., "982341")
+    if (/^\d{6}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    // Case B: User provided a Base32 or Hex secret key
+    let keyHex: string;
+    if (/^[0-9a-fA-F]+$/.test(trimmed) && trimmed.length % 2 === 0 && !/^[A-Z2-7]+$/i.test(trimmed)) {
+      keyHex = trimmed;
+    } else {
+      keyHex = base32tohex(trimmed);
+    }
+
+    const epoch = Math.floor(new Date().getTime() / 1000.0);
     const time = Math.floor(epoch / 30).toString(16).padStart(16, '0');
 
     // HMAC-SHA-1 using native Node.js crypto module
-    const hmac = crypto.createHmac('sha1', Buffer.from(key, 'hex'));
+    const hmac = crypto.createHmac('sha1', Buffer.from(keyHex, 'hex'));
     const hmacResult = hmac.update(Buffer.from(time, 'hex')).digest('hex');
 
     // Dynamic Truncation

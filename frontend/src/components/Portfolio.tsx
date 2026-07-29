@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useUiStore } from '../store/useUiStore';
+import { apiClient } from '../services/apiClient';
 import { 
   Briefcase, 
   Trash2, 
@@ -79,16 +81,13 @@ export default function Portfolio() {
   const [sortField, setSortField] = useState<'name' | 'value' | 'return'>('value');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
+  const { datasetMode } = useUiStore();
+
   const fetchAssets = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/assets');
-      if (res.ok) {
-        const data = await res.json();
-        setAssets(data);
-      } else {
-        setError('Failed to fetch portfolio assets.');
-      }
+      const res = await apiClient.get<Asset[]>('/assets');
+      setAssets(Array.isArray(res.data) ? res.data : []);
     } catch (err: any) {
       setError(err.message || 'Error communicating with server.');
     } finally {
@@ -98,11 +97,8 @@ export default function Portfolio() {
 
   const fetchCashflow = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/cashflow');
-      if (res.ok) {
-        const data = await res.json();
-        setCashflow(data);
-      }
+      const res = await apiClient.get('/cashflow');
+      setCashflow(res.data);
     } catch (err) {
       console.error('Error fetching cashflow inside portfolio:', err);
     }
@@ -111,11 +107,8 @@ export default function Portfolio() {
   const fetchAssetTransactions = async (assetId: number) => {
     try {
       setTxLoading(true);
-      const res = await fetch(`http://localhost:5000/api/transactions?assetId=${assetId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setAssetTxs(data);
-      }
+      const res = await apiClient.get<Transaction[]>(`/transactions?assetId=${assetId}`);
+      setAssetTxs(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -126,11 +119,8 @@ export default function Portfolio() {
   const fetchAssetPriceHistory = async (assetId: number) => {
     try {
       setPriceHistoryLoading(true);
-      const res = await fetch(`http://localhost:5000/api/assets/${assetId}/prices`);
-      if (res.ok) {
-        const data = await res.json();
-        setPriceHistory(data);
-      }
+      const res = await apiClient.get<PricePoint[]>(`/assets/${assetId}/prices`);
+      setPriceHistory(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -141,7 +131,7 @@ export default function Portfolio() {
   useEffect(() => {
     fetchAssets();
     fetchCashflow();
-  }, []);
+  }, [datasetMode]);
 
   const handleSelectAsset = (asset: Asset) => {
     setSelectedAsset(asset);
@@ -153,15 +143,9 @@ export default function Portfolio() {
     if (!window.confirm('Are you sure you want to delete this asset? This will permanently delete all its transactions and prices.')) return;
     
     try {
-      const res = await fetch(`http://localhost:5000/api/assets/${assetId}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        setSelectedAsset(null);
-        fetchAssets();
-      } else {
-        alert('Failed to delete asset');
-      }
+      await apiClient.delete(`/assets/${assetId}`);
+      setSelectedAsset(null);
+      fetchAssets();
     } catch (err) {
       console.error(err);
       alert('Network error deleting asset');
@@ -172,25 +156,19 @@ export default function Portfolio() {
     if (!window.confirm('Delete this transaction from history? Net worth and cost basis will be updated instantly.')) return;
     
     try {
-      const res = await fetch(`http://localhost:5000/api/transactions/${txId}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        if (selectedAsset) {
-          fetchAssetTransactions(selectedAsset.id);
-          fetchAssetPriceHistory(selectedAsset.id);
-          const prevAssetId = selectedAsset.id;
-          await fetchAssets();
-          const updatedAssets = await (await fetch('http://localhost:5000/api/assets')).json();
-          const fresh = updatedAssets.find((a: any) => a.id === prevAssetId);
-          if (fresh) {
-            setSelectedAsset(fresh);
-          } else {
-            setSelectedAsset(null);
-          }
+      await apiClient.delete(`/transactions/${txId}`);
+      if (selectedAsset) {
+        fetchAssetTransactions(selectedAsset.id);
+        fetchAssetPriceHistory(selectedAsset.id);
+        const prevAssetId = selectedAsset.id;
+        await fetchAssets();
+        const updatedAssets = (await apiClient.get<any[]>('/assets')).data || [];
+        const fresh = updatedAssets.find((a: any) => a.id === prevAssetId);
+        if (fresh) {
+          setSelectedAsset(fresh);
+        } else {
+          setSelectedAsset(null);
         }
-      } else {
-        alert('Failed to delete transaction');
       }
     } catch (err) {
       console.error(err);

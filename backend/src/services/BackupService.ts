@@ -19,7 +19,7 @@ export interface RestoreVerificationResult {
 
 export class BackupService {
   private dataDir = path.resolve(__dirname, '../../../data');
-  private dbPath = path.join(this.dataDir, 'familywealth.db');
+  private dbPath = path.join(this.dataDir, 'myworth.db');
   private backupDir = path.join(this.dataDir, 'backups');
 
   constructor() {

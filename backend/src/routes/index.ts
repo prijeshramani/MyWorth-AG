@@ -12,6 +12,8 @@ import { recommendationRouter } from './recommendationRoutes';
 import { aiContextRouter } from './aiContextRoutes';
 import { dxRouter } from './dxRoutes';
 
+import itrRoutes from './itrRoutes';
+
 const router = Router();
 
 router.use('/auth', authRouter);
@@ -22,6 +24,7 @@ router.use('/planning', planningRouter);
 router.use('/estate', estateRouter);
 router.use('/graph', graphRouter);
 router.use('/tax', taxRouter);
+router.use('/itr', itrRoutes);
 router.use('/portfolio', portfolioRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reports', reportingRoutes);

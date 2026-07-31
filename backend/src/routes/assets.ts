@@ -23,8 +23,16 @@ router.get('/', (req: Request, res: Response, next) => {
 
     const includeZero = req.query.includeZero === 'true';
 
-    // 1. Get all assets via Repository
-    const assets = assetRepository.findAll();
+    // 1. Get all assets via Repository with family member details
+    const assets = db.prepare(`
+      SELECT a.*, fm.name as member_name, fm.relationship as member_relationship 
+      FROM assets a 
+      LEFT JOIN family_members fm ON a.family_member_id = fm.id 
+      ORDER BY a.type, a.name
+    `).all() as any[];
+
+    // Fallback default head member if no member assigned
+    const headMember = db.prepare("SELECT id, name, relationship FROM family_members WHERE family_id = 1 AND deleted_at IS NULL ORDER BY id ASC LIMIT 1").get() as { id: number; name: string; relationship: string } | undefined;
 
     const result = assets.map(asset => {
       // 2. Compute current units via Repository
@@ -110,8 +118,15 @@ router.get('/', (req: Request, res: Response, next) => {
       const absoluteReturn = currentValue - totalCost;
       const absoluteReturnPercent = totalCost > 0 ? (absoluteReturn / totalCost) * 100 : 0;
 
+      const memberId = asset.family_member_id || (headMember ? headMember.id : null);
+      const memberName = asset.member_name || (headMember ? headMember.name : 'Primary Account Holder');
+      const memberRelationship = asset.member_relationship || (headMember ? headMember.relationship : 'SELF');
+
       return {
         ...asset,
+        familyMemberId: memberId,
+        familyMemberName: memberName,
+        familyMemberRelationship: memberRelationship,
         currentUnits,
         totalCost,
         avgBuyPrice,
@@ -206,6 +221,43 @@ router.post('/:id/prices', (req: Request, res: Response, next) => {
 
     priceRepository.upsertPrice(assetId, date, price);
     res.json({ success: true, message: 'Price recorded successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/assets/:id/owner - Reassign owner family member for an asset
+router.put('/:id/owner', (req: Request, res: Response, next) => {
+  try {
+    const assetId = parseInt(req.params.id, 10);
+    const { familyMemberId } = req.body;
+
+    if (isNaN(assetId)) {
+      throw new ValidationError('Invalid Asset ID');
+    }
+    if (!familyMemberId) {
+      throw new ValidationError('familyMemberId is required');
+    }
+
+    const memberId = Number(familyMemberId);
+    const result = db.prepare('UPDATE assets SET family_member_id = ? WHERE id = ?').run(memberId, assetId);
+
+    if (result.changes === 0) {
+      throw new NotFoundError('Asset not found');
+    }
+
+    // Trigger Knowledge Graph resync
+    try {
+      const { RelationshipService } = require('../services/RelationshipService');
+      const { SQLiteKnowledgeGraphRepository } = require('../repositories/SQLiteKnowledgeGraphRepository');
+      const graphRepo = new SQLiteKnowledgeGraphRepository(db);
+      const relService = new RelationshipService(db, graphRepo);
+      relService.syncKnowledgeGraphFromDomainEntities(1);
+    } catch (e) {
+      console.error('Failed to auto-resync graph on asset owner update:', e);
+    }
+
+    res.json({ success: true, message: 'Asset owner successfully updated and graph synchronized.' });
   } catch (error) {
     next(error);
   }

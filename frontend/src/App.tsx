@@ -45,14 +45,22 @@ function AppContent() {
   const { activeTab, setActiveTab, isOnboardingComplete } = useUiStore();
   const { isAuthenticated } = useAuthStore();
   const [kiteRequestToken, setKiteRequestToken] = React.useState<string | null>(null);
+  const [upstoxCode, setUpstoxCode] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    // Detect Zerodha Kite OAuth redirect request_token in URL query string
+    // Detect Zerodha Kite & Upstox OAuth redirects in URL query string
     const searchParams = new URLSearchParams(window.location.search);
     const token = searchParams.get('request_token');
+    const code = searchParams.get('code');
+
     if (token) {
       console.log('Zerodha Kite OAuth redirect token detected:', token);
       setKiteRequestToken(token);
+      setActiveTab('import');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (code) {
+      console.log('Upstox OAuth redirect code detected:', code);
+      setUpstoxCode(code);
       setActiveTab('import');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -100,7 +108,9 @@ function AppContent() {
         return (
           <ImportCenter 
             initialKiteRequestToken={kiteRequestToken} 
-            clearKiteRequestToken={() => setKiteRequestToken(null)} 
+            clearKiteRequestToken={() => setKiteRequestToken(null)}
+            initialUpstoxCode={upstoxCode}
+            clearUpstoxCode={() => setUpstoxCode(null)}
           />
         );
       case 'data-manager':

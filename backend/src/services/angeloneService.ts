@@ -227,6 +227,7 @@ export async function syncAngelOneHoldings(): Promise<ParsedTransaction[]> {
 
       const quantity = Number(hold.quantity || hold.isinquantity || 0);
       const avgPrice = Number(hold.averageprice || 0);
+      const ltp = Number(hold.ltp || hold.close || avgPrice);
       const amount = quantity * avgPrice;
 
       return {
@@ -238,6 +239,7 @@ export async function syncAngelOneHoldings(): Promise<ParsedTransaction[]> {
         date: todayStr,
         quantity,
         price: avgPrice,
+        currentPrice: ltp > 0 ? ltp : avgPrice,
         amount
       };
     });

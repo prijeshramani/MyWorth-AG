@@ -10,7 +10,9 @@ import {
   RefreshCw, 
   CheckSquare, 
   Square,
-  PlusCircle
+  PlusCircle,
+  User,
+  Users
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -32,15 +34,30 @@ interface ParsedTx {
 interface ImportCenterProps {
   initialKiteRequestToken?: string | null;
   clearKiteRequestToken?: () => void;
+  initialUpstoxCode?: string | null;
+  clearUpstoxCode?: () => void;
 }
 
-export default function ImportCenter({ initialKiteRequestToken, clearKiteRequestToken }: ImportCenterProps = {}) {
-  const [importMethod, setImportMethod] = useState<'file' | 'kite' | 'angelone' | 'indmoney' | 'epf' | 'bankinsights'>('file');
+export default function ImportCenter({
+  initialKiteRequestToken,
+  clearKiteRequestToken,
+  initialUpstoxCode,
+  clearUpstoxCode
+}: ImportCenterProps = {}) {
+  const [importMethod, setImportMethod] = useState<'file' | 'kite' | 'angelone' | 'upstox' | 'indmoney' | 'epf' | 'bankinsights'>('file');
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState<string>('');
   const [parsing, setParsing] = useState<boolean>(false);
   
+  // Family Members selection state
+  const [familyMembers, setFamilyMembers] = useState<Array<{ id: number; name: string; relationship: string }>>([]);
+  const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState<number | null>(null);
+  
   // INDMoney API configuration states
+  const [indMoneyClientId, setIndMoneyClientId] = useState<string>('');
+  const [indMoneyApiSecret, setIndMoneyApiSecret] = useState<string>('');
+  const [indMoneyTotpSecret, setIndMoneyTotpSecret] = useState<string>('');
+  const [indMoneyAuthMethod, setIndMoneyAuthMethod] = useState<'totp' | 'token'>('totp');
   const [indMoneyToken, setIndMoneyToken] = useState<string>('');
   const [isIndMoneyConfigured, setIsIndMoneyConfigured] = useState<boolean>(false);
   const [showIndMoneyConfigForm, setShowIndMoneyConfigForm] = useState<boolean>(false);
@@ -61,6 +78,15 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
   const [isAngelConfigured, setIsAngelConfigured] = useState<boolean>(false);
   const [showAngelConfigForm, setShowAngelConfigForm] = useState<boolean>(false);
   const [savingAngelConfig, setSavingAngelConfig] = useState<boolean>(false);
+
+  // Upstox Developer API configuration states
+  const [upstoxApiKey, setUpstoxApiKey] = useState<string>('');
+  const [upstoxApiSecret, setUpstoxApiSecret] = useState<string>('');
+  const [upstoxRedirectUri, setUpstoxRedirectUri] = useState<string>('http://localhost:5173/');
+  const [isUpstoxConfigured, setIsUpstoxConfigured] = useState<boolean>(false);
+  const [hasUpstoxAccessToken, setHasUpstoxAccessToken] = useState<boolean>(false);
+  const [showUpstoxConfigForm, setShowUpstoxConfigForm] = useState<boolean>(false);
+  const [savingUpstoxConfig, setSavingUpstoxConfig] = useState<boolean>(false);
 
   // BankInsights configuration states
   const [bankInsightsDbPath, setBankInsightsDbPath] = useState<string>('');
@@ -152,20 +178,48 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     }
   };
 
+  const fetchFamilyMembers = async () => {
+    try {
+      const res = await fetch('/api/v1/family-members?familyId=1');
+      if (res.ok) {
+        const json = await res.json();
+        const members = json.data || json || [];
+        if (Array.isArray(members) && members.length > 0) {
+          setFamilyMembers(members);
+          setSelectedFamilyMemberId(members[0].id);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch family members in ImportCenter:', e);
+    }
+  };
+
   useEffect(() => {
     fetchKiteConfig();
     fetchAngelConfig();
+    fetchUpstoxConfig();
     fetchIndMoneyConfig();
     fetchBankInsightsConfig();
     fetchEpfAsset();
+    fetchFamilyMembers();
   }, []);
 
   useEffect(() => {
     if (initialKiteRequestToken) {
-      console.log('Automated redirect exchange active. request_token found.');
+      console.log('Automated Zerodha redirect exchange active. request_token found.');
       handleKiteTokenExchange(initialKiteRequestToken);
+    } else if (initialUpstoxCode) {
+      console.log('Automated Upstox redirect exchange active. code found:', initialUpstoxCode);
+      handleUpstoxCodeExchange(initialUpstoxCode);
+    } else {
+      const urlParams = new URLSearchParams(window.location.search);
+      const upstoxCode = urlParams.get('code');
+      if (upstoxCode) {
+        console.log('Upstox OAuth redirect code detected in URL.');
+        handleUpstoxCodeExchange(upstoxCode);
+      }
     }
-  }, [initialKiteRequestToken]);
+  }, [initialKiteRequestToken, initialUpstoxCode]);
 
   const fetchEpfAsset = async () => {
     try {
@@ -354,12 +408,166 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
     }
   };
 
+  const fetchUpstoxConfig = async () => {
+    try {
+      const res = await fetch('/api/import/upstox/config');
+      if (res.ok) {
+        const data = await res.json();
+        setIsUpstoxConfigured(data.configured);
+        setUpstoxApiKey(data.apiKey || '');
+        setUpstoxRedirectUri(data.redirectUri || 'http://localhost:5173/');
+        setHasUpstoxAccessToken(data.hasAccessToken);
+      }
+    } catch (err) {
+      console.error('Failed to fetch Upstox API settings:', err);
+    }
+  };
+
+  const handleSaveUpstoxConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingUpstoxConfig(true);
+    setError('');
+    try {
+      const res = await fetch('/api/import/upstox/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: upstoxApiKey,
+          apiSecret: upstoxApiSecret,
+          redirectUri: upstoxRedirectUri
+        })
+      });
+      if (res.ok) {
+        setIsUpstoxConfigured(true);
+        setUpstoxApiSecret('');
+        setShowUpstoxConfigForm(false);
+        alert('Upstox API credentials saved locally!');
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to save Upstox credentials.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error communicating with server.');
+    } finally {
+      setSavingUpstoxConfig(false);
+    }
+  };
+
+  const handleUpstoxAuthenticate = async () => {
+    setError('');
+    setParsing(true);
+    try {
+      const res = await fetch('/api/import/upstox/login-url');
+      if (res.ok) {
+        const data = await res.json();
+        window.location.href = data.loginUrl;
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to initialize Upstox login URL.');
+        setParsing(false);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error connecting to local server.');
+      setParsing(false);
+    }
+  };
+
+  const handleUpstoxCodeExchange = async (code: string) => {
+    setParsing(true);
+    setError('');
+    setImportSummary(null);
+    setImportMethod('upstox');
+
+    try {
+      const res = await fetch('/api/import/upstox/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setStatementType(data.statementType);
+        setParsedTxs(data.transactions);
+        setRawText(data.rawText);
+
+        const selectionMap: Record<number, boolean> = {};
+        data.transactions.forEach((tx: ParsedTx, idx: number) => {
+          selectionMap[idx] = !tx.isDuplicate;
+        });
+        setSelectedTxs(selectionMap);
+
+        if (data.transactions.length > 0) {
+          console.log(`Auto-committing ${data.transactions.length} parsed Upstox holdings...`);
+          const confirmRes = await fetch('/api/import/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transactions: data.transactions,
+              familyMemberId: selectedFamilyMemberId
+            })
+          });
+          if (confirmRes.ok) {
+            const summary = await confirmRes.json();
+            setImportSummary(summary);
+            confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+            fetch('/api/sync', { method: 'POST' }).catch(() => {});
+          }
+        } else {
+          setError('Upstox API session validated, but returned 0 active holdings.');
+        }
+      } else {
+        const errJson = await res.json();
+        setError(errJson.error || 'Failed to validate Upstox authorization code.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error communicating with server.');
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleUpstoxSync = async () => {
+    setParsing(true);
+    setError('');
+    setImportSummary(null);
+    try {
+      const res = await fetch('/api/import/upstox/sync', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setStatementType(data.statementType);
+        setParsedTxs(data.transactions);
+        setRawText(data.rawText);
+
+        const selectionMap: Record<number, boolean> = {};
+        data.transactions.forEach((tx: ParsedTx, idx: number) => {
+          selectionMap[idx] = !tx.isDuplicate;
+        });
+        setSelectedTxs(selectionMap);
+
+        if (data.transactions.length === 0) {
+          setError('Upstox API synced successfully, but returned 0 active stock holdings.');
+        } else {
+          confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+        }
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to sync with Upstox API.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error communicating with server.');
+    } finally {
+      setParsing(false);
+    }
+  };
+
   const fetchIndMoneyConfig = async () => {
     try {
       const res = await fetch('/api/import/indmoney/config');
       if (res.ok) {
         const data = await res.json();
         setIsIndMoneyConfigured(data.configured);
+        if (data.clientId) setIndMoneyClientId(data.clientId);
       }
     } catch (err) {
       console.error('Failed to fetch INDMoney settings:', err);
@@ -374,16 +582,22 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
       const res = await fetch('/api/import/indmoney/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken: indMoneyToken })
+        body: JSON.stringify({
+          clientId: indMoneyClientId,
+          apiSecret: indMoneyApiSecret,
+          totpSecret: indMoneyTotpSecret,
+          accessToken: indMoneyToken
+        })
       });
       if (res.ok) {
         setIsIndMoneyConfigured(true);
-        setIndMoneyToken('');
+        setIndMoneyApiSecret('');
+        setIndMoneyTotpSecret('');
         setShowIndMoneyConfigForm(false);
-        alert('INDMoney Access Token saved locally!');
+        alert('INDMoney API Trading credentials saved locally!');
       } else {
         const data = await res.json();
-        setError(data.error || 'Failed to save INDMoney Access Token.');
+        setError(data.error || 'Failed to save INDMoney credentials.');
       }
     } catch (err: any) {
       setError(err.message || 'Error communicating with local server.');
@@ -633,7 +847,10 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
       const res = await fetch('/api/import/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions: txsToImport })
+        body: JSON.stringify({ 
+          transactions: txsToImport,
+          familyMemberId: selectedFamilyMemberId
+        })
       });
 
       if (res.ok) {
@@ -714,9 +931,43 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
 
       {/* Main Row: Upload panel */}
       {parsedTxs.length === 0 ? (
-        <div className="max-w-3xl mx-auto card-glass p-8 rounded-3xl">
+        <div className="max-w-3xl mx-auto card-glass p-8 rounded-3xl space-y-6">
+          {/* Family Member Investment Holder Selection Card */}
+          <div className="p-4 rounded-2xl border border-sky-500/30 bg-sky-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400">
+                <User className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                  Portfolio Holder / Family Member
+                  <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">Required</span>
+                </h4>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Select which family member owns this statement or portfolio.
+                </p>
+              </div>
+            </div>
+
+            {familyMembers.length > 0 ? (
+              <select
+                value={selectedFamilyMemberId || ''}
+                onChange={(e) => setSelectedFamilyMemberId(Number(e.target.value))}
+                className="bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs font-semibold text-sky-300 focus:outline-none focus:border-sky-500 min-w-[200px]"
+              >
+                {familyMembers.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.relationship || 'Member'})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-xs text-amber-400 italic font-semibold">Primary Account Holder</span>
+            )}
+          </div>
+
           {/* Method Selector Tabs */}
-          <div className="flex flex-wrap p-1 bg-slate-950/60 border border-slate-900 rounded-xl mb-6 max-w-3xl mx-auto">
+          <div className="flex flex-wrap p-1 bg-slate-950/60 border border-slate-900 rounded-xl max-w-3xl mx-auto">
             <button
               type="button"
               onClick={() => setImportMethod('file')}
@@ -752,6 +1003,18 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
             >
               <RefreshCw className="w-4 h-4" />
               AngelOne API
+            </button>
+            <button
+              type="button"
+              onClick={() => { setImportMethod('upstox'); fetchUpstoxConfig(); }}
+              className={`flex-1 min-w-[80px] py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                importMethod === 'upstox' 
+                  ? 'bg-indigo-600 text-white shadow shadow-indigo-600/10' 
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <RefreshCw className="w-4 h-4" />
+              Upstox API
             </button>
             <button
               type="button"
@@ -1059,22 +1322,136 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
                 </form>
               )}
             </div>
+          ) : importMethod === 'upstox' ? (
+            /* UPSTOX DEVELOPER API CONTROL BOARD */
+            <div className="space-y-6 text-xs max-w-lg mx-auto py-2">
+              <div className="p-4 bg-slate-950/40 border border-slate-900/60 rounded-2xl flex gap-3 text-slate-400 leading-relaxed">
+                <AlertCircle className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h5 className="font-bold text-slate-300">Upstox Developer Account Setup</h5>
+                  <p className="mt-1">
+                    Upstox API v2 supports official **Developer Accounts**. Create an app at <a href="https://account.upstox.com/developer/apps" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline font-bold">account.upstox.com/developer/apps</a> and set Redirect URI to: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-white font-bold">http://localhost:5173/import/upstox/callback</code>
+                  </p>
+                </div>
+              </div>
+
+              {isUpstoxConfigured && !showUpstoxConfigForm ? (
+                <div className="space-y-4 text-center">
+                  <div className="p-4 bg-indigo-950/10 border border-indigo-900/30 rounded-2xl inline-block w-full text-left space-y-1">
+                    <span className="font-bold text-slate-300 block">Upstox Developer Setup</span>
+                    <span className="text-slate-500 block">API Key: <code className="text-slate-300 bg-slate-900/50 px-1.5 py-0.5 rounded font-mono">{upstoxApiKey}</code></span>
+                    <span className="text-slate-500 block">Redirect URI: <code className="text-slate-300 bg-slate-900/50 px-1.5 py-0.5 rounded font-mono">{upstoxRedirectUri}</code></span>
+                  </div>
+
+                  <div className="flex justify-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowUpstoxConfigForm(true)}
+                      className="px-4 py-2 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-xl font-semibold transition-all"
+                    >
+                      Edit Credentials
+                    </button>
+                    {hasUpstoxAccessToken ? (
+                      <button
+                        type="button"
+                        onClick={handleUpstoxSync}
+                        disabled={parsing}
+                        className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-md shadow-emerald-600/20 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-all"
+                      >
+                        {parsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                        {parsing ? 'Syncing Upstox...' : 'Quick Sync Holdings'}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={handleUpstoxAuthenticate}
+                      disabled={parsing}
+                      className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      {parsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                      {parsing ? 'Contacting Upstox...' : 'Login with Upstox'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Credentials Settings Form */
+                <form onSubmit={handleSaveUpstoxConfig} className="space-y-4 border border-slate-900/40 bg-slate-950/20 p-5 rounded-2xl">
+                  <h5 className="font-bold text-slate-200 text-sm">Configure Upstox API v2 Credentials</h5>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold block">API Key (Client ID)</label>
+                    <input 
+                      type="text" 
+                      placeholder="Paste your Upstox API Key"
+                      value={upstoxApiKey}
+                      onChange={(e) => setUpstoxApiKey(e.target.value)}
+                      className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold block">API Secret (Client Secret)</label>
+                    <input 
+                      type="password" 
+                      placeholder="Paste your Upstox API Secret"
+                      value={upstoxApiSecret}
+                      onChange={(e) => setUpstoxApiSecret(e.target.value)}
+                      className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                      required={!isUpstoxConfigured}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-slate-400 font-semibold block">Redirect URI</label>
+                    <input 
+                      type="text" 
+                      placeholder="http://localhost:5173/import/upstox/callback"
+                      value={upstoxRedirectUri}
+                      onChange={(e) => setUpstoxRedirectUri(e.target.value)}
+                      className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex gap-2.5 pt-2">
+                    {isUpstoxConfigured && (
+                      <button
+                        type="button"
+                        onClick={() => setShowUpstoxConfigForm(false)}
+                        className="flex-1 py-2.5 border border-slate-800 text-slate-400 rounded-xl font-semibold hover:bg-slate-800/40 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      disabled={savingUpstoxConfig}
+                      className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold disabled:opacity-50 transition-all"
+                    >
+                      {savingUpstoxConfig ? 'Saving Settings...' : 'Save Credentials locally'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           ) : importMethod === 'indmoney' ? (
             /* INDMONEY API CONTROL BOARD */
             <div className="space-y-6 text-xs max-w-lg mx-auto py-2">
               <div className="p-4 bg-slate-950/40 border border-slate-900/60 rounded-2xl flex gap-3 text-slate-400 leading-relaxed">
                 <AlertCircle className="w-5 h-5 text-indigo-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h5 className="font-bold text-slate-300">INDMoney Developer Token Setup</h5>
+                  <h5 className="font-bold text-slate-300">INDMoney API Trading & 2FA TOTP Setup</h5>
                   <p className="mt-1">
-                    INDMoney offers programmatic access via the INDstocks API. 
-                    To retrieve your token:
+                    INDMoney supports programmatic access via INDstocks API Trading. 
                     <br />
-                    1. Log in to your account at <a href="https://www.indstocks.com/app/api-trading" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline font-bold">indstocks.com/app/api-trading</a>.
+                    To set up automatic 2FA sync:
                     <br />
-                    2. Navigate to the API section to generate an active Access Token.
+                    1. Go to <a href="https://www.indstocks.com/app/api-trading/access-tokens" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline font-bold">indstocks.com/app/api-trading/access-tokens</a>.
                     <br />
-                    3. Save the token locally here to sync your complete Demat Indian equities and US fractional stock holdings!
+                    2. Copy your <strong>Client ID</strong>, <strong>API Key / Secret</strong>, and <strong>2FA TOTP Secret Key</strong>.
+                    <br />
+                    3. Save them below to generate 6-digit 2FA codes offline and auto-sync live holdings!
                   </p>
                 </div>
               </div>
@@ -1082,10 +1459,11 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
               {isIndMoneyConfigured && !showIndMoneyConfigForm ? (
                 <div className="space-y-4 text-center">
                   <div className="p-4 bg-indigo-950/10 border border-indigo-900/30 rounded-2xl inline-block w-full text-left space-y-1">
-                    <span className="font-bold text-slate-300 block">INDMoney Sync Status</span>
-                    <span className="text-emerald-400 font-bold block flex items-center gap-1.5 mt-0.5">
+                    <span className="font-bold text-slate-300 block">INDMoney API Trading Setup</span>
+                    {indMoneyClientId && <span className="text-slate-500 block">Client ID: <code className="text-slate-300 bg-slate-900/50 px-1.5 py-0.5 rounded font-mono">{indMoneyClientId}</code></span>}
+                    <span className="text-emerald-400 font-bold block flex items-center gap-1.5 mt-1">
                       <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
-                      Configured & Programmatically Linked
+                      2FA TOTP Sync Enabled & Active
                     </span>
                   </div>
                   
@@ -1095,7 +1473,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
                       onClick={() => setShowIndMoneyConfigForm(true)}
                       className="px-4 py-2 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-xl font-semibold transition-all"
                     >
-                      Update Token
+                      Edit Credentials
                     </button>
                     <button
                       type="button"
@@ -1104,26 +1482,89 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
                       className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 flex items-center justify-center gap-1.5 transition-all"
                     >
                       {parsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
-                      {parsing ? 'Contacting INDMoney API...' : 'Sync INDMoney Holdings'}
+                      {parsing ? 'Authenticating & Syncing...' : 'Sync INDMoney Holdings'}
                     </button>
                   </div>
                 </div>
               ) : (
                 /* Credentials Settings Form */
                 <form onSubmit={handleSaveIndMoneyConfig} className="space-y-4 border border-slate-900/40 bg-slate-950/20 p-5 rounded-2xl">
-                  <h5 className="font-bold text-slate-200 text-sm">Configure INDMoney Access Token</h5>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-slate-400 font-semibold block">Developer Access Token</label>
-                    <input 
-                      type="password" 
-                      placeholder="Paste your INDstocks Developer Access Token"
-                      value={indMoneyToken}
-                      onChange={(e) => setIndMoneyToken(e.target.value)}
-                      className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
-                      required
-                    />
+                  <div className="flex items-center justify-between">
+                    <h5 className="font-bold text-slate-200 text-sm">Configure INDMoney API Trading Credentials</h5>
+                    
+                    {/* Method Selector */}
+                    <div className="flex bg-slate-900 p-0.5 rounded-lg text-[10px] font-semibold border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setIndMoneyAuthMethod('totp')}
+                        className={`px-2 py-1 rounded-md transition-all ${indMoneyAuthMethod === 'totp' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        2FA TOTP (Auto Sync)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIndMoneyAuthMethod('token')}
+                        className={`px-2 py-1 rounded-md transition-all ${indMoneyAuthMethod === 'token' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        Access Token
+                      </button>
+                    </div>
                   </div>
+
+                  {indMoneyAuthMethod === 'totp' ? (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className="text-slate-400 font-semibold block">Client ID / User ID</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. IND123456"
+                          value={indMoneyClientId}
+                          onChange={(e) => setIndMoneyClientId(e.target.value)}
+                          className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-slate-400 font-semibold block">API Key / Secret</label>
+                        <input 
+                          type="password" 
+                          placeholder="Enter your INDstocks API Secret"
+                          value={indMoneyApiSecret}
+                          onChange={(e) => setIndMoneyApiSecret(e.target.value)}
+                          className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                          required={!isIndMoneyConfigured}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-slate-400 font-semibold block">2FA TOTP Secret Key</label>
+                        <input 
+                          type="password" 
+                          placeholder="Paste your 2FA TOTP Secret Key from INDstocks"
+                          value={indMoneyTotpSecret}
+                          onChange={(e) => setIndMoneyTotpSecret(e.target.value)}
+                          className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                          required={!isIndMoneyConfigured}
+                        />
+                        <span className="text-[9px] text-slate-500 block leading-tight mt-1">
+                          Found under indstocks.com/app/api-trading/access-tokens. Allows MyWorth to calculate 2FA authentication codes offline for automated syncs.
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <label className="text-slate-400 font-semibold block">Developer Access Token</label>
+                      <input 
+                        type="password" 
+                        placeholder="Paste your INDstocks Developer Access Token"
+                        value={indMoneyToken}
+                        onChange={(e) => setIndMoneyToken(e.target.value)}
+                        className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-2.5 outline-none font-medium font-mono"
+                        required
+                      />
+                    </div>
+                  )}
 
                   <div className="flex gap-2.5 pt-2">
                     {isIndMoneyConfigured && (
@@ -1140,7 +1581,7 @@ export default function ImportCenter({ initialKiteRequestToken, clearKiteRequest
                       disabled={savingIndMoneyConfig}
                       className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold disabled:opacity-50 transition-all"
                     >
-                      {savingIndMoneyConfig ? 'Saving Settings...' : 'Save Token locally'}
+                      {savingIndMoneyConfig ? 'Saving Settings...' : 'Save Credentials locally'}
                     </button>
                   </div>
                 </form>

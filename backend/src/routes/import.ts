@@ -21,7 +21,14 @@ import {
   saveAngelOneCredentials,
   syncAngelOneHoldings
 } from '../services/angeloneService';
-import { saveIndMoneyAccessToken, getIndMoneyCredentials, fetchIndMoneyHoldings } from '../services/indmoneyService';
+import {
+  getUpstoxCredentials,
+  saveUpstoxCredentials,
+  getUpstoxLoginUrl,
+  exchangeUpstoxCode,
+  syncUpstoxHoldingsWithStoredToken
+} from '../services/upstoxService';
+import { saveIndMoneyCredentials, saveIndMoneyAccessToken, getIndMoneyCredentials, fetchIndMoneyHoldings, syncIndMoneyHoldings } from '../services/indmoneyService';
 import { assetRepository } from '../repositories/SQLiteAssetRepository';
 import { transactionRepository } from '../repositories/SQLiteTransactionRepository';
 import { db } from '../db';
@@ -108,11 +115,12 @@ router.post('/parse', upload.single('file'), async (req: Request, res: Response)
 // POST /api/import/confirm - Commit the parsed transactions into the database
 router.post('/confirm', (req: Request, res: Response) => {
   try {
-    const { transactions } = req.body;
+    const { transactions, familyMemberId } = req.body;
     if (!Array.isArray(transactions) || transactions.length === 0) {
       return res.status(400).json({ error: 'No transactions to import provided' });
     }
 
+    const memberId = familyMemberId ? Number(familyMemberId) : null;
     let assetsCreated = 0;
     let transactionsImported = 0;
     let duplicatesSkipped = 0;
@@ -122,9 +130,8 @@ router.post('/confirm', (req: Request, res: Response) => {
       for (const tx of transactions) {
         let assetId = tx.assetId;
 
-        // 1. If asset does not exist in DB, create it
+        // 1. If asset does not exist in DB, create it with family_member_id
         if (!assetId) {
-          // Check again inside transaction to prevent race conditions & duplicates
           let existing = null;
           if (tx.identifier) {
             existing = db.prepare('SELECT id FROM assets WHERE identifier = ?').get(tx.identifier) as { id: number } | undefined;
@@ -135,17 +142,29 @@ router.post('/confirm', (req: Request, res: Response) => {
 
           if (existing) {
             assetId = existing.id;
+            if (memberId) {
+              db.prepare('UPDATE assets SET family_member_id = ? WHERE id = ?').run(memberId, assetId);
+            }
           } else {
             const result = db.prepare(`
-              INSERT INTO assets (name, type, category, identifier)
-              VALUES (?, ?, ?, ?)
-            `).run(tx.assetName, tx.assetType || 'STOCK', tx.category || 'Stocks', tx.identifier || null);
+              INSERT INTO assets (name, type, category, identifier, family_member_id)
+              VALUES (?, ?, ?, ?, ?)
+            `).run(tx.assetName, tx.assetType || 'STOCK', tx.category || 'Stocks', tx.identifier || null, memberId);
             assetId = Number(result.lastInsertRowid);
             assetsCreated++;
           }
+        } else if (memberId) {
+          db.prepare('UPDATE assets SET family_member_id = ? WHERE id = ?').run(memberId, assetId);
         }
 
-        // 2. Check for duplicate transaction
+        // 2. Upsert price on transaction date (using current live market price if present)
+        const marketPriceToSave = (typeof tx.currentPrice === 'number' && tx.currentPrice > 0) ? tx.currentPrice : tx.price;
+        db.prepare(`
+          INSERT OR REPLACE INTO asset_prices (asset_id, date, price)
+          VALUES (?, ?, ?)
+        `).run(assetId, tx.date, marketPriceToSave);
+
+        // 3. Check for duplicate transaction
         const duplicate = db.prepare(`
           SELECT id FROM transactions 
           WHERE asset_id = ? AND type = ? AND date = ? AND quantity = ? AND price = ? AND amount = ?
@@ -153,20 +172,14 @@ router.post('/confirm', (req: Request, res: Response) => {
 
         if (duplicate) {
           duplicatesSkipped++;
-          continue; // Skip double importing
+          continue; // Skip double importing transaction
         }
 
-        // 3. Insert transaction
+        // 4. Insert transaction
         db.prepare(`
           INSERT INTO transactions (asset_id, type, date, quantity, price, amount, source)
           VALUES (?, ?, ?, ?, ?, ?, 'PDF_IMPORT')
         `).run(assetId, tx.type, tx.date, tx.quantity, tx.price, tx.amount);
-
-        // 4. Upsert price on transaction date
-        db.prepare(`
-          INSERT OR REPLACE INTO asset_prices (asset_id, date, price)
-          VALUES (?, ?, ?)
-        `).run(assetId, tx.date, tx.price);
 
         transactionsImported++;
       }
@@ -392,41 +405,109 @@ router.get('/indmoney/config', (req: Request, res: Response) => {
   }
 });
 
-// POST /api/import/indmoney/config - Save INDMoney access token
+// POST /api/import/indmoney/config - Save INDMoney credentials (API Key/Secret, TOTP Secret, or Access Token)
 router.post('/indmoney/config', (req: Request, res: Response) => {
   try {
-    const { accessToken } = req.body;
-    if (!accessToken) {
-      return res.status(400).json({ error: 'Access token is required.' });
+    const { clientId, apiSecret, totpSecret, accessToken } = req.body;
+    if (!accessToken && (!clientId || !apiSecret || !totpSecret)) {
+      return res.status(400).json({ error: 'Provide either Access Token OR (Client ID, API Secret, and TOTP Secret Key).' });
     }
-    saveIndMoneyAccessToken(accessToken);
-    res.json({ success: true, message: 'INDMoney access token saved locally.' });
+    saveIndMoneyCredentials(clientId || '', apiSecret || '', totpSecret || '', accessToken || '');
+    res.json({ success: true, message: 'INDMoney credentials saved locally.' });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST /api/import/indmoney/sync - Sync holdings from INDstocks API
+// POST /api/import/indmoney/sync - Sync holdings from INDstocks API using stored TOTP credentials or token
 router.post('/indmoney/sync', async (req: Request, res: Response) => {
   try {
-    // Get stored token from credentials table
-    const row = db.prepare('SELECT value FROM credentials WHERE key = ?').get('indmoney_access_token') as { value: string } | undefined;
-    if (!row?.value) {
-      return res.status(400).json({ error: 'INDMoney access token is not configured. Please save your API token first.' });
-    }
-    
-    const transactions = await fetchIndMoneyHoldings(row.value);
+    const transactions = await syncIndMoneyHoldings();
     const enriched = enrichAndMapTransactions(transactions);
     
     res.json({
       success: true,
       statementType: 'INDMONEY_HOLDINGS',
       transactions: enriched,
-      rawText: `INDMoney programmatic sync - Success\nTotal Holdings: ${transactions.length}`
+      rawText: `INDMoney programmatic TOTP sync - Success\nTotal Holdings: ${transactions.length}`
     });
   } catch (error: any) {
     console.error('INDMoney Sync Ingestion Error:', error);
     res.status(500).json({ error: error.message || 'Failed to sync with INDMoney API.' });
+  }
+});
+
+// GET /api/import/upstox/config - Retrieve current Upstox configuration status
+router.get('/upstox/config', (req: Request, res: Response) => {
+  try {
+    const creds = getUpstoxCredentials();
+    res.json(creds);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/import/upstox/config - Save Upstox API credentials
+router.post('/upstox/config', (req: Request, res: Response) => {
+  try {
+    const { apiKey, apiSecret, redirectUri } = req.body;
+    if (!apiKey || !apiSecret) {
+      return res.status(400).json({ error: 'Both API Key and API Secret are required.' });
+    }
+    saveUpstoxCredentials(apiKey, apiSecret, redirectUri);
+    res.json({ success: true, message: 'Upstox API credentials saved locally.' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/import/upstox/login-url - Get Upstox redirect login URL
+router.get('/upstox/login-url', (req: Request, res: Response) => {
+  try {
+    const loginUrl = getUpstoxLoginUrl();
+    res.json({ loginUrl });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// POST /api/import/upstox/session - Exchange authorization code for holdings
+router.post('/upstox/session', async (req: Request, res: Response) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: 'Authorization Code is required.' });
+    }
+
+    const transactions = await exchangeUpstoxCode(code);
+    const enriched = enrichAndMapTransactions(transactions);
+
+    res.json({
+      statementType: 'UPSTOX_HOLDINGS',
+      transactions: enriched,
+      rawText: `Upstox Developer API Sync - Success\nTotal Holdings: ${transactions.length}`
+    });
+  } catch (error: any) {
+    console.error('Upstox Session Ingestion Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to exchange Upstox authorization code.' });
+  }
+});
+
+// POST /api/import/upstox/sync - Perform holdings sync with stored access token
+router.post('/upstox/sync', async (req: Request, res: Response) => {
+  try {
+    const transactions = await syncUpstoxHoldingsWithStoredToken();
+    const enriched = enrichAndMapTransactions(transactions);
+
+    res.json({
+      success: true,
+      statementType: 'UPSTOX_HOLDINGS',
+      transactions: enriched,
+      rawText: `Upstox API Background Sync - Success\nTotal Holdings: ${transactions.length}`
+    });
+  } catch (error: any) {
+    console.error('Upstox Stored Token Sync Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to sync with stored Upstox token.' });
   }
 });
 

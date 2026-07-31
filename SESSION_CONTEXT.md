@@ -13,11 +13,24 @@
 1. **DB Lifecycle Reset Engine**: Fully operational with `npm run db:reset`. Dynamic table drops resolve Windows file lock issues.
 2. **Knowledge Graph & Express Route Precedence**:
    - Fixed 404 Not Found bug on `/api/v1/graph/overview` and `/api/v1/insurance/policies` by correcting Express route mount ordering in [index.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/index.ts).
-   - Knowledge Graph now renders 24 active nodes & 101 edges populated cleanly from user's imported data.
-3. **Demo Data Purge & Real-Data Hardening**:
+   - Knowledge Graph renders active nodes & edges populated cleanly from user's imported data.
+   - **Idempotent Edge Synchronization**: Made `addEdge()` in [SQLiteKnowledgeGraphRepository.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/repositories/SQLiteKnowledgeGraphRepository.ts) idempotent. Purged 2,103 duplicate active edges from SQLite database, preventing `Active Directed Edges` count from inflating when clicking "Sync Graph".
+3. **Indian Tax Intelligence & ITR-Wala E-Filing Module (with Member Selection)**:
+   - Fixed 404 Not Found error on `/api/v1/tax/summary` in [TaxApplicationService.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/services/TaxApplicationService.ts) by adding fallback resolution to active families in DB.
+   - Enhanced [CapitalGainsCalculator.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/engines/tax/CapitalGainsCalculator.ts) & [itrRoutes.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/itrRoutes.ts) to calculate Realized and Unrealized Capital Gains across stock/MF holdings.
+   - Added **Family Member Selector Dropdown** in [ITRFilingCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/tax/ITRFilingCenter.tsx) so users can filter Capital Gains and generate official ITR JSON files for individual family members under their respective PANs!
+4. **INDMoney API Trading & 2FA TOTP Integration**:
+   - Built 2FA TOTP authentication engine in [indmoneyService.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/services/indmoneyService.ts) matching [INDstocks API Trading](https://www.indstocks.com/app/api-trading/access-tokens).
+   - Dynamic 6-digit TOTP codes generated offline via Node `crypto` using `indmoney_totp_secret`.
+   - Updated [ImportCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ImportCenter.tsx) with credentials form (`Client ID`, `API Secret`, `2FA TOTP Secret Key`) and 1-Click automated sync button.
+   - Added **Portfolio Holder Selection Card** to [ImportCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ImportCenter.tsx).
+   - Added `family_member_id` support to `assets` and `accounts` in [db.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/db.ts) and [import.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/import.ts).
+   - Added **Investment Holder Badges, In-Place Reassignment Dropdowns**, and **Family Member Filter Tab Bar** to [HoldingsView.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/holdings/HoldingsView.tsx) & [HoldingTable.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ui/HoldingTable.tsx).
+   - Added `PUT /api/assets/:id/owner` endpoint in [assets.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/assets.ts) to reassign existing assets/transactions to any family member and automatically update the Knowledge Graph (`PERSON` $\xrightarrow{\text{OWNS}}$ `ASSET`).
+4. **Demo Data Purge & Real-Data Hardening**:
    - Completely purged seed demo rows (`Reliance Industries Ltd`, `Rajesh Sharma`, `Max Life Insurance POL-TEST-9901`, `Primary Testator Will FY2026`, `Adv. Ramesh Varma`, `Sharma Family Private Trust`) from SQLite tables (`assets`, `insurance_policies`, `family_members`, `graph_nodes`, `graph_edges`, `wills`, `trusts`, `estate_timeline`, `estate_profiles`).
    - Hardened `RelationshipService.ts`, `SQLiteEstateRepository.ts`, `EmergencyModeService.ts`, and `EstateSimulationService.ts` to compute all figures dynamically from live database tables.
-4. **CAMS PDF Parser Engine Overhaul**:
+5. **CAMS PDF Parser Engine Overhaul**:
    - Resolved 0-transaction parsing issue by implementing a flexible multi-strategy scheme & ISIN extractor.
    - Fixed misidentified multi-crore investment amounts (e.g. ₹153 Cr) by anchoring on action keywords (`BUY`/`SELL`/`PURCHASE`/`REDEMPTION`) and filtering out integer Folio/Registration numbers ($> 500,000$).
    - Built a 6-column CAMS CAS table regex engine (`Date | Amount | Price/NAV | Units | Description | Unit Balance`) with automatic stamp duty filtering (`0.05`, `0.27`) and mathematical number alignment ($\text{Amount} \approx \text{Rate} \times \text{Units}$).

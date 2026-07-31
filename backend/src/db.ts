@@ -112,14 +112,28 @@ export function initDb() {
     db.prepare(`
       CREATE TABLE IF NOT EXISTS assets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        family_member_id INTEGER,
         name TEXT NOT NULL,
         type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'OTHER')),
         category TEXT NOT NULL CHECK(category IN ('Equity', 'Debt', 'Cash', 'Hybrid', 'Alternative', 'Other')),
         identifier TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (family_member_id) REFERENCES family_members(id)
       )
     `).run();
+  }
+
+  // Ensure assets table has family_member_id column
+  const assetsCols = db.prepare("PRAGMA table_info(assets)").all() as any[];
+  if (assetsCols.length > 0 && !assetsCols.some(c => c.name === 'family_member_id')) {
+    db.prepare('ALTER TABLE assets ADD COLUMN family_member_id INTEGER REFERENCES family_members(id)').run();
+  }
+
+  // Ensure accounts table has family_member_id column
+  const accountsCols = db.prepare("PRAGMA table_info(accounts)").all() as any[];
+  if (accountsCols.length > 0 && !accountsCols.some(c => c.name === 'family_member_id')) {
+    db.prepare('ALTER TABLE accounts ADD COLUMN family_member_id INTEGER REFERENCES family_members(id)').run();
   }
 
   // Create Transactions table (check schema and migrate if needed)

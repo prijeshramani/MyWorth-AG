@@ -108,6 +108,16 @@ export class SQLiteKnowledgeGraphRepository {
       throw new Error('Self-referencing relationship edges are prohibited.');
     }
 
+    // Check if active edge already exists between source and target for this relationship type
+    const existingEdge = this.db.prepare(`
+      SELECT * FROM graph_edges 
+      WHERE family_id = ? AND source_node_id = ? AND target_node_id = ? AND relationship_type_id = ? AND status = 'ACTIVE'
+    `).get(familyId, sourceNodeId, targetNodeId, relationshipTypeId) as GraphEdgeRecord | undefined;
+
+    if (existingEdge) {
+      return existingEdge;
+    }
+
     const stmt = this.db.prepare(`
       INSERT INTO graph_edges (family_id, source_node_id, target_node_id, relationship_type_id, weight, status)
       VALUES (?, ?, ?, ?, ?, 'ACTIVE')

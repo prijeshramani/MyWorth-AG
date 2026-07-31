@@ -46,14 +46,15 @@ export class RelationshipService {
     // 2. Sync Assets from `assets` table (Kite, AngelOne, NPS, EPF, Mutual Funds, Stocks)
     try {
       const assets = this.db
-        .prepare(`SELECT id, name, type, category, identifier FROM assets`)
-        .all() as Array<{ id: number; name: string; type: string; category: string; identifier: string | null }>;
+        .prepare(`SELECT id, name, type, category, identifier, family_member_id FROM assets`)
+        .all() as Array<{ id: number; name: string; type: string; category: string; identifier: string | null; family_member_id?: number | null }>;
 
       for (const a of assets) {
         const assetNode = this.graphRepo.getOrCreateNode(targetFamilyId, 'ASSET', a.id, a.name, { assetType: a.type, category: a.category, identifier: a.identifier });
-        if (headPerson && ownsRelType) {
+        const ownerPerson = (a.family_member_id && personNodeMap.get(a.family_member_id)) || headPerson;
+        if (ownerPerson && ownsRelType) {
           try {
-            this.graphRepo.addEdge(targetFamilyId, headPerson.id, assetNode.id, ownsRelType.id, 1.0);
+            this.graphRepo.addEdge(targetFamilyId, ownerPerson.id, assetNode.id, ownsRelType.id, 1.0);
           } catch {
             // Ignore duplicate edge
           }
@@ -68,14 +69,15 @@ export class RelationshipService {
       const accountsTable = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'").get();
       if (accountsTable) {
         const accounts = this.db
-          .prepare(`SELECT id, account_name as name, account_type as type, masked_account_number as account_number_masked, institution_name FROM accounts WHERE family_id = ? AND deleted_at IS NULL`)
-          .all(targetFamilyId) as Array<{ id: number; name: string; type: string; account_number_masked?: string; institution_name?: string }>;
+          .prepare(`SELECT id, account_name as name, account_type as type, masked_account_number as account_number_masked, institution_name, family_member_id FROM accounts WHERE family_id = ? AND deleted_at IS NULL`)
+          .all(targetFamilyId) as Array<{ id: number; name: string; type: string; account_number_masked?: string; institution_name?: string; family_member_id?: number | null }>;
 
         for (const acc of accounts) {
           const accNode = this.graphRepo.getOrCreateNode(targetFamilyId, 'ACCOUNT', acc.id, `${acc.institution_name || acc.name || 'Account'} (${acc.type})`, { type: acc.type });
-          if (headPerson && ownsRelType) {
+          const ownerPerson = (acc.family_member_id && personNodeMap.get(acc.family_member_id)) || headPerson;
+          if (ownerPerson && ownsRelType) {
             try {
-              this.graphRepo.addEdge(targetFamilyId, headPerson.id, accNode.id, ownsRelType.id, 1.0);
+              this.graphRepo.addEdge(targetFamilyId, ownerPerson.id, accNode.id, ownsRelType.id, 1.0);
             } catch {}
           }
         }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ArrowUpDown, TrendingUp, TrendingDown, Inbox, AlertTriangle } from 'lucide-react';
+import { Search, ArrowUpDown, TrendingUp, TrendingDown, Inbox, AlertTriangle, User } from 'lucide-react';
 
 export interface HoldingRow {
   holdingId: number;
@@ -10,12 +10,17 @@ export interface HoldingRow {
   unitPrice: number;
   formattedMarketValue: string;
   unrealizedGainPercent: number;
+  familyMemberId?: number;
+  familyMemberName?: string;
+  familyMemberRelationship?: string;
 }
 
 export interface HoldingTableProps {
   data: HoldingRow[];
   loading?: boolean;
   error?: Error | null;
+  familyMembers?: Array<{ id: number; name: string; relationship: string }>;
+  onReassignOwner?: (assetId: number, memberId: number) => void;
   onRowClick?: (holdingId: number) => void;
 }
 
@@ -23,6 +28,8 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
   data,
   loading = false,
   error = null,
+  familyMembers = [],
+  onReassignOwner,
   onRowClick
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,7 +65,8 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
     (h) =>
       h.assetName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (h.symbol && h.symbol.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      h.assetType.toLowerCase().includes(searchQuery.toLowerCase())
+      h.assetType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (h.familyMemberName && h.familyMemberName.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const sortedData = [...filteredData].sort((a, b) => {
@@ -87,7 +95,7 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search holdings by name, symbol, or asset type..."
+            placeholder="Search holdings by name, symbol, type, or holder name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-900/80 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-colors"
@@ -122,6 +130,7 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
                     </div>
                   </th>
                   <th className="py-3 px-4">Type</th>
+                  <th className="py-3 px-4">Investment Holder</th>
                   <th className="py-3 px-4 text-right">Quantity</th>
                   <th className="py-3 px-4 text-right">Unit Price</th>
                   <th className="py-3 px-4 text-right">Market Value</th>
@@ -157,6 +166,26 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
                         <span className="bg-slate-800 text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
                           {row.assetType}
                         </span>
+                      </td>
+                      <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
+                        {familyMembers.length > 0 && onReassignOwner ? (
+                          <select
+                            value={row.familyMemberId || ''}
+                            onChange={(e) => onReassignOwner(row.holdingId, Number(e.target.value))}
+                            className="bg-slate-900/90 border border-slate-700/70 hover:border-sky-500/50 rounded-lg px-2.5 py-1 text-[11px] font-medium text-sky-300 focus:outline-none focus:border-sky-500 cursor-pointer transition-colors"
+                          >
+                            {familyMembers.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name} ({m.relationship || 'Member'})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-300 border border-sky-500/20 text-[10px] font-semibold">
+                            <User className="w-3 h-3 text-sky-400" />
+                            {row.familyMemberName || 'Primary Member'}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono">{row.quantity}</td>
                       <td className="py-3.5 px-4 text-right font-mono">{row.unitPrice}</td>

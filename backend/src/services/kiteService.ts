@@ -119,6 +119,8 @@ export async function fetchKiteHoldings(apiKey: string, accessToken: string): Pr
       
       const category = symbol.startsWith('SGB') ? 'Alternative' : 'Equity';
       
+      const lastPrice = parseFloat(String(item.last_price || item.close_price || item.last_price_traded || avgPrice));
+      
       transactions.push({
         assetName: symbol,
         assetType: 'STOCK',
@@ -128,6 +130,7 @@ export async function fetchKiteHoldings(apiKey: string, accessToken: string): Pr
         date: todayStr,
         quantity: qty,
         price: avgPrice,
+        currentPrice: isNaN(lastPrice) || lastPrice <= 0 ? avgPrice : lastPrice,
         amount: qty * avgPrice
       });
     }

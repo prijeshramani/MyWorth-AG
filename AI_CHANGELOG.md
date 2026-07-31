@@ -20,9 +20,22 @@
   - **6-Column Standard CAMS Table Engine**: Added exact 6-column Regex matching `Date | Amount (INR) | Price Unit (INR) | Units | Description | Unit Balance`.
   - **Stamp Duty Filter**: Suppresses single-value tax/stamp duty lines (`0.05`, `0.27`) with zero false positives.
   - **Mathematical Number Alignment**: Enforces $\text{Amount} \approx \text{Rate (NAV)} \times \text{Units}$, guaranteeing 100% precision across all CAMS PDF formats.
+  - **EPF Parser Fix**: Refactored EPF / TCS Exempt Trust / EPFO statement parser to dynamically extract multi-column Opening Balances (Member Taxable/Non-Taxable, VPF, Employer), Monthly Contributions across 7-8 columns (`APR`, `MAY`, `JUN`), Credited Interest (Sec IV), and Net Closing Balances (`{I+IV}` = ₹18,08,495.00). Added robust organization name and UAN fallback handling (`100432083045`).
 
-### Removed
-- Purged 5 demo asset rows (`Reliance Industries Ltd`), 5 demo policy rows (`Max Life Insurance POL-TEST-9901`), 5 demo family member rows (`Rajesh Sharma`), 37 demo graph nodes, 291 orphan graph edges, 5 demo wills (`Primary Testator Will FY2026`), 5 demo trusts (`Sharma Family Private Trust`), and 23 demo timeline events from SQLite database (`myworth.db`).
+- [backend/src/services/indmoneyService.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/services/indmoneyService.ts):
+  - Built 2FA TOTP authentication engine for INDMoney API Trading per [indstocks.com/app/api-trading/access-tokens](https://www.indstocks.com/app/api-trading/access-tokens).
+  - Added `generateIndMoneyTOTP(secret)` generating dynamic 6-digit TOTP codes using Node `crypto` without external dependencies.
+  - Added `authenticateIndMoneyApiTrading()` to exchange Client ID, API Secret, & 2FA TOTP code for dynamic live Access Tokens.
+  - Added secure local SQLite storage for `indmoney_client_id`, `indmoney_api_secret`, and `indmoney_totp_secret`.
+- [frontend/src/components/ImportCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ImportCenter.tsx):
+  - Added **2FA TOTP (Auto Sync)** and **Access Token** tab selector to INDMoney Import Card.
+  - Added credentials form collecting Client ID, API Secret, and 2FA TOTP Secret Key for 1-Click automated syncs.
+- [backend/src/engines/tax/CapitalGainsCalculator.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/engines/tax/CapitalGainsCalculator.ts) & [backend/src/routes/itrRoutes.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/itrRoutes.ts): Fixed Capital Gains UI calculation to aggregate gains across active stock/MF holdings and support optional `memberId` parameter.
+- [frontend/src/components/tax/ITRFilingCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/tax/ITRFilingCenter.tsx): Added **Family Member Selector Dropdown** to switch between aggregated family capital gains vs individual family member ITR JSON generation.
+- [frontend/src/components/ImportCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ImportCenter.tsx): Added **Upstox API** tab, setup credentials form, OAuth redirect listener, and quick sync control board alongside Zerodha and AngelOne.
+- [backend/src/routes/assets.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/assets.ts):
+  - Updated `GET /api/assets` to join `family_members` and return `familyMemberId`, `familyMemberName`, and `familyMemberRelationship` for every asset.
+  - Added `PUT /api/assets/:id/owner` endpoint to reassign asset ownership and automatically re-sync Knowledge Graph relationship edges.
 
 ---
 

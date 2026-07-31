@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useUiStore } from '../../store/useUiStore';
 import { useTaxSummary } from '../../hooks/useTaxSummary';
 import { MetricCard } from '../ui/MetricCard';
@@ -6,11 +6,13 @@ import { RiskGauge } from '../ui/RiskGauge';
 import { InsightCard } from '../ui/InsightCard';
 import { Timeline, type TimelineEvent } from '../ui/Timeline';
 import { PageSkeleton } from '../common/PageSkeleton';
-import { Calculator, Award, ArrowRightLeft, Calendar, FileText } from 'lucide-react';
+import { Calculator, Award, ArrowRightLeft, Calendar, FileText, FileCheck } from 'lucide-react';
+import { ITRFilingCenter } from './ITRFilingCenter';
 
 export const TaxDashboard: React.FC = () => {
   const { activeFamilyId } = useUiStore();
   const { data: response, isLoading } = useTaxSummary(activeFamilyId);
+  const [activeTaxTab, setActiveTaxTab] = useState<'overview' | 'itr'>('overview');
 
   if (isLoading) {
     return <PageSkeleton />;
@@ -40,13 +42,40 @@ export const TaxDashboard: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+        <div className="flex items-center gap-3">
+          {/* Tab Switcher */}
+          <div className="flex bg-slate-950/60 p-1 rounded-xl border border-slate-800 text-xs">
+            <button
+              onClick={() => setActiveTaxTab('overview')}
+              className={`px-4 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                activeTaxTab === 'overview' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              Tax Overview
+            </button>
+            <button
+              onClick={() => setActiveTaxTab('itr')}
+              className={`px-4 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                activeTaxTab === 'itr' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
+              ITR E-Filing Center (ITR-Wala)
+            </button>
+          </div>
+
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hidden lg:flex items-center gap-1.5">
             <Award className="w-3.5 h-3.5" />
             Recommended: {taxData?.recommendedRegime} Tax Regime
           </span>
         </div>
       </div>
+
+      {activeTaxTab === 'itr' ? (
+        <ITRFilingCenter />
+      ) : (
+        <>
 
       {/* 1. Metric Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -172,6 +201,8 @@ export const TaxDashboard: React.FC = () => {
         </h3>
         <Timeline events={timelineEvents} />
       </div>
+        </>
+      )}
     </div>
   );
 };

@@ -46,7 +46,8 @@ export interface ParsedTransaction {
   type: 'BUY' | 'SELL' | 'REINVEST' | 'DIVIDEND' | 'INTEREST';
   date: string; // YYYY-MM-DD
   quantity: number;
-  price: number;
+  price: number; // Buy price / cost basis per unit
+  currentPrice?: number; // Current live market price (LTP) per unit
   amount: number;
 }
 
@@ -431,19 +432,30 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
     }
   }
 
-  // 5. TCS Employees Provident Fund Statement Ingestion
+  // 5. Employees Provident Fund (EPF / TCS Trust / EPFO) Statement Ingestion
   if (statementType === 'TCS_EPF') {
-    const parseVal = (str: string): number => parseFloat(str.replace(/,/g, '')) || 0;
+    const parseVal = (str: string): number => parseFloat((str || '0').replace(/,/g, '')) || 0;
 
-    // 1. Detect UAN
-    const uanMatch = rawText.match(/UAN\s+PF\s+Account\s+No\s+Member\s+ID\s*(\d{12})/i) ||
-                     rawText.match(/UAN\b.*?(\d{12})/i);
-    const uan = uanMatch ? uanMatch[1] : '100432083045';
+    // 1. Detect UAN / Member ID
+    const uanMatch = rawText.match(/Universal\s+Account\s+Number\s*\(\s*UAN\s*\)\s*:?\s*(\d{12})/i) ||
+                     rawText.match(/UAN\b.*?(\d{12})/i) ||
+                     rawText.match(/Member\s+ID\s*:?\s*([A-Z0-9\/]{10,30})/i);
+    const uan = uanMatch ? uanMatch[1].trim() : '100432083045';
 
-    // 2. Parse Financial Year
-    const fyMatch = rawText.match(/PF\s+Statement\s+for\s+the\s+Financial\s+year\s*(\d{4})\s*(\d{4})/i) ||
-                    rawText.match(/PF\s+Statement\s+for\s+the\s+Financial\s+year\s*(\d{8})/i);
-    let startYear = 2025;
+    // 2. Organization / Trust Name
+    let trustName = 'Employees Provident Fund';
+    if (rawText.match(/TATA\s+CONSULTANCY\s+SERVICES/i)) {
+      trustName = 'TATA CONSULTANCY SERVICES EMPLOYEES\' PROVIDENT FUND';
+    } else {
+      const trustMatch = rawText.match(/([A-Z\s']+(?:PROVIDENT\s+FUND|EPFO|TRUST)[A-Z\s']*)/i);
+      if (trustMatch) trustName = trustMatch[1].replace(/^(?:\d+\s*)+/, '').trim();
+    }
+
+    // 3. Parse Financial Year
+    const fyMatch = rawText.match(/Financial\s+year\s*(\d{4})\s*(\d{4})/i) ||
+                    rawText.match(/Financial\s+year\s*(\d{8})/i) ||
+                    rawText.match(/FY\s*(\d{4})\s*-\s*(\d{2,4})/i);
+    let startYear = 2026;
     if (fyMatch) {
       if (fyMatch[1].length === 8) {
         startYear = parseInt(fyMatch[1].slice(0, 4));
@@ -452,30 +464,33 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
       }
     }
 
-    // 3. Parse Opening Balance
-    let opnBalMatch = rawText.match(/(?:OPN\s*-\s*BAL\(A\)|Opening\s+Balance)[^]*?Taxable\s+Non\s*Taxable\s+Taxable\s+Non\s*Taxable\s+Taxable\s+Non\s*Taxable\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)/i);
-    if (!opnBalMatch) {
-      opnBalMatch = rawText.match(/OPN\s*-\s*BAL\(A\)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/i);
+    // 4. Parse Opening Balance
+    let openingBalance = 0;
+    const opnBalBlockMatch = rawText.match(/Opening\s+Balance[^]*?Taxable\s+Non\s*Taxable[^]*?\n?\s*([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)/i) ||
+                             rawText.match(/Taxable\s+Non\s*Taxable\s+Taxable\s+Non\s*Taxable\s+Taxable\s+Non\s*Taxable\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)/i);
+
+    if (opnBalBlockMatch) {
+      openingBalance = parseVal(opnBalBlockMatch[1]) + parseVal(opnBalBlockMatch[2]) + parseVal(opnBalBlockMatch[3]) + parseVal(opnBalBlockMatch[4]) + parseVal(opnBalBlockMatch[5]) + parseVal(opnBalBlockMatch[6]);
+    } else {
+      const simpleOpn = rawText.match(/(?:OPN\s*-\s*BAL\(A\)|Opening\s+Balance)\b.*?([\d,]+(?:\.\d{2})?)/i);
+      if (simpleOpn) openingBalance = parseVal(simpleOpn[1]);
     }
-    
-    if (opnBalMatch) {
-      const opnBal = parseVal(opnBalMatch[1]) + parseVal(opnBalMatch[2]) + parseVal(opnBalMatch[3]) + parseVal(opnBalMatch[4]) + parseVal(opnBalMatch[5]) + parseVal(opnBalMatch[6]);
+
+    if (openingBalance > 0) {
       transactions.push({
-        assetName: 'TCS Employees Provident Fund',
+        assetName: trustName,
         assetType: 'EPF',
         category: 'Debt',
         identifier: uan,
         type: 'BUY',
         date: `${startYear}-04-01`,
-        quantity: opnBal,
+        quantity: openingBalance,
         price: 1.0,
-        amount: opnBal
+        amount: openingBalance
       });
     }
 
-    // 4. Parse Monthly Contributions
-    const monthRegex = /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*-\s*(\d{4})\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)/gi;
-    let match;
+    // 5. Parse Monthly Contributions
     const monthsMap: Record<string, string> = {
       JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12'
     };
@@ -483,52 +498,69 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
       '01': '31', '02': '28', '03': '31', '04': '30', '05': '31', '06': '30', '07': '31', '08': '31', '09': '30', '10': '31', '11': '30', '12': '31'
     };
 
-    while ((match = monthRegex.exec(rawText)) !== null) {
+    const monthlyLinesRegex = /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*-\s*(\d{4})\s+([\d,\s]+?)(?=(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|Total|Member|$))/gi;
+    let match;
+
+    while ((match = monthlyLinesRegex.exec(rawText)) !== null) {
       const monthWord = match[1].toUpperCase();
       const year = match[2];
       const monthNum = monthsMap[monthWord];
       const day = monthEnds[monthNum] || '30';
       const txDate = `${year}-${monthNum}-${day}`;
 
-      const monthVal = parseVal(match[3]) + parseVal(match[4]) + parseVal(match[5]) + parseVal(match[6]) + parseVal(match[7]) + parseVal(match[8]);
-      
-      transactions.push({
-        assetName: 'TCS Employees Provident Fund',
-        assetType: 'EPF',
-        category: 'Debt',
-        identifier: uan,
-        type: 'BUY',
-        date: txDate,
-        quantity: monthVal,
-        price: 1.0,
-        amount: monthVal
-      });
+      const numbersInRow = match[3].match(/[\d,]+/g) || [];
+      const monthSum = numbersInRow.reduce((acc, curr) => acc + parseVal(curr), 0);
+
+      if (monthSum > 0) {
+        transactions.push({
+          assetName: trustName,
+          assetType: 'EPF',
+          category: 'Debt',
+          identifier: uan,
+          type: 'BUY',
+          date: txDate,
+          quantity: monthSum,
+          price: 1.0,
+          amount: monthSum
+        });
+      }
     }
 
-    // 5. Parse Credited Interest
-    const interestMatch6 = rawText.match(/Interest\s*\((?:A|IV)\)\s*\*?\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)\s+([\d,]+(?:\.\d{2})?)/i);
+    // 6. Parse Credited Interest
     let interestVal = 0;
+    const interestMatch6 = rawText.match(/Member\s+Voluntary\s+Company\s+Taxable\s+Non\s*Taxable\s+Taxable\s+Non\s*Taxable\s+Taxable\s+Non\s*Taxable\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)/i);
     if (interestMatch6) {
       interestVal = parseVal(interestMatch6[1]) + parseVal(interestMatch6[2]) + parseVal(interestMatch6[3]) + parseVal(interestMatch6[4]) + parseVal(interestMatch6[5]) + parseVal(interestMatch6[6]);
-    } else {
-      const interestMatch1 = rawText.match(/Interest\s*\((?:A|IV)\):?\s*\*?\s*([\d,]+(?:\.\d{2})?)/i);
-      if (interestMatch1) {
-        interestVal = parseVal(interestMatch1[1]);
-      }
+    }
+
+    if (interestVal === 0) {
+      const interestMatch1 = rawText.match(/Interest\s*(?:\([^\)]+\))?\s*:?\s*([\d,]+(?:\.\d{2})?)/i);
+      if (interestMatch1) interestVal = parseVal(interestMatch1[1]);
     }
 
     if (interestVal > 0) {
       transactions.push({
-        assetName: 'TCS Employees Provident Fund',
+        assetName: trustName,
         assetType: 'EPF',
         category: 'Debt',
         identifier: uan,
-        type: 'BUY', // Mapped as BUY so cost aggregates perfectly into worth
+        type: 'BUY',
         date: `${startYear + 1}-03-31`,
         quantity: interestVal,
         price: 1.0,
         amount: interestVal
       });
+    }
+
+    // 7. Parse Net Closing Balance & attach current live valuation
+    const closingMatch = rawText.match(/Net\s+Closing\s+Balance\s*(?:\{[^\}]+\})?\s*([\d,]+(?:\.\d{2})?)/i) ||
+                         rawText.match(/Total\s+PF\s+balance\s*(?:\([^\)]+\))?\s*:?\s*([\d,]+(?:\.\d{2})?)/i) ||
+                         rawText.match(/Closing\s+Balance\b.*?([\d,]+(?:\.\d{2})?)/i);
+    if (closingMatch) {
+      const netClosingVal = parseVal(closingMatch[1]);
+      if (netClosingVal > 0 && transactions.length > 0) {
+        transactions[transactions.length - 1].currentPrice = netClosingVal;
+      }
     }
   }
 

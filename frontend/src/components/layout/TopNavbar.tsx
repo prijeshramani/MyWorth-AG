@@ -10,6 +10,7 @@ import {
   Search, 
   Database, 
   Compass,
+  Bot,
   LogOut
 } from 'lucide-react';
 
@@ -66,6 +67,15 @@ export const TopNavbar: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* AI Advisor Quick Launcher Button */}
+        <button
+          onClick={() => setActiveTab('ai-advisor')}
+          className="hidden lg:flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600/30 transition-colors shadow-sm"
+        >
+          <Bot className="w-3.5 h-3.5 text-indigo-400" />
+          <span>AI Advisor</span>
+        </button>
+
         {/* Onboarding Quick Launcher Button */}
         <button
           onClick={() => setActiveTab('onboarding')}

@@ -12,12 +12,14 @@ import { recommendationRouter } from './recommendationRoutes';
 import { aiContextRouter } from './aiContextRoutes';
 import { dxRouter } from './dxRoutes';
 
+import aiAdvisorRoutes from './aiAdvisorRoutes';
 import itrRoutes from './itrRoutes';
 
 const router = Router();
 
 router.use('/auth', authRouter);
 router.use('/dx', dxRouter);
+router.use('/ai/advisor', aiAdvisorRoutes);
 router.use('/ai', aiContextRouter);
 router.use('/recommendations', recommendationRouter);
 router.use('/planning', planningRouter);

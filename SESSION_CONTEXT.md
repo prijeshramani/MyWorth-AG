@@ -1,4 +1,20 @@
-# Session Context & System State
+# Session Context & Active Sprints
+
+- **Current Version**: `v1.8.0`
+- **Active Phase**: `Phase 7B.1 – AI Wealth Advisor Core & Product Governance`
+- **Status**: `Completed & Fully Verified`
+
+---
+
+## Active Sprint Deliverables
+1. **AI Wealth Advisor Core**: Multi-skill AI orchestration layer consuming Context, Memory, Evidence, and Recommendation services without raw SQL queries or financial calculations.
+2. **AI Skill Registry**: 7 core wealth skills (*Portfolio Analysis, Tax Assistant, Estate Advisor, Retirement Coach, Goal Planner, Recommendation Explainer, Insurance Advisor*).
+3. **Product Governance**: Created root-level `ROADMAP.md` and `product/` governance repository (`UX_BACKLOG.md`, `BETA_BUGS.md`, `FEATURE_REQUESTS.md`, `AI_BACKLOG.md`, `RELEASE_NOTES.md`, `KNOWN_LIMITATIONS.md`).
+4. **Interactive Advisor UI**: Glassmorphism chat stream with evidence cards, action execution confirmation modals, follow-up prompt chips, and Markdown conversation export.
+
+---
+
+## Session Context & System State
 
 ## Current Active Configuration
 - **Environment**: Development / Local Execution

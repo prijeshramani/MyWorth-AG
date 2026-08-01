@@ -13,6 +13,14 @@ import { migration008 } from './db/migrations/008_estate_planning';
 import { migration009 } from './db/migrations/009_financial_planning';
 import { migration010 } from './db/migrations/010_recommendation_engine';
 import { migration011 } from './db/migrations/011_ai_context';
+import { up as migration012Up, down as migration012Down } from './db/migrations/012_ai_actions';
+
+const migration012 = {
+  version: 12,
+  name: '012_ai_actions',
+  up: migration012Up,
+  down: migration012Down
+};
 
 // Resolve database path
 const dbDir = path.resolve(__dirname, '../../data');
@@ -236,7 +244,7 @@ export function initDb() {
   `).run();
 
   // Execute Versioned Database Migrations
-  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011], dbPath);
+  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012], dbPath);
 
   // Ensure default Family (id = 1) exists to satisfy Foreign Keys
   db.prepare("INSERT OR IGNORE INTO families (id, name, currency) VALUES (1, 'My Family', 'INR')").run();

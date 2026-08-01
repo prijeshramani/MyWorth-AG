@@ -1,10 +1,10 @@
 # FamilyWealthOS – Permanent Product Roadmap & Governance
 
 ## 1. Current Release
-- **Current Version**: `v1.8.0`
-- **Current Sprint**: `Sprint 7B.1`
-- **Current Phase**: `Phase 7B.1 – AI Wealth Advisor Core & Product Governance`
-- **Release Status**: `Active Development / Beta Ready`
+- **Current Version**: `v1.9.0`
+- **Current Sprint**: `Sprint 7B.2`
+- **Current Phase**: `Phase 7B.2 – AI Actions & Interactive Simulations`
+- **Release Status**: `Active Release / Production Ready`
 
 ---
 

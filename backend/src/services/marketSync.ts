@@ -176,52 +176,59 @@ export async function syncStocks(): Promise<{ success: boolean; updated: number;
 
     for (const stock of stocks) {
       try {
-        let ticker = stock.identifier.trim();
+        let rawIdentifier = stock.identifier.trim();
         let price = 0;
         let currency = 'INR';
         let dateVal = todayStr;
         let fetched = false;
+        let workingTicker = '';
 
-        // Try direct ticker fetch first (ideal for US stocks like AAPL, TSLA or tickers with existing suffixes)
-        try {
-          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
-          const response = await axios.get(url, {
-            timeout: 5000,
-            headers: {
-              'User-Agent': 'Mozilla/5.0'
-            }
-          });
-          
-          const meta = response.data?.chart?.result?.[0]?.meta;
-          if (meta && typeof meta.regularMarketPrice === 'number') {
-            price = meta.regularMarketPrice;
-            currency = meta.currency || 'INR';
-            if (meta.regularMarketTime) {
-              dateVal = new Date(meta.regularMarketTime * 1000).toISOString().split('T')[0];
-            }
-            fetched = true;
-            console.log(`Yahoo direct lookup success for: ${ticker} | Price: ${price} | Currency: ${currency}`);
+        // Build list of candidate Yahoo Finance tickers
+        const candidates: string[] = [];
+
+        // 1. Direct identifier candidate
+        if (rawIdentifier) {
+          candidates.push(rawIdentifier);
+          if (!rawIdentifier.includes('.') && !/^\d+$/.test(rawIdentifier) && !rawIdentifier.startsWith('INE') && !rawIdentifier.startsWith('IN0')) {
+            candidates.push(`${rawIdentifier}.NS`);
           }
-        } catch (e) {
-          // Direct fetch failed (expected for Indian stocks without a suffix like INFY, TCS)
         }
 
-        // If direct fetch failed, try standard Indian stock ticker format with .NS suffix
-        if (!fetched) {
+        // 2. Extract symbol enclosed in parentheses from asset name e.g. "LIFE INSURA CORP OF INDIA (LICI)" -> "LICI"
+        const parenMatch = stock.name ? stock.name.match(/\(([^)]+)\)/) : null;
+        if (parenMatch && parenMatch[1]) {
+          const symFromParen = parenMatch[1].trim();
+          if (symFromParen && !candidates.includes(symFromParen)) {
+            candidates.push(`${symFromParen}.NS`);
+            candidates.push(symFromParen);
+          }
+        }
+
+        // 3. Known ISIN to Ticker mappings
+        const isinMap: Record<string, string> = {
+          'INE0J1Y01017': 'LICI.NS',
+          'INE040A01034': 'HDFCBANK.NS',
+          'INE081A01020': 'TATASTEEL.NS',
+          'INE244B01030': 'PATELENG.NS',
+          'INE155A01022': 'TATAMOTORS.NS',
+          'IN0020230069': 'SGBJUN31I.NS',
+          'IN0020230093': 'SGBSEP31II.NS'
+        };
+        if (isinMap[rawIdentifier] && !candidates.includes(isinMap[rawIdentifier])) {
+          candidates.unshift(isinMap[rawIdentifier]);
+        }
+
+        // Iterate through candidates until one succeeds
+        for (const candidate of candidates) {
           try {
-            let nsTicker = ticker;
-            if (!nsTicker.includes('.') && !/^\d+$/.test(nsTicker)) {
-              nsTicker = `${nsTicker}.NS`;
-            }
-            
-            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${nsTicker}?interval=1d&range=1d`;
+            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${candidate}?interval=1d&range=1d`;
             const response = await axios.get(url, {
               timeout: 5000,
               headers: {
                 'User-Agent': 'Mozilla/5.0'
               }
             });
-            
+
             const meta = response.data?.chart?.result?.[0]?.meta;
             if (meta && typeof meta.regularMarketPrice === 'number') {
               price = meta.regularMarketPrice;
@@ -230,10 +237,12 @@ export async function syncStocks(): Promise<{ success: boolean; updated: number;
                 dateVal = new Date(meta.regularMarketTime * 1000).toISOString().split('T')[0];
               }
               fetched = true;
-              console.log(`Yahoo .NS suffix lookup success for: ${nsTicker} | Price: ${price} | Currency: ${currency}`);
+              workingTicker = candidate;
+              console.log(`Yahoo ticker lookup success for: ${stock.name} [Candidate: ${candidate}] | Price: ${price} | Currency: ${currency}`);
+              break;
             }
-          } catch (innerError: any) {
-            console.error(`Failed to fetch Yahoo price for stock ticker after fallback: ${stock.identifier}`, innerError.message);
+          } catch (e) {
+            // Try next candidate
           }
         }
 
@@ -246,12 +255,24 @@ export async function syncStocks(): Promise<{ success: boolean; updated: number;
             price = price * usdInrRate;
             console.log(`Dynamic conversion: ${stock.identifier} is denominated in USD. Converted to INR ${price} (rate: ${usdInrRate})`);
           }
-          
+
           insertPrice.run(stock.id, dateVal, price);
           updatedCount++;
+
+          // Auto-update identifier in DB if candidate ticker differed from raw ISIN
+          if (workingTicker && workingTicker.includes('.NS') && rawIdentifier !== workingTicker) {
+            try {
+              db.prepare("UPDATE assets SET identifier = ? WHERE id = ?").run(workingTicker, stock.id);
+              console.log(`Updated asset id ${stock.id} (${stock.name}) identifier to working ticker: ${workingTicker}`);
+            } catch (uErr) {
+              // Non-critical
+            }
+          }
+        } else {
+          console.warn(`Failed to fetch Yahoo price for stock ${stock.name} (${stock.identifier}) across candidates: ${candidates.join(', ')}`);
         }
       } catch (err: any) {
-        console.error(`Unexpected error syncing stock ${stock.identifier}:`, err.message);
+        console.error(`Unexpected error syncing stock ${stock.name} (${stock.identifier}):`, err.message);
       }
     }
 

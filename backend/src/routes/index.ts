@@ -14,12 +14,14 @@ import { dxRouter } from './dxRoutes';
 
 import aiAdvisorRoutes from './aiAdvisorRoutes';
 import aiActionRoutes from './aiActionRoutes';
+import { platformRouter } from './platformRoutes';
 import itrRoutes from './itrRoutes';
 
 const router = Router();
 
 router.use('/auth', authRouter);
 router.use('/dx', dxRouter);
+router.use('/platform', platformRouter);
 router.use('/ai/actions', aiActionRoutes);
 router.use('/ai/advisor', aiAdvisorRoutes);
 router.use('/ai', aiContextRouter);

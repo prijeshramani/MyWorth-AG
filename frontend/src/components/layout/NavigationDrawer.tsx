@@ -20,6 +20,7 @@ import {
   Scroll,
   Target,
   Sparkles,
+  Award,
   Bot
 } from 'lucide-react';
 
@@ -46,6 +47,8 @@ export const navItems: NavItem[] = [
   { id: 'ai-action-center', label: 'AI Action Center', icon: <Sparkles className="w-4 h-4 text-amber-400" />, badge: 'Actions' },
   { id: 'what-if-simulator', label: 'What-If Simulator', icon: <Target className="w-4 h-4 text-sky-400" />, badge: 'Sim' },
   { id: 'ai-context', label: 'AI Readiness & Context', icon: <Bot className="w-4 h-4 text-purple-400" /> },
+  { id: 'production-readiness', label: 'Production Readiness', icon: <Award className="w-4 h-4 text-emerald-400" />, badge: 'Score' },
+  { id: 'developer-diagnostics', label: 'Developer Diagnostics', icon: <Terminal className="w-4 h-4 text-indigo-400" />, badge: 'Dev' },
   { id: 'documents', label: 'Document Vault', icon: <FileText className="w-4 h-4" /> },
   { id: 'import', label: 'Import Center', icon: <FileUp className="w-4 h-4" /> },
   { id: 'data-manager', label: 'Data Manager', icon: <CheckCircle2 className="w-4 h-4" /> },

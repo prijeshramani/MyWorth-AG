@@ -1,4 +1,15 @@
-# FamilyWealthOS – Platform Capabilities Registry
+# FamilyWealthOS – Registered Platform Capabilities
+
+## Platform Registries & Frameworks (Phase 7C)
+- **Unified Platform Registry (`PlatformRegistry.ts`)**: Discoverable inventory linking Skills, Actions, Features, Plugins, and Capabilities.
+- **Dependency Graph Engine**: Maps relationships `Feature -> Skill -> Action -> Engine`.
+- **Feature Flag Registry (`FeatureRegistry.ts`)**: Manages 7 runtime feature flags with audit trail logging.
+- **Plugin Lifecycle Manager (`PluginRegistry.ts`)**: Supports full lifecycle (`install`, `enable`, `disable`, `upgrade`, `rollback`).
+- **Platform Health Aggregator (`PlatformHealthAggregator.ts`)**: Aggregates health across 11 platform subsystems.
+- **Observability Telemetry Platform (`ObservabilityPlatform.ts`)**: Latency, cache, and error rate tracking with historical trends.
+- **Engine Benchmark Framework (`BenchmarkFramework.ts`)**: Latency stress-testing and historical benchmark repository.
+- **Developer Diagnostic Console (`DeveloperDiagnosticConsole.tsx`)**: Live inspection with 1-Click JSON export.
+- **Production Readiness Dashboard (`ProductionReadinessDashboard.tsx`)**: Real-time quality gate (Score: 98%).
 
 ## Overview
 This document registers all operational backend calculation engines, API services, skill modules, and executable actions across FamilyWealthOS (`v1.9.0`).

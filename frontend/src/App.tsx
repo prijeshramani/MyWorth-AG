@@ -26,6 +26,8 @@ import { AIWealthAdvisor } from './components/advisor/AIWealthAdvisor';
 import { AIActionCenter } from './components/advisor/AIActionCenter';
 import { WhatIfSimulator } from './components/advisor/WhatIfSimulator';
 import { AIReadinessDashboard } from './components/ai/AIReadinessDashboard';
+import { ProductionReadinessDashboard } from './components/platform/ProductionReadinessDashboard';
+import { DeveloperDiagnosticConsole } from './components/platform/DeveloperDiagnosticConsole';
 import { FeedbackWidget } from './components/common/FeedbackWidget';
 import { LoginPage } from './components/auth/LoginPage';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
@@ -111,6 +113,10 @@ function AppContent() {
         return <WhatIfSimulator />;
       case 'ai-context':
         return <AIReadinessDashboard />;
+      case 'production-readiness':
+        return <ProductionReadinessDashboard />;
+      case 'developer-diagnostics':
+        return <DeveloperDiagnosticConsole />;
       case 'documents':
         return <DocumentVault />;
       case 'import':

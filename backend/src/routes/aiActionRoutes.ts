@@ -4,6 +4,8 @@ import { whatIfSimulationEngine } from '../services/ai/WhatIfSimulationEngine';
 import { sqliteSimulationSnapshotRepository } from '../repositories/SQLiteSimulationSnapshotRepository';
 import { sqliteAIAuditTrailRepository } from '../repositories/SQLiteAIAuditTrailRepository';
 
+import { syncAllAssets } from '../services/marketSync';
+
 const router = Router();
 
 // GET /api/v1/ai/actions/registry - Retrieve registered AI Actions with preconditions
@@ -60,6 +62,12 @@ router.post('/execute', async (req: Request, res: Response) => {
 
     const fid = familyId ? parseInt(familyId as string) : 1;
     const executionTimestamp = new Date().toISOString();
+    let syncResults: any = null;
+
+    // Perform actual underlying engine execution based on action ID
+    if (actionId === 'REFRESH_PORTFOLIO') {
+      syncResults = await syncAllAssets();
+    }
 
     // Log Action Execution in Audit Trail & Action Center
     const auditRecord = sqliteAIAuditTrailRepository.logAuditEntry({
@@ -69,7 +77,7 @@ router.post('/execute', async (req: Request, res: Response) => {
       actionsProposed: [action],
       userDecision: 'EXECUTED',
       evidenceUsed: action.requiredEvidence,
-      executionResult: { status: 'SUCCESS', executedAt: executionTimestamp }
+      executionResult: { status: 'SUCCESS', executedAt: executionTimestamp, syncResults }
     });
 
     sqliteAIAuditTrailRepository.upsertActionItem({

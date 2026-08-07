@@ -323,19 +323,19 @@ export default function CashFlowDashboard() {
           </div>
 
           {/* Sync Widget Card */}
-          <div className="p-4 bg-[#0a0f1d] border border-slate-800 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
+          <div className="p-4 bg-slate-50 border border-slate-200 dark:bg-[#0a0f1d] dark:border-slate-800 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
             <div className="flex items-center gap-3">
-              <Database className="w-5 h-5 text-indigo-400 flex-shrink-0" />
+              <Database className="w-5 h-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
               <div>
-                <span className="font-bold text-slate-200 block">BankInsights Direct SQLite Sync</span>
-                <span className="text-[10px] text-slate-500 mt-0.5 block truncate max-w-sm lg:max-w-md font-mono">{dbPath}</span>
+                <span className="font-bold text-slate-900 dark:text-slate-200 block">BankInsights Direct SQLite Sync</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-500 mt-0.5 block truncate max-w-sm lg:max-w-md font-mono">{dbPath}</span>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <button 
                 onClick={() => setEditingPath(!editingPath)} 
-                className="py-1.5 px-3 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 rounded-lg font-bold"
+                className="py-1.5 px-3 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 rounded-lg font-bold"
               >
                 Change Path
               </button>

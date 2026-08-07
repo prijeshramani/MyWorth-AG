@@ -74,4 +74,24 @@ export class InsuranceController {
       next(err);
     }
   };
+
+  public createPolicy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const policyData = req.body;
+      if (!policyData.policyNumber || !policyData.insurerName || !policyData.policyType) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'policyNumber, insurerName, and policyType are required.' }
+        });
+        return;
+      }
+      const created = this.insuranceAppService.createPolicy(policyData);
+      res.status(201).json({
+        success: true,
+        data: created
+      });
+    } catch (err: any) {
+      next(err);
+    }
+  };
 }

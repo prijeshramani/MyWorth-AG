@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { useUiStore } from '../../store/useUiStore';
 import { useGraphOverview } from '../../hooks/useGraphOverview';
 import { PageSkeleton } from '../common/PageSkeleton';
-import { MetricCard } from '../ui/MetricCard';
-import { RiskGauge } from '../ui/RiskGauge';
+import { PageShell } from '../layout/PageShell';
+import { Card } from '../ui/Card';
+import { StatCard } from '../ui/StatCard';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
 import { 
   GitFork, 
   User, 
@@ -17,7 +20,8 @@ import {
   Trash2, 
   CheckCircle, 
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCw
 } from 'lucide-react';
 
 export const RelationshipExplorer: React.FC = () => {
@@ -43,18 +47,6 @@ export const RelationshipExplorer: React.FC = () => {
   const nodeCount = (graphData as any)?.nodeCount ?? nodes.length;
   const edgeCount = (graphData as any)?.edgeCount ?? edges.length;
 
-  console.log('[RELATIONSHIP_EXPLORER] Render state:', {
-    activeFamilyId,
-    isLoading,
-    isError,
-    error,
-    rawResponse: response,
-    parsedGraphData: graphData,
-    nodeCount,
-    edgeCount,
-    extractedNodesLength: nodes.length
-  });
-
   const filteredNodes = nodes.filter(n => {
     if (!n) return false;
     const matchesType = filterType === 'ALL' || n.entity_type === filterType;
@@ -70,88 +62,68 @@ export const RelationshipExplorer: React.FC = () => {
 
   const getNodeIcon = (type: string) => {
     switch (type) {
-      case 'PERSON': return <User className="w-4 h-4 text-sky-400" />;
-      case 'ASSET': return <PieChart className="w-4 h-4 text-emerald-400" />;
-      case 'POLICY': return <ShieldAlert className="w-4 h-4 text-rose-400" />;
-      case 'ACCOUNT': return <Landmark className="w-4 h-4 text-amber-400" />;
-      case 'DOCUMENT': return <FileText className="w-4 h-4 text-indigo-400" />;
-      case 'TAX_PROFILE': return <Calculator className="w-4 h-4 text-teal-400" />;
-      default: return <GitFork className="w-4 h-4 text-slate-400" />;
+      case 'PERSON': return <User className="w-4 h-4 text-[#38BDF8]" />;
+      case 'ASSET': return <PieChart className="w-4 h-4 text-[#32D583]" />;
+      case 'POLICY': return <ShieldAlert className="w-4 h-4 text-[#F04438]" />;
+      case 'ACCOUNT': return <Landmark className="w-4 h-4 text-[#F79009]" />;
+      case 'DOCUMENT': return <FileText className="w-4 h-4 text-[#8B5CF6]" />;
+      case 'TAX_PROFILE': return <Calculator className="w-4 h-4 text-[#38BDF8]" />;
+      default: return <GitFork className="w-4 h-4 text-[#9CA3AF]" />;
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="border-b border-slate-800/80 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <GitFork className="w-6 h-6 text-sky-400" />
-            <h2 className="text-xl font-bold text-slate-100">Knowledge Graph & Relationship Engine</h2>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Canonical relationship map connecting Family Members, Asset Holdings, Policies, Accounts, Documents & Tax Profiles.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="px-3 py-1 rounded-full text-xs font-semibold bg-sky-600/20 hover:bg-sky-600/30 text-sky-400 border border-sky-500/30 flex items-center gap-1.5 transition-colors"
-          >
-            <GitFork className="w-3.5 h-3.5" />
-            Sync Graph
-          </button>
-
-          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5 font-mono">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Estate Readiness: {estateReadiness?.readinessScore || 100}%
-          </span>
-        </div>
-      </div>
-
+    <PageShell
+      title="Knowledge Graph Explorer"
+      subtitle="Canonical relationship map connecting Family Members, Asset Holdings, Policies, Accounts, Documents & Tax Profiles."
+      badge={<Badge variant="primary" icon={<GitFork className="w-3.5 h-3.5" />}>Readiness: {estateReadiness?.readinessScore || 100}%</Badge>}
+      actions={
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+          onClick={() => refetch()}
+        >
+          Sync Graph
+        </Button>
+      }
+    >
       {/* KPI Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <RiskGauge
-          label="Nominee Coverage Score"
-          value={estateReadiness?.nomineeCoveragePercent || 100}
-          minValue={0}
-          maxValue={100}
-          ratingLabel="OPTIMAL"
-          statusColor="#10b981"
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatCard
+          title="Nominee Coverage Score"
+          value={`${estateReadiness?.nomineeCoveragePercent || 100}%`}
+          subtitle="Nominee Registration Rate"
+          trend={{ value: 'OPTIMAL', direction: 'up' }}
+          icon={<ShieldCheck className="w-5 h-5 text-[#32D583]" />}
         />
-
-        <MetricCard
+        <StatCard
           title="Total Graph Nodes"
           value={nodeCount.toString()}
-          subtext="Persons, Assets, Policies & Accounts"
-          changePercent={8.5}
-          trend="UP"
-          icon={<GitFork className="w-4 h-4 text-sky-400" />}
+          subtitle="Persons, Assets, Policies & Accounts"
+          trend={{ value: '+8.5%', direction: 'up' }}
+          icon={<GitFork className="w-5 h-5 text-[#4F7FFF]" />}
         />
-
-        <MetricCard
+        <StatCard
           title="Active Directed Edges"
           value={edgeCount.toString()}
-          subtext="Ownership, Nominee & Dependents"
-          changePercent={12.0}
-          trend="UP"
-          icon={<CheckCircle className="w-4 h-4 text-emerald-400" />}
+          subtitle="Ownership, Nominee & Dependents"
+          trend={{ value: '+12.0%', direction: 'up' }}
+          icon={<CheckCircle className="w-5 h-5 text-[#32D583]" />}
         />
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="card-glass p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2 overflow-x-auto">
+      <Card variant="glass" padding="sm" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
           {['ALL', 'PERSON', 'ASSET', 'POLICY', 'ACCOUNT', 'DOCUMENT', 'TAX_PROFILE'].map((t) => (
             <button
               key={t}
               onClick={() => setFilterType(t)}
-              className={`px-3 py-1 rounded-full text-xs font-mono font-medium transition-colors ${
+              className={`px-3 py-1 rounded-full text-xs font-mono font-medium transition-all ${
                 filterType === t
-                  ? 'bg-sky-600/20 text-sky-400 border border-sky-500/30'
-                  : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800'
+                  ? 'bg-[#4F7FFF] text-white shadow-md shadow-[#4F7FFF]/20'
+                  : 'bg-[#15161A] text-[#9CA3AF] hover:text-[#F3F4F6] border border-[#2B2E35]'
               }`}
             >
               {t}
@@ -160,23 +132,23 @@ export const RelationshipExplorer: React.FC = () => {
         </div>
 
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-2.5" />
           <input
             type="text"
             placeholder="Search graph nodes..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500"
+            className="bg-[#15161A] border border-[#2B2E35] rounded-xl pl-8 pr-3 py-1.5 text-xs text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none focus:border-[#4F7FFF]"
           />
         </div>
-      </div>
+      </Card>
 
       {/* Interactive Graph Node Grid & Inspector Side Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Node Grid */}
         <div className="lg:col-span-2 space-y-3">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">
+          <h3 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider font-mono">
             Canonical Entities ({filteredNodes.length})
           </h3>
 
@@ -187,20 +159,20 @@ export const RelationshipExplorer: React.FC = () => {
                 <div
                   key={n.id}
                   onClick={() => setSelectedNodeId(n.id)}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
                     isSelected
-                      ? 'bg-sky-950/40 border-sky-500/50 shadow-md ring-1 ring-sky-500/30'
-                      : 'bg-slate-900/40 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40'
+                      ? 'bg-[#4F7FFF]/15 border-[#4F7FFF] shadow-md shadow-[#4F7FFF]/10'
+                      : 'bg-[#1E2025] border-[#2B2E35] hover:border-[#4F7FFF]/40 hover:bg-[#252830]'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="p-2 rounded-lg bg-slate-800 border border-slate-700">
+                      <div className="p-2 rounded-xl bg-[#15161A] border border-[#2B2E35]">
                         {getNodeIcon(n.entity_type)}
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-slate-100">{n.label}</h4>
-                        <span className="text-[10px] font-mono text-slate-400 uppercase">
+                        <h4 className="text-xs font-bold text-[#F3F4F6]">{n.label}</h4>
+                        <span className="text-[10px] font-mono text-[#9CA3AF] uppercase">
                           {n.entity_type} #{n.entity_id}
                         </span>
                       </div>
@@ -213,37 +185,37 @@ export const RelationshipExplorer: React.FC = () => {
         </div>
 
         {/* Relationship Inspector */}
-        <div className="card-glass p-5 space-y-4">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-mono">
+        <Card variant="glass" className="space-y-4">
+          <h3 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider font-mono">
             Relationship Inspector
           </h3>
 
           {selectedNode ? (
             <div className="space-y-4">
-              <div className="p-3 bg-slate-900 border border-slate-800 rounded-lg space-y-1">
-                <span className="text-[10px] font-mono text-sky-400 uppercase font-bold">{selectedNode.entity_type}</span>
-                <h4 className="text-sm font-bold text-slate-100">{selectedNode.label}</h4>
-                <span className="text-[11px] font-mono text-slate-500">Node ID: #{selectedNode.id}</span>
+              <div className="p-3 bg-[#15161A] border border-[#2B2E35] rounded-xl space-y-1">
+                <span className="text-[10px] font-mono text-[#4F7FFF] uppercase font-bold">{selectedNode.entity_type}</span>
+                <h4 className="text-sm font-bold text-[#F3F4F6]">{selectedNode.label}</h4>
+                <span className="text-[11px] font-mono text-[#6B7280]">Node ID: #{selectedNode.id}</span>
               </div>
 
               <div className="space-y-2">
-                <span className="text-[11px] font-mono text-slate-400 uppercase font-bold block">
+                <span className="text-[11px] font-mono text-[#9CA3AF] uppercase font-bold block">
                   Connected Edges ({selectedNodeEdges.length})
                 </span>
                 
                 {selectedNodeEdges.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">No active directed edges linked to this node.</p>
+                  <p className="text-xs text-[#6B7280] italic">No active directed edges linked to this node.</p>
                 ) : (
                   <div className="space-y-2">
                     {selectedNodeEdges.map((e) => (
-                      <div key={e.id} className="p-2.5 bg-slate-900/60 border border-slate-800 rounded-lg text-xs font-mono space-y-1">
-                        <div className="flex items-center justify-between text-slate-300 font-semibold">
+                      <div key={e.id} className="p-2.5 bg-[#15161A] border border-[#2B2E35] rounded-xl text-xs font-mono space-y-1">
+                        <div className="flex items-center justify-between text-[#F3F4F6] font-semibold">
                           <span>{e.source_label || `Node #${e.source_node_id}`}</span>
-                          <ArrowRight className="w-3 h-3 text-sky-400" />
+                          <ArrowRight className="w-3 h-3 text-[#4F7FFF]" />
                           <span>{e.target_label || `Node #${e.target_node_id}`}</span>
                         </div>
-                        <div className="flex items-center justify-between text-[10px] text-slate-400">
-                          <span className="text-emerald-400 font-bold">{e.relationship_name || e.relationship_code}</span>
+                        <div className="flex items-center justify-between text-[10px] text-[#9CA3AF]">
+                          <span className="text-[#32D583] font-bold">{e.relationship_name || e.relationship_code}</span>
                           <span>Weight: {e.weight}</span>
                         </div>
                       </div>
@@ -253,13 +225,13 @@ export const RelationshipExplorer: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="p-8 text-center text-slate-500 text-xs italic">
+            <div className="p-8 text-center text-[#6B7280] text-xs italic">
               Select any graph entity node to inspect connected relationship edges.
             </div>
           )}
-        </div>
+        </Card>
 
       </div>
-    </div>
+    </PageShell>
   );
 };

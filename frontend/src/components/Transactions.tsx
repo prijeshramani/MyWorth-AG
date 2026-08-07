@@ -368,8 +368,10 @@ export default function Transactions() {
                       <td className="py-3.5 text-right font-medium text-slate-300">{formatCurrency(tx.price)}</td>
                       <td className="py-3.5 text-right font-bold text-slate-200">{formatCurrency(tx.amount)}</td>
                       <td className="py-3.5 text-center">
-                        <span className={`text-[9px] font-semibold px-2 py-0.5 rounded ${
-                          tx.source === 'PDF_IMPORT' ? 'bg-indigo-950/40 text-indigo-300' : 'bg-slate-800 text-slate-400'
+                        <span className={`text-[9px] font-semibold px-2 py-0.5 rounded border ${
+                          tx.source === 'PDF_IMPORT'
+                            ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/40'
+                            : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
                         }`}>
                           {tx.source === 'PDF_IMPORT' ? 'PDF' : 'Manual'}
                         </span>

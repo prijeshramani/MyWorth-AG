@@ -192,8 +192,8 @@ export const AIActionCenter: React.FC = () => {
       </div>
 
       {successMessage && (
-        <div className="p-4 bg-emerald-950/30 border border-emerald-800/50 rounded-2xl flex items-center gap-3 text-emerald-300 text-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-800/50 dark:text-emerald-300 rounded-2xl flex items-center gap-3 text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
           <span>{successMessage}</span>
         </div>
       )}

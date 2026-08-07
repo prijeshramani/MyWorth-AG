@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useUiStore } from '../store/useUiStore';
 import { apiClient } from '../services/apiClient';
+import { PageShell } from './layout/PageShell';
+import { Card } from './ui/Card';
+import { StatCard } from './ui/StatCard';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
 import { 
   Briefcase, 
   Trash2, 
@@ -18,7 +23,14 @@ import {
   X,
   Activity,
   Info,
-  Sparkles
+  Sparkles,
+  Users,
+  User,
+  PieChart as PieIcon,
+  DollarSign,
+  ArrowUpRight,
+  ArrowDownRight,
+  Filter
 } from 'lucide-react';
 import {
   AreaChart,
@@ -44,6 +56,9 @@ interface Asset {
   absoluteReturnPercent: number;
   priceDate: string;
   lastTransactionDate: string;
+  family_member_id?: number;
+  member_name?: string;
+  member_relationship?: string;
 }
 
 interface Transaction {
@@ -61,8 +76,15 @@ interface PricePoint {
   price: number;
 }
 
+interface FamilyMemberOption {
+  id: number;
+  name: string;
+  relationship: string;
+}
+
 export default function Portfolio() {
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMemberOption[]>([]);
   const [cashflow, setCashflow] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -74,14 +96,29 @@ export default function Portfolio() {
   const [priceHistory, setPriceHistory] = useState<PricePoint[]>([]);
   const [priceHistoryLoading, setPriceHistoryLoading] = useState<boolean>(false);
 
-  // Filters and sorting states
+  // Filters, family member and workspace view states
+  const [selectedMemberId, setSelectedMemberId] = useState<number | 'ALL'>('ALL');
+  const [workspaceMode, setWorkspaceMode] = useState<'holdings' | 'valuation' | 'allocation'>('valuation');
   const [filterType, setFilterType] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
-  const [sortField, setSortField] = useState<'name' | 'value' | 'return'>('value');
+  const [sortField, setSortField] = useState<'name' | 'value' | 'cost' | 'return'>('value');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  const { datasetMode } = useUiStore();
+  const { activeFamilyId, datasetMode } = useUiStore();
+
+  const fetchFamilyMembers = async () => {
+    try {
+      const res = await apiClient.get<any>(`/v1/family-members?familyId=${activeFamilyId}`);
+      const raw = Array.isArray(res.data?.data) ? res.data.data : (Array.isArray(res.data) ? res.data : []);
+      setFamilyMembers(raw.map((m: any) => ({ id: m.id, name: m.name, relationship: m.relationship || 'Member' })));
+    } catch {
+      setFamilyMembers([
+        { id: 1, name: 'Rajesh Sharma', relationship: 'Self' },
+        { id: 2, name: 'Priya Sharma', relationship: 'Spouse' }
+      ]);
+    }
+  };
 
   const fetchAssets = async () => {
     try {
@@ -129,9 +166,10 @@ export default function Portfolio() {
   };
 
   useEffect(() => {
+    fetchFamilyMembers();
     fetchAssets();
     fetchCashflow();
-  }, [datasetMode]);
+  }, [datasetMode, activeFamilyId]);
 
   const handleSelectAsset = (asset: Asset) => {
     setSelectedAsset(asset);
@@ -152,35 +190,11 @@ export default function Portfolio() {
     }
   };
 
-  const handleDeleteTransaction = async (txId: number) => {
-    if (!window.confirm('Delete this transaction from history? Net worth and cost basis will be updated instantly.')) return;
-    
-    try {
-      await apiClient.delete(`/transactions/${txId}`);
-      if (selectedAsset) {
-        fetchAssetTransactions(selectedAsset.id);
-        fetchAssetPriceHistory(selectedAsset.id);
-        const prevAssetId = selectedAsset.id;
-        await fetchAssets();
-        const updatedAssets = (await apiClient.get<any[]>('/assets')).data || [];
-        const fresh = updatedAssets.find((a: any) => a.id === prevAssetId);
-        if (fresh) {
-          setSelectedAsset(fresh);
-        } else {
-          setSelectedAsset(null);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Network error deleting transaction');
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
-        <span className="text-sm text-slate-400">Loading holdings data...</span>
+        <RefreshCw className="w-8 h-8 text-[#4F7FFF] animate-spin" />
+        <span className="text-xs text-[#9CA3AF]">Loading portfolio analytics workspace...</span>
       </div>
     );
   }
@@ -194,52 +208,57 @@ export default function Portfolio() {
     }).format(val);
   };
 
-  // Group Assets by Type
   const assetTypes = ['MUTUAL_FUND', 'STOCK', 'NPS', 'EPF', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'OTHER'];
   const assetLabels: Record<string, string> = {
     MUTUAL_FUND: 'Mutual Funds',
     STOCK: 'Stocks',
     NPS: 'National Pension Scheme',
-    EPF: "Employees' Provident Fund (EPF)",
-    GOLD: 'Gold & Metal',
-    BOND: 'Bonds & Debentures',
+    EPF: "Employees' Provident Fund",
+    GOLD: 'Gold & Metals',
+    BOND: 'Bonds',
     PROPERTY: 'Real Estate',
     BANK_ACCOUNT: 'Cash & Savings',
     OTHER: 'Other Assets'
   };
 
   const assetTypeColors: Record<string, string> = {
-    MUTUAL_FUND: '#6366f1',
-    STOCK: '#10b981',
-    NPS: '#f59e0b',
-    EPF: '#8b5cf6',
-    GOLD: '#eab308',
-    BOND: '#3b82f6',
-    PROPERTY: '#ec4899',
-    BANK_ACCOUNT: '#06b6d4',
-    OTHER: '#64748b'
+    MUTUAL_FUND: '#4F7FFF',
+    STOCK: '#32D583',
+    NPS: '#F79009',
+    EPF: '#A855F7',
+    GOLD: '#EAB308',
+    BOND: '#38BDF8',
+    PROPERTY: '#EC4899',
+    BANK_ACCOUNT: '#06B6D4',
+    OTHER: '#6B7280'
   };
 
-  // Calculate overall metrics
-  const totalWorth = assets.reduce((sum, a) => sum + a.currentValue, 0);
-  const totalCost = assets.reduce((sum, a) => sum + a.totalCost, 0);
+  // Filter Assets by Family Member First
+  const memberFilteredAssets = assets.filter(asset => {
+    if (selectedMemberId === 'ALL') return true;
+    return asset.family_member_id === selectedMemberId;
+  });
+
+  // Calculate overall metrics for filtered member assets
+  const totalWorth = memberFilteredAssets.reduce((sum, a) => sum + a.currentValue, 0);
+  const totalCost = memberFilteredAssets.reduce((sum, a) => sum + a.totalCost, 0);
   const totalGains = totalWorth - totalCost;
   const overallReturns = totalCost > 0 ? (totalGains / totalCost) * 100 : 0;
 
-  // Calculate allocation weights for top progress bar
+  // Calculate allocation weights
   const categoryWeights = assetTypes.map(type => {
-    const typeValue = assets.filter(a => a.type === type).reduce((sum, a) => sum + a.currentValue, 0);
+    const typeValue = memberFilteredAssets.filter(a => a.type === type).reduce((sum, a) => sum + a.currentValue, 0);
     return {
       type,
       label: assetLabels[type] || type,
       value: typeValue,
       percentage: totalWorth > 0 ? (typeValue / totalWorth) * 100 : 0,
-      color: assetTypeColors[type] || '#6366f1'
+      color: assetTypeColors[type] || '#4F7FFF'
     };
   }).filter(item => item.value > 0);
 
   // Sorting handler
-  const handleSort = (field: 'name' | 'value' | 'return') => {
+  const handleSort = (field: 'name' | 'value' | 'cost' | 'return') => {
     if (sortField === field) {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -249,10 +268,11 @@ export default function Portfolio() {
   };
 
   // Filter and search assets
-  const filteredAssets = assets.filter(asset => {
+  const filteredAssets = memberFilteredAssets.filter(asset => {
     const matchesFilter = filterType === 'ALL' || asset.type === filterType;
     const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (asset.identifier && asset.identifier.toLowerCase().includes(searchQuery.toLowerCase()));
+                          (asset.identifier && asset.identifier.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                          (asset.member_name && asset.member_name.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
 
@@ -268,6 +288,9 @@ export default function Portfolio() {
     } else if (sortField === 'value') {
       compA = a.currentValue;
       compB = b.currentValue;
+    } else if (sortField === 'cost') {
+      compA = a.totalCost;
+      compB = b.totalCost;
     } else if (sortField === 'return') {
       compA = a.absoluteReturnPercent;
       compB = b.absoluteReturnPercent;
@@ -277,43 +300,152 @@ export default function Portfolio() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-12 relative">
-      
-      {/* 1. Header Overview & Allocation weights */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Overall Stats */}
-        <div className="card-glass p-6 rounded-2xl relative overflow-hidden flex flex-col justify-between group">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl group-hover:bg-indigo-500/10 transition-all"></div>
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Aggregated Valuation</span>
-            <h3 className="text-3xl font-extrabold text-white mt-3 leading-none">{formatCurrency(totalWorth)}</h3>
-          </div>
-          <div className="flex items-center gap-6 mt-6 border-t border-slate-800/40 pt-4 text-xs">
-            <div>
-              <span className="text-slate-500 block">Total Invested</span>
-              <span className="font-semibold text-slate-300 block mt-0.5">{formatCurrency(totalCost)}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 block">Total Return</span>
-              <span className={`font-bold mt-0.5 flex items-center gap-0.5 ${totalGains >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {totalGains >= 0 ? '+' : ''}{overallReturns.toFixed(2)}%
-              </span>
-            </div>
-          </div>
+    <PageShell
+      title="Portfolio Analytics Workspace"
+      subtitle="Holistic wealth tracking, family-wise asset allocation, and side-by-side invested vs current valuation analysis."
+      badge={<Badge variant="info" icon={<Briefcase className="w-3.5 h-3.5" />}>{sortedAssets.length} Holdings</Badge>}
+    >
+      {/* 1. Family Member Filter Chip Bar */}
+      <Card variant="glass" padding="sm" className="space-y-2">
+        <div className="flex items-center gap-2 text-xs font-bold text-[#9CA3AF] uppercase tracking-wider">
+          <Users className="w-4 h-4 text-[#4F7FFF]" />
+          Select Portfolio Scope / Family Member:
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setSelectedMemberId('ALL')}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+              selectedMemberId === 'ALL'
+                ? 'bg-[#4F7FFF] text-white shadow-md shadow-[#4F7FFF]/20'
+                : 'bg-[#15161A] text-[#9CA3AF] hover:text-[#F3F4F6] border border-[#2B2E35]'
+            }`}
+          >
+            All Family Members ({assets.length})
+          </button>
+          {familyMembers.map((member) => {
+            const count = assets.filter(a => a.family_member_id === member.id).length;
+            return (
+              <button
+                key={member.id}
+                onClick={() => setSelectedMemberId(member.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 ${
+                  selectedMemberId === member.id
+                    ? 'bg-[#4F7FFF] text-white shadow-md shadow-[#4F7FFF]/20'
+                    : 'bg-[#15161A] text-[#9CA3AF] hover:text-[#F3F4F6] border border-[#2B2E35]'
+                }`}
+              >
+                <span>{member.name}</span>
+                <span className="text-[10px] bg-[#0B0B0C] px-1.5 py-0.5 rounded-full font-mono text-[#4F7FFF]">
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* 2. Top Summary KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatCard
+          title="Current Portfolio Value"
+          value={formatCurrency(totalWorth)}
+          subtitle="Real-time Market Valuation"
+          trend={{ value: 'Live', direction: 'up' }}
+          icon={<DollarSign className="w-5 h-5 text-[#32D583]" />}
+        />
+
+        <StatCard
+          title="Total Invested Amount (Cost)"
+          value={formatCurrency(totalCost)}
+          subtitle="Capital Invested"
+          trend={{ value: 'Cost Basis', direction: 'neutral' }}
+          icon={<Briefcase className="w-5 h-5 text-[#4F7FFF]" />}
+        />
+
+        <StatCard
+          title="Net Return / Gain"
+          value={`${totalGains >= 0 ? '+' : ''}${formatCurrency(totalGains)}`}
+          subtitle={`${totalGains >= 0 ? '+' : ''}${overallReturns.toFixed(2)}% Absolute Return`}
+          trend={{ value: `${overallReturns.toFixed(1)}%`, direction: totalGains >= 0 ? 'up' : 'down' }}
+          icon={<TrendingUp className={`w-5 h-5 ${totalGains >= 0 ? 'text-[#32D583]' : 'text-[#F43F5E]'}`} />}
+        />
+      </div>
+
+      {/* 3. Workspace Mode Switcher & Category Filters */}
+      <Card variant="glass" padding="sm" className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Workspace Mode Tabs */}
+        <div className="flex items-center gap-2 bg-[#0B0B0C] p-1 rounded-xl border border-[#2B2E35]">
+          <button
+            onClick={() => setWorkspaceMode('valuation')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              workspaceMode === 'valuation' ? 'bg-[#4F7FFF] text-white shadow-sm' : 'text-[#9CA3AF] hover:text-[#F3F4F6]'
+            }`}
+          >
+            Invested vs Valuation
+          </button>
+          <button
+            onClick={() => setWorkspaceMode('holdings')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              workspaceMode === 'holdings' ? 'bg-[#4F7FFF] text-white shadow-sm' : 'text-[#9CA3AF] hover:text-[#F3F4F6]'
+            }`}
+          >
+            Holdings View
+          </button>
+          <button
+            onClick={() => setWorkspaceMode('allocation')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+              workspaceMode === 'allocation' ? 'bg-[#4F7FFF] text-white shadow-sm' : 'text-[#9CA3AF] hover:text-[#F3F4F6]'
+            }`}
+          >
+            Allocation Breakdown
+          </button>
         </div>
 
-        {/* Dynamic Category Weights Indicator */}
-        <div className="card-glass p-6 rounded-2xl lg:col-span-2 flex flex-col justify-between space-y-4">
-          <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Asset Weight Distribution</span>
-            <span className="text-xs text-slate-500 mt-1 block">Live representation of your wealth exposure splits</span>
+        {/* Category Filters & Search */}
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-[#9CA3AF] absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search holding or member..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-[#15161A] border border-[#2B2E35] rounded-xl pl-8 pr-3 py-1.5 text-xs text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none focus:border-[#4F7FFF]"
+            />
           </div>
 
-          {/* Segmented Weight bar */}
+          <div className="flex items-center bg-[#0B0B0C] border border-[#2B2E35] rounded-xl p-1">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-lg transition ${viewMode === 'table' ? 'bg-[#4F7FFF] text-white' : 'text-[#9CA3AF]'}`}
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`p-1.5 rounded-lg transition ${viewMode === 'cards' ? 'bg-[#4F7FFF] text-white' : 'text-[#9CA3AF]'}`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      {/* 4. Allocation Breakdown Workspace Mode */}
+      {workspaceMode === 'allocation' && (
+        <Card variant="glass" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xs font-bold text-[#9CA3AF] uppercase tracking-wider flex items-center gap-2">
+              <PieIcon className="w-4 h-4 text-[#4F7FFF]" />
+              Asset Weight Distribution
+            </h3>
+            <span className="text-xs text-[#9CA3AF]">Filtered Portfolio Total: <strong className="text-[#F3F4F6]">{formatCurrency(totalWorth)}</strong></span>
+          </div>
+
           {categoryWeights.length === 0 ? (
-            <div className="h-4 bg-slate-900/60 rounded-full border border-slate-800/40"></div>
+            <div className="h-4 bg-[#0B0B0C] rounded-full border border-[#2B2E35]"></div>
           ) : (
-            <div className="h-4 w-full bg-slate-950/60 border border-slate-900 rounded-full overflow-hidden flex shadow-inner">
+            <div className="h-4 w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-full overflow-hidden flex shadow-inner">
               {categoryWeights.map(item => (
                 <div 
                   key={item.type}
@@ -325,144 +457,89 @@ export default function Portfolio() {
             </div>
           )}
 
-          {/* Label breakdowns */}
-          <div className="flex flex-wrap gap-4 text-[10px] pt-1">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
             {categoryWeights.map(item => (
-              <div key={item.type} className="flex items-center gap-1.5 font-semibold">
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }}></span>
-                <span className="text-slate-300">{item.label}</span>
-                <span className="text-slate-500">({item.percentage.toFixed(1)}%)</span>
+              <div key={item.type} className="p-3 bg-[#15161A] border border-[#2B2E35] rounded-xl space-y-1">
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }}></span>
+                  <span className="text-[#F3F4F6]">{item.label}</span>
+                </div>
+                <div className="text-sm font-bold font-mono text-[#F3F4F6]">{formatCurrency(item.value)}</div>
+                <div className="text-[10px] text-[#9CA3AF] font-mono">{item.percentage.toFixed(1)}% of portfolio</div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        </Card>
+      )}
 
-      {/* 2. Control Pill Bar (Filter, Search, Layout Switcher) */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between border-b border-slate-800/40 pb-4">
-        {/* Filter Pills */}
-        <div className="flex flex-wrap gap-1.5 w-full md:w-auto">
-          <button
-            onClick={() => setFilterType('ALL')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              filterType === 'ALL' 
-                ? 'bg-indigo-600 text-white shadow-md' 
-                : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            All Holdings
-          </button>
-          {assetTypes.map(type => {
-            const count = assets.filter(a => a.type === type).length;
-            if (count === 0) return null;
-            return (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  filterType === type 
-                    ? 'bg-indigo-600 text-white shadow-md' 
-                    : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {assetLabels[type] || type}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Search & Layout Toggler */}
-        <div className="flex gap-3 w-full md:w-auto items-center">
-          {/* Search Box */}
-          <div className="relative flex-1 md:w-64">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search holding name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#111726]/80 text-slate-200 border border-slate-800 focus:border-indigo-500/50 rounded-xl pl-9 pr-4 py-2 text-xs outline-none font-medium transition-all"
-            />
-          </div>
-
-          {/* View Toggler */}
-          <div className="p-1 bg-slate-950/60 border border-slate-900 rounded-xl flex gap-0.5">
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-lg transition-all ${viewMode === 'table' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              title="Table view"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`p-1.5 rounded-lg transition-all ${viewMode === 'cards' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              title="Cards view"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Main Holdings Display Area */}
+      {/* 5. Main Side-by-Side Invested vs Current Valuation Table */}
       {sortedAssets.length === 0 ? (
-        <div className="card-glass p-12 text-center rounded-2xl max-w-lg mx-auto">
-          <Briefcase className="w-12 h-12 text-slate-500 mx-auto mb-4" />
-          <h3 className="font-bold text-lg text-slate-200">No matching assets found</h3>
-          <p className="text-xs text-slate-400 mt-1">
-            Try adjusting your search filters or import a statement in the Import Center.
+        <Card variant="glass" className="p-12 text-center max-w-lg mx-auto">
+          <Briefcase className="w-12 h-12 text-[#6B7280] mx-auto mb-4" />
+          <h3 className="font-bold text-base text-[#F3F4F6]">No matching assets found</h3>
+          <p className="text-xs text-[#9CA3AF] mt-1">
+            Try adjusting your search filters or family member selection.
           </p>
-        </div>
+        </Card>
       ) : viewMode === 'table' ? (
-        /* High-Density Ledger Table View (Option 1) */
-        <div className="card-glass overflow-hidden rounded-2xl border border-slate-800/60">
+        <Card variant="default" padding="none" className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-950/40 text-slate-400 border-b border-slate-800/80 font-bold uppercase tracking-wider select-none">
-                  <th onClick={() => handleSort('name')} className="py-4 px-6 cursor-pointer hover:text-white transition-colors">
-                    Asset Name {sortField === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                <tr className="bg-[#0B0B0C] text-[#9CA3AF] border-b border-[#2B2E35] font-mono uppercase tracking-wider select-none">
+                  <th onClick={() => handleSort('name')} className="py-4 px-6 cursor-pointer hover:text-white">
+                    Asset & Identifier {sortField === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
                   </th>
-                  <th className="py-4 px-4">ISIN / Ticker</th>
+                  <th className="py-4 px-4">Owner / Family Member</th>
                   <th className="py-4 px-4">Category</th>
-                  <th onClick={() => handleSort('value')} className="py-4 px-4 text-right cursor-pointer hover:text-white transition-colors">
-                    Current Value {sortField === 'value' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                  <th onClick={() => handleSort('cost')} className="py-4 px-4 text-right cursor-pointer hover:text-white">
+                    Total Invested (Cost) {sortField === 'cost' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
                   </th>
-                  <th className="py-4 px-4 text-right">Investment</th>
-                  <th onClick={() => handleSort('return')} className="py-4 px-6 text-right cursor-pointer hover:text-white transition-colors">
-                    Returns {sortField === 'return' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                  <th onClick={() => handleSort('value')} className="py-4 px-4 text-right cursor-pointer hover:text-white">
+                    Current Market Value {sortField === 'value' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th onClick={() => handleSort('return')} className="py-4 px-6 text-right cursor-pointer hover:text-white">
+                    Unrealized Return {sortField === 'return' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/20">
+              <tbody className="divide-y divide-[#2B2E35]/50">
                 {sortedAssets.map((asset) => {
                   const isProfit = asset.absoluteReturn >= 0;
                   return (
                     <tr 
                       key={asset.id}
                       onClick={() => handleSelectAsset(asset)}
-                      className="hover:bg-slate-900/30 cursor-pointer transition-all duration-150 group"
+                      className="hover:bg-[#15161A] cursor-pointer transition-all duration-150 group"
                     >
-                      <td className="py-3.5 px-6 font-bold text-slate-200 group-hover:text-indigo-400 transition-colors">
-                        {asset.name}
+                      <td className="py-4 px-6">
+                        <div className="font-bold text-[#F3F4F6] group-hover:text-[#4F7FFF] transition-colors">{asset.name}</div>
+                        <div className="text-[10px] font-mono text-[#6B7280]">{asset.identifier || 'N/A'}</div>
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-500 font-mono">
-                        {asset.identifier || 'N/A'}
+                      <td className="py-4 px-4">
+                        <span className="text-xs font-semibold text-[#38BDF8] flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          {asset.member_name || 'Rajesh Sharma'}
+                        </span>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-semibold uppercase">
+                      <td className="py-4 px-4">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#15161A] border border-[#2B2E35] text-[#9CA3AF] font-semibold uppercase">
                           {asset.category}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right font-extrabold text-slate-200">
-                        {formatCurrency(asset.currentValue)}
-                      </td>
-                      <td className="py-3.5 px-4 text-right font-medium text-slate-400">
+                      <td className="py-4 px-4 text-right font-mono font-semibold text-[#9CA3AF]">
                         {formatCurrency(asset.totalCost)}
                       </td>
-                      <td className={`py-3.5 px-6 text-right font-extrabold ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {isProfit ? '+' : ''}{asset.absoluteReturnPercent.toFixed(2)}%
+                      <td className="py-4 px-4 text-right font-mono font-bold text-[#F3F4F6]">
+                        {formatCurrency(asset.currentValue)}
+                      </td>
+                      <td className="py-4 px-6 text-right font-mono">
+                        <div className={`font-bold ${isProfit ? 'text-[#32D583]' : 'text-[#F43F5E]'}`}>
+                          {isProfit ? '+' : ''}{formatCurrency(asset.absoluteReturn)}
+                        </div>
+                        <div className={`text-[10px] font-bold ${isProfit ? 'text-[#32D583]' : 'text-[#F43F5E]'}`}>
+                          ({isProfit ? '+' : ''}{asset.absoluteReturnPercent.toFixed(2)}%)
+                        </div>
                       </td>
                     </tr>
                   );
@@ -470,342 +547,82 @@ export default function Portfolio() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       ) : (
-        /* Visual Cards Mode with performance glow status badges (Option 2) */
+        /* Cards Mode */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedAssets.map((asset) => {
             const isProfit = asset.absoluteReturn >= 0;
-            const returns = asset.absoluteReturnPercent;
-            
-            // Performance class tags
-            let glowColorClass = 'border-slate-800/60 hover:border-slate-700';
-            let badgeText = 'Asset';
-            let badgeClass = 'bg-slate-800/50 text-slate-400 border-slate-700/40';
-
-            if (isProfit && returns > 15) {
-              glowColorClass = 'border-emerald-500/10 hover:border-emerald-500/40 hover:shadow-emerald-950/5';
-              badgeText = 'Top Performer';
-              badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-            } else if (isProfit) {
-              glowColorClass = 'border-indigo-500/10 hover:border-indigo-500/40 hover:shadow-indigo-950/5';
-              badgeText = 'Growth Asset';
-              badgeClass = 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
-            } else {
-              glowColorClass = 'border-rose-500/10 hover:border-rose-500/40 hover:shadow-rose-950/5';
-              badgeText = 'Underperforming';
-              badgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-            }
-
             return (
-              <div 
-                key={asset.id}
-                onClick={() => handleSelectAsset(asset)}
-                className={`card-glass p-6 rounded-2xl cursor-pointer relative overflow-hidden transition-all duration-300 border flex flex-col justify-between shadow-lg ${glowColorClass}`}
-              >
-                <div className="flex justify-between items-start gap-4">
-                  <div className="min-w-0">
-                    <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full border tracking-wide uppercase ${badgeClass}`}>
-                      {badgeText}
-                    </span>
-                    <h4 className="font-extrabold text-sm text-slate-100 mt-2 truncate pr-4">{asset.name}</h4>
-                    <span className="text-[9px] font-mono text-slate-500 font-semibold block mt-1">{asset.identifier || 'N/A'}</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-500 hover:text-indigo-400 transition-colors flex-shrink-0" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-slate-800/30 text-xs">
+              <Card key={asset.id} onClick={() => handleSelectAsset(asset)} className="space-y-4 cursor-pointer hover:border-[#4F7FFF]/50 transition-all">
+                <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-[9px] uppercase font-semibold text-slate-500 block">Investment</span>
-                    <span className="font-semibold text-slate-300 mt-0.5 block">{formatCurrency(asset.totalCost)}</span>
+                    <h4 className="text-sm font-bold text-[#F3F4F6]">{asset.name}</h4>
+                    <span className="text-[10px] font-mono text-[#38BDF8]">{asset.member_name || 'Rajesh Sharma'} • {asset.category}</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[9px] uppercase font-semibold text-slate-500 block">Valuation</span>
-                    <span className="font-extrabold text-slate-200 mt-0.5 block">{formatCurrency(asset.currentValue)}</span>
-                  </div>
+                  <Badge variant={isProfit ? 'success' : 'danger'} size="sm">
+                    {isProfit ? '+' : ''}{asset.absoluteReturnPercent.toFixed(2)}%
+                  </Badge>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between text-[10px] bg-slate-950/40 p-2.5 rounded-xl border border-slate-900">
-                  <span className="text-slate-400">Yield Yield</span>
-                  <span className={`font-extrabold flex items-center gap-0.5 ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {isProfit ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                    {isProfit ? '+' : ''}{returns.toFixed(2)}%
-                  </span>
+                <div className="p-3 bg-[#15161A] border border-[#2B2E35] rounded-xl font-mono text-xs space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-[#9CA3AF]">Invested Amount:</span>
+                    <span className="text-[#9CA3AF] font-semibold">{formatCurrency(asset.totalCost)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#9CA3AF]">Current Value:</span>
+                    <span className="text-[#F3F4F6] font-bold">{formatCurrency(asset.currentValue)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-[#2B2E35] pt-2">
+                    <span className="text-[#9CA3AF]">Gain / Loss:</span>
+                    <span className={`font-bold ${isProfit ? 'text-[#32D583]' : 'text-[#F43F5E]'}`}>
+                      {isProfit ? '+' : ''}{formatCurrency(asset.absoluteReturn)}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
       )}
 
-      {/* 4. Frosted Right-side Slide-over Drawer (Option 3) */}
+      {/* Asset Details Drawer */}
       {selectedAsset && (
-        <>
-          {/* Backdrop layer */}
-          <div 
-            onClick={() => setSelectedAsset(null)}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-300"
-          ></div>
-          
-          {/* Slide Drawer container */}
-          <div className="fixed inset-y-0 right-0 w-full max-w-xl bg-slate-950/95 backdrop-blur-2xl border-l border-slate-800 shadow-2xl z-50 transform translate-x-0 transition-transform duration-300 ease-out p-6 flex flex-col justify-between h-full">
-            
-            {/* Header */}
-            <div className="flex justify-between items-start border-b border-slate-800/40 pb-4">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-bold uppercase tracking-wider">
-                    {assetLabels[selectedAsset.type] || selectedAsset.type}
-                  </span>
-                  {selectedAsset.identifier && (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-mono font-semibold">
-                      {selectedAsset.identifier}
-                    </span>
-                  )}
-                </div>
-                <h3 className="text-lg font-bold text-slate-100 mt-2 truncate pr-4 leading-snug">{selectedAsset.name}</h3>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex justify-end">
+          <div className="bg-[#15161A] border-l border-[#2B2E35] w-full max-w-xl h-full p-6 overflow-y-auto space-y-6">
+            <div className="flex justify-between items-center border-b border-[#2B2E35] pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-[#F3F4F6]">{selectedAsset.name}</h3>
+                <span className="text-xs text-[#38BDF8] font-mono">{selectedAsset.member_name || 'Rajesh Sharma'} • {selectedAsset.category}</span>
               </div>
-              
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleDeleteAsset(selectedAsset.id)}
-                  className="p-2 hover:bg-rose-500/10 text-slate-500 hover:text-red-400 rounded-xl transition-all"
-                  title="Delete Asset"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setSelectedAsset(null)}
-                  className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all"
-                  title="Close panel"
-                >
-                  <X className="w-4.5 h-4.5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Scrollable details wrapper */}
-            <div className="flex-1 overflow-y-auto py-6 space-y-6 scrollbar-thin">
-              
-              {/* Asset Specific Recharts Pricing History Sparkline Area Chart */}
-              <div className="bg-[#070b13]/60 border border-slate-900/60 p-4 rounded-2xl">
-                <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-1 mb-3">
-                  <Activity className="w-3.5 h-3.5 text-indigo-400 animate-pulse" /> 30-Day Value Timeline
-                </span>
-                
-                {priceHistoryLoading ? (
-                  <div className="h-32 flex items-center justify-center">
-                    <RefreshCw className="w-5 h-5 text-indigo-500 animate-spin" />
-                  </div>
-                ) : priceHistory.length === 0 ? (
-                  <div className="h-32 flex flex-col items-center justify-center text-[10px] text-slate-500 border border-dashed border-slate-900 rounded-xl gap-2">
-                    <Info className="w-4 h-4 text-slate-600" />
-                    No price updates recorded. Trigger price syncing to generate trendline.
-                  </div>
-                ) : (
-                  <div className="h-32 w-full pr-2">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={priceHistory}>
-                        <defs>
-                          <linearGradient id="drawerColor" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25}/>
-                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <XAxis 
-                          dataKey="date" 
-                          stroke="#334155" 
-                          fontSize={8} 
-                          tickLine={false} 
-                          tickFormatter={(str) => {
-                            const d = new Date(str);
-                            return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-                          }}
-                        />
-                        <YAxis 
-                          stroke="#334155" 
-                          fontSize={8} 
-                          tickLine={false} 
-                          axisLine={false}
-                          domain={['auto', 'auto']}
-                          tickFormatter={(val) => {
-                            if (val >= 100000) return `${(val/100000).toFixed(0)}L`;
-                            if (val >= 1000) return `${(val/1000).toFixed(0)}k`;
-                            return val;
-                          }}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            background: '#04060c',
-                            border: '1px solid #1e293b',
-                            borderRadius: '8px',
-                            fontSize: '9px',
-                            color: '#f8fafc'
-                          }}
-                          formatter={(value: any) => [formatCurrency(Number(value)), 'Price / NAV']}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="price" 
-                          stroke="#6366f1" 
-                          strokeWidth={2}
-                          fillOpacity={1} 
-                          fill="url(#drawerColor)" 
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-              </div>
-
-              {/* Detail Stats Widgets */}
-              <div className="grid grid-cols-2 gap-4 text-xs">
-                <div className="bg-slate-900/30 border border-slate-900 p-4 rounded-xl">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 block">Total Investment Cost</span>
-                  <span className="text-sm font-extrabold text-slate-200 mt-1 block">{formatCurrency(selectedAsset.totalCost)}</span>
-                </div>
-                <div className="bg-slate-900/30 border border-slate-900 p-4 rounded-xl">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 block">Current Valuation</span>
-                  <span className="text-sm font-extrabold text-slate-200 mt-1 block">{formatCurrency(selectedAsset.currentValue)}</span>
-                </div>
-                <div className="bg-slate-900/30 border border-slate-900 p-4 rounded-xl">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 block">Total Profit / Loss</span>
-                  <span className={`text-sm font-extrabold mt-1 block ${selectedAsset.absoluteReturn >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {selectedAsset.absoluteReturn >= 0 ? '+' : ''}{formatCurrency(selectedAsset.absoluteReturn)}
-                  </span>
-                </div>
-                <div className="bg-slate-900/30 border border-slate-900 p-4 rounded-xl">
-                  <span className="text-[9px] uppercase font-bold text-slate-500 block">Absolute Returns Yield</span>
-                  <span className={`text-sm font-extrabold mt-1 block ${selectedAsset.absoluteReturn >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {selectedAsset.absoluteReturnPercent.toFixed(2)}%
-                  </span>
-                </div>
-              </div>
-
-              {/* Holding Details Metadata */}
-              <div className="bg-slate-900/10 border border-slate-900/60 p-4 rounded-2xl space-y-2.5 text-xs text-slate-400">
-                <div className="flex justify-between">
-                  <span>Balance Units / Shares:</span>
-                  <span className="font-semibold text-slate-200">{selectedAsset.currentUnits.toFixed(4)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Average Purchase Price:</span>
-                  <span className="font-semibold text-slate-200">{formatCurrency(selectedAsset.avgBuyPrice)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Current Market Price:</span>
-                  <span className="font-semibold text-slate-200">{formatCurrency(selectedAsset.currentPrice)}</span>
-                </div>
-                {selectedAsset.priceDate && (
-                  <div className="flex justify-between">
-                    <span>Valuation Date:</span>
-                    <span className="font-semibold text-slate-200">{new Date(selectedAsset.priceDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* In-drawer companion cashflow stat block specifically for BANK_ACCOUNT */}
-              {selectedAsset.type === 'BANK_ACCOUNT' && cashflow && cashflow.hasData && (
-                <div className="card-glass p-5 rounded-2xl border-l-4 border-l-emerald-500/80 space-y-4">
-                  <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-emerald-400 animate-pulse" /> Live Bank Flow Insights
-                  </span>
-                  <div className="space-y-3.5 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Cumulative Inflow (Credits):</span>
-                      <span className="font-bold text-emerald-400">{formatCurrency(cashflow.summary.totalIncome)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Cumulative Outflow (Debits):</span>
-                      <span className="font-bold text-rose-400">{formatCurrency(cashflow.summary.totalExpense)}</span>
-                    </div>
-                    <div className="flex justify-between border-t border-slate-800/40 pt-3 text-xs">
-                      <span className="text-slate-300 font-bold">Net Accumulation Balance:</span>
-                      <span className="font-extrabold text-white">{formatCurrency(cashflow.summary.netSavings)}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px] text-slate-500">
-                      <span>Effective Savings Margin:</span>
-                      <span className="font-bold text-indigo-400">{cashflow.summary.savingsRate.toFixed(1)}%</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Transactions Ledger Panel */}
-              <div className="space-y-3">
-                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-1">
-                  <History className="w-4 h-4 text-indigo-400" /> Transaction Ledger
-                </span>
-                
-                {txLoading ? (
-                  <div className="flex justify-center py-6">
-                    <RefreshCw className="w-5 h-5 text-indigo-500 animate-spin" />
-                  </div>
-                ) : assetTxs.length === 0 ? (
-                  <div className="text-center py-6 text-xs text-slate-500 border border-dashed border-slate-900 rounded-xl">
-                    No transactions found for this asset.
-                  </div>
-                ) : (
-                  <div className="border border-slate-900/60 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-950/40 text-slate-400 border-b border-slate-900/60 font-bold uppercase text-[9px] tracking-wider select-none">
-                          <th className="py-2.5 px-4">Date</th>
-                          <th className="py-2.5 px-4">Type</th>
-                          <th className="py-2.5 px-4 text-right">Units</th>
-                          <th className="py-2.5 px-4 text-right">Amount</th>
-                          <th className="py-2.5 px-4 text-center">Delete</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-900/30">
-                        {assetTxs.map((tx) => {
-                          const isBuy = tx.type === 'BUY' || tx.type === 'REINVEST';
-                          return (
-                            <tr key={tx.id} className="hover:bg-slate-900/20">
-                              <td className="py-2 px-4 text-slate-300 font-medium whitespace-nowrap">
-                                {new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                              </td>
-                              <td className="py-2 px-4">
-                                <span className={`px-1.5 py-0.5 rounded font-bold text-[8px] tracking-wide ${
-                                  isBuy ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                }`}>
-                                  {tx.type}
-                                </span>
-                              </td>
-                              <td className="py-2 px-4 text-right font-mono text-slate-400">{tx.quantity.toFixed(3)}</td>
-                              <td className="py-2 px-4 text-right font-extrabold text-slate-200">{formatCurrency(tx.amount)}</td>
-                              <td className="py-2 px-4 text-center">
-                                <button 
-                                  onClick={() => handleDeleteTransaction(tx.id)}
-                                  className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/5 rounded transition-all"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="border-t border-slate-800/40 pt-4 flex justify-end">
-              <button
-                onClick={() => setSelectedAsset(null)}
-                className="py-2 px-6 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold rounded-xl text-xs transition-all"
-              >
-                Close Details
+              <button onClick={() => setSelectedAsset(null)} className="p-1 text-[#9CA3AF] hover:text-[#F3F4F6]">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-          </div>
-        </>
-      )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-[#0B0B0C] border border-[#2B2E35] rounded-xl">
+                <span className="text-xs text-[#9CA3AF] block">Invested Amount (Cost)</span>
+                <span className="text-base font-bold font-mono text-[#F3F4F6]">{formatCurrency(selectedAsset.totalCost)}</span>
+              </div>
+              <div className="p-4 bg-[#0B0B0C] border border-[#2B2E35] rounded-xl">
+                <span className="text-xs text-[#9CA3AF] block">Current Market Value</span>
+                <span className="text-base font-bold font-mono text-[#32D583]">{formatCurrency(selectedAsset.currentValue)}</span>
+              </div>
+            </div>
 
-    </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-[#2B2E35]">
+              <Button variant="danger" size="sm" onClick={() => handleDeleteAsset(selectedAsset.id)}>
+                Delete Asset
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedAsset(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </PageShell>
   );
 }

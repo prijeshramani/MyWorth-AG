@@ -1,8 +1,8 @@
 # Session Context & Active Sprints
 
-- **Current Version**: `v2.0.0`
-- **Active Phase**: `Phase 7C – Operational Excellence & Production Readiness`
-- **Status**: `Completed & Production Ready (Score: 98%)`
+- **Current Version**: `v2.1.0`
+- **Active Phase**: `Phase 7D – Premium UI/UX Modernization & Design System`
+- **Status**: `Completed & Modernized (Design System: Apple Intelligence + Linear Style)`
 
 ---
 
@@ -65,11 +65,26 @@
    - Data Manager Console
    - Document Vault & Data Quality Center
    - Import Center PDF Parser Engine
-6. **Build & Test Status**:
-   - Backend TypeScript build: **PASSED**
-   - Frontend Vite production build: **PASSED**
-   - Live REST API verification: **PASSED (STATUS 200 OK)**
-   - CAMS PDF parsing accuracy: **100% VERIFIED**
+6. **Theme Engine & High-Contrast Light Mode Modernization**:
+   - Added Theme Toggle Switch (Sun/Moon icons) with `localStorage` persistence and dynamic `html.dark` class toggle.
+   - Fixed 5 Light Theme contrast issues: AI Action Center success message banner, Portfolio Cost Basis badge, Cashflow PDF badge, Protection Active status & sum assured text, and Production Readiness Score Card.
+7. **Insurance Policy Registration & Governance System**:
+   - Added Policy Registration Modal in `ProtectionDashboard.tsx` for Health, Term Life, LIC, ULIP, Endowment, and Critical Illness policies.
+   - Added Category Filter Tabs (`All Policies`, `Term Life`, `Health`, `LIC & Savings`) and Table/Grid view switcher.
+   - Mounted `/api/v1/insurance/policies` and `/api/v1/policies` endpoints.
+8. **Portfolio Analytics Workspace & Scope Filtering**:
+   - Added Family Member Scope Filter chip bar (`All Members`, `Rajesh Sharma`, `Priya Sharma`).
+   - Added side-by-side Cost Basis vs Current Valuation breakdown across asset classes.
+9. **Idempotent AI Recommendations Engine**:
+   - Enforced idempotent recommendation generation in `SQLiteRecommendationRepository.ts` by updating existing active recommendations in place and purging duplicate active records upon refresh.
+10. **Reports Generator & Executive PDF Engine**:
+    - Created dedicated Reports Generator page (`ReportsGenerator.tsx`) featuring 5 statement templates (*Net Worth, Holdings Ledger, Tax Audit, Protection Audit, Estate Digest*), format selectors (`PDF`, `CSV`, `JSON`), and governance options.
+    - Created executive binary PDF generator (`pdfGenerator.ts`) using `jsPDF` for 100% Adobe Acrobat-compliant PDF files with deep indigo headers, metric cards, styled data tables, and governance badges.
+    - Fixed 404 route error and PDF corruption issue when exporting statements.
+11. **Build & Test Status**:
+    - Backend TypeScript build: **PASSED (0 ERRORS)**
+    - Frontend Vite production build: **PASSED (0 ERRORS)**
+    - Adobe Acrobat PDF Reader verification: **PASSED (100% VERIFIED)**
 
 ---
 

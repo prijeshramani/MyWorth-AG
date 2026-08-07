@@ -21,43 +21,50 @@ import {
   Target,
   Sparkles,
   Award,
-  Bot
+  Bot,
+  ChevronRight
 } from 'lucide-react';
 
-interface NavItem {
+export interface NavItem {
   id: string;
   label: string;
   icon: React.ReactNode;
   badge?: string;
+  category?: string;
 }
 
 export const navItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { id: 'family', label: 'Family & Members', icon: <Users className="w-4 h-4" /> },
-  { id: 'graph', label: 'Knowledge Graph', icon: <GitFork className="w-4 h-4 text-sky-400" /> },
-  { id: 'portfolio', label: 'Portfolio Tree', icon: <PieChart className="w-4 h-4" /> },
-  { id: 'holdings', label: 'Holdings', icon: <Table className="w-4 h-4" /> },
-  { id: 'transactions', label: 'Transactions', icon: <TrendingUp className="w-4 h-4" /> },
-  { id: 'accounts', label: 'Bank & Demat Accounts', icon: <Landmark className="w-4 h-4" /> },
-  { id: 'protection', label: 'Protection & Insurance', icon: <ShieldAlert className="w-4 h-4" /> },
-  { id: 'tax', label: 'Tax Intelligence', icon: <Calculator className="w-4 h-4" /> },
-  { id: 'planning', label: 'Financial Planning & Goals', icon: <Target className="w-4 h-4 text-sky-400" /> },
-  { id: 'recommendations', label: 'AI Insights & Recommendations', icon: <Sparkles className="w-4 h-4 text-amber-400" /> },
-  { id: 'ai-advisor', label: 'AI Wealth Advisor', icon: <Bot className="w-4 h-4 text-indigo-400" />, badge: 'Core' },
-  { id: 'ai-action-center', label: 'AI Action Center', icon: <Sparkles className="w-4 h-4 text-amber-400" />, badge: 'Actions' },
-  { id: 'what-if-simulator', label: 'What-If Simulator', icon: <Target className="w-4 h-4 text-sky-400" />, badge: 'Sim' },
-  { id: 'ai-context', label: 'AI Readiness & Context', icon: <Bot className="w-4 h-4 text-purple-400" /> },
-  { id: 'production-readiness', label: 'Production Readiness', icon: <Award className="w-4 h-4 text-emerald-400" />, badge: 'Score' },
-  { id: 'developer-diagnostics', label: 'Developer Diagnostics', icon: <Terminal className="w-4 h-4 text-indigo-400" />, badge: 'Dev' },
-  { id: 'documents', label: 'Document Vault', icon: <FileText className="w-4 h-4" /> },
-  { id: 'import', label: 'Import Center', icon: <FileUp className="w-4 h-4" /> },
-  { id: 'data-manager', label: 'Data Manager', icon: <CheckCircle2 className="w-4 h-4" /> },
-  { id: 'data-quality', label: 'Data Quality Center', icon: <CheckCircle2 className="w-4 h-4 text-amber-400" /> },
-  { id: 'reconciliation', label: 'Reconciliation Dashboard', icon: <GitCompare className="w-4 h-4 text-sky-400" /> },
-  { id: 'estate', label: 'Estate & Succession', icon: <Scroll className="w-4 h-4 text-amber-400" /> },
-  { id: 'reports', label: 'Reports Generator', icon: <FileSpreadsheet className="w-4 h-4" /> },
-  { id: 'settings', label: 'Platform Settings', icon: <Settings className="w-4 h-4" /> },
-  { id: 'developer', label: 'Developer Mode', icon: <Terminal className="w-4 h-4" /> }
+  // Core & AI
+  { id: 'dashboard', label: 'AI Mission Control', icon: <LayoutDashboard className="w-4 h-4 text-[#4F7FFF]" />, category: 'Core' },
+  { id: 'ai-advisor', label: 'AI Wealth Advisor', icon: <Bot className="w-4 h-4 text-[#8B5CF6]" />, badge: 'Core', category: 'Core' },
+  { id: 'recommendations', label: 'AI Recommendations', icon: <Sparkles className="w-4 h-4 text-[#F79009]" />, category: 'Core' },
+  { id: 'ai-action-center', label: 'AI Action Center', icon: <Sparkles className="w-4 h-4 text-[#4F7FFF]" />, badge: 'Actions', category: 'Core' },
+
+  // Wealth & Assets
+  { id: 'portfolio', label: 'Portfolio Overview', icon: <PieChart className="w-4 h-4 text-[#32D583]" />, category: 'Wealth' },
+  { id: 'holdings', label: 'Asset Holdings', icon: <Table className="w-4 h-4 text-[#38BDF8]" />, category: 'Wealth' },
+  { id: 'transactions', label: 'Cashflow & Activity', icon: <TrendingUp className="w-4 h-4 text-[#32D583]" />, category: 'Wealth' },
+  { id: 'accounts', label: 'Bank & Demat Accounts', icon: <Landmark className="w-4 h-4 text-[#F79009]" />, category: 'Wealth' },
+
+  // Intelligence & Planning
+  { id: 'tax', label: 'Tax Intelligence', icon: <Calculator className="w-4 h-4 text-[#38BDF8]" />, category: 'Planning' },
+  { id: 'planning', label: 'Financial Goals', icon: <Target className="w-4 h-4 text-[#4F7FFF]" />, category: 'Planning' },
+  { id: 'protection', label: 'Protection & Insurance', icon: <ShieldAlert className="w-4 h-4 text-[#F04438]" />, category: 'Planning' },
+  { id: 'estate', label: 'Estate & Succession', icon: <Scroll className="w-4 h-4 text-[#F79009]" />, category: 'Planning' },
+  { id: 'what-if-simulator', label: 'What-If Simulator', icon: <Target className="w-4 h-4 text-[#8B5CF6]" />, badge: 'Sim', category: 'Planning' },
+
+  // Entity & Governance
+  { id: 'family', label: 'Family Members', icon: <Users className="w-4 h-4 text-[#E879F9]" />, category: 'Entities' },
+  { id: 'graph', label: 'Knowledge Graph', icon: <GitFork className="w-4 h-4 text-[#38BDF8]" />, category: 'Entities' },
+
+  // Platform & Operations
+  { id: 'documents', label: 'Document Vault', icon: <FileText className="w-4 h-4 text-[#9CA3AF]" />, category: 'System' },
+  { id: 'import', label: 'Import Center', icon: <FileUp className="w-4 h-4 text-[#9CA3AF]" />, category: 'System' },
+  { id: 'reconciliation', label: 'Reconciliation', icon: <GitCompare className="w-4 h-4 text-[#38BDF8]" />, category: 'System' },
+  { id: 'reports', label: 'Reports Generator', icon: <FileSpreadsheet className="w-4 h-4 text-[#9CA3AF]" />, category: 'System' },
+  { id: 'production-readiness', label: 'Production Readiness', icon: <Award className="w-4 h-4 text-[#32D583]" />, badge: 'Score', category: 'System' },
+  { id: 'developer-diagnostics', label: 'Developer Diagnostics', icon: <Terminal className="w-4 h-4 text-[#8B5CF6]" />, badge: 'Dev', category: 'System' },
+  { id: 'settings', label: 'Platform Settings', icon: <Settings className="w-4 h-4 text-[#9CA3AF]" />, category: 'System' },
 ];
 
 export const NavigationDrawer: React.FC = () => {
@@ -65,46 +72,63 @@ export const NavigationDrawer: React.FC = () => {
 
   if (!isDrawerOpen) return null;
 
+  const categories = ['Core', 'Wealth', 'Planning', 'Entities', 'System'];
+
   return (
-    <aside className="w-64 bg-[#0e1526]/80 border-r border-slate-800/80 p-4 flex flex-col justify-between hidden md:flex min-h-[calc(100vh-4rem)] overflow-y-auto">
-      <nav className="space-y-1">
-        <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-          Platform Navigation
-        </div>
-        {navItems.map((item) => {
-          const isActive = activeTab === item.id;
+    <aside className="w-64 bg-[#15161A] border-r border-[#2B2E35] p-3 flex flex-col justify-between hidden md:flex min-h-[calc(100vh-4rem)] overflow-y-auto select-none">
+      <nav className="space-y-4">
+        {categories.map((cat) => {
+          const catItems = navItems.filter((item) => item.category === cat);
+          if (catItems.length === 0) return null;
+
           return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                isActive
-                  ? 'bg-sky-600/20 text-sky-400 border border-sky-500/30 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                {item.icon}
-                <span>{item.label}</span>
+            <div key={cat} className="space-y-1">
+              <div className="px-3 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
+                {cat}
               </div>
-              {item.badge && (
-                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-amber-400 border border-amber-500/20 font-semibold">
-                  {item.badge}
-                </span>
-              )}
-            </button>
+              {catItems.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                      isActive
+                        ? 'bg-[#4F7FFF]/15 text-[#4F7FFF] border border-[#4F7FFF]/30 shadow-sm font-semibold'
+                        : 'text-[#9CA3AF] hover:text-[#F3F4F6] hover:bg-[#1E2025]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {item.icon}
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {item.badge && (
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-[#1E2025] text-[#F79009] border border-[#F79009]/30 font-semibold">
+                          {item.badge}
+                        </span>
+                      )}
+                      {isActive && <ChevronRight className="w-3 h-3 text-[#4F7FFF]" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           );
         })}
       </nav>
 
-      <div className="pt-4 border-t border-slate-800/80 text-[10px] text-slate-500 font-mono flex flex-col gap-1">
-        <div className="flex justify-between">
-          <span>Version:</span>
-          <span className="text-slate-300">v1.0.0 (Phase 6UX)</span>
+      <div className="pt-3 border-t border-[#2B2E35] text-[10px] text-[#6B7280] font-mono flex flex-col gap-1">
+        <div className="flex justify-between items-center">
+          <span>OS Version:</span>
+          <span className="text-[#F3F4F6] font-semibold">v7D.0 (Modernized)</span>
         </div>
-        <div className="flex justify-between">
-          <span>Build:</span>
-          <span className="text-emerald-400">PRODUCTION READY</span>
+        <div className="flex justify-between items-center">
+          <span>Engine Status:</span>
+          <span className="text-[#32D583] font-semibold flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#32D583] animate-ping" />
+            OPERATIONAL
+          </span>
         </div>
       </div>
     </aside>

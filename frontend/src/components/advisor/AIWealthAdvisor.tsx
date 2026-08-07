@@ -19,25 +19,32 @@ import {
   DollarSign,
   Shield,
   Target,
-  Award
+  Award,
+  ArrowRight,
+  Zap
 } from 'lucide-react';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
+import { PageShell } from '../layout/PageShell';
+
 const FormattedMarkdown: React.FC<{ content: string }> = ({ content }) => {
   const lines = (content || '').split('\n');
   return (
-    <div className="space-y-2 text-xs leading-relaxed text-slate-200">
+    <div className="space-y-2 text-xs leading-relaxed text-[#F3F4F6]">
       {lines.map((line, i) => {
         const trimmed = line.trim();
         if (!trimmed) return <div key={i} className="h-1" />;
 
         if (trimmed.startsWith('### ')) {
-          return <h3 key={i} className="text-sm font-bold text-white tracking-tight pt-1">{trimmed.replace(/^###\s+/, '')}</h3>;
+          return <h3 key={i} className="text-sm font-bold text-[#F3F4F6] tracking-tight pt-1">{trimmed.replace(/^###\s+/, '')}</h3>;
         }
         if (trimmed.startsWith('#### ')) {
-          return <h4 key={i} className="text-xs font-bold text-indigo-300 pt-1 uppercase tracking-wider">{trimmed.replace(/^####\s+/, '')}</h4>;
+          return <h4 key={i} className="text-xs font-bold text-[#4F7FFF] pt-1 uppercase tracking-wider">{trimmed.replace(/^####\s+/, '')}</h4>;
         }
         if (trimmed.startsWith('> ')) {
           return (
-            <div key={i} className="p-2.5 bg-slate-950/80 border-l-2 border-indigo-500 text-[11px] text-slate-300 rounded-r-lg italic">
+            <div key={i} className="p-2.5 bg-[#15161A] border-l-2 border-[#4F7FFF] text-[11px] text-[#9CA3AF] rounded-r-xl italic">
               {trimmed.replace(/^>\s+/, '')}
             </div>
           );
@@ -46,10 +53,10 @@ const FormattedMarkdown: React.FC<{ content: string }> = ({ content }) => {
           const parts = trimmed.replace(/^- /, '').split(/(\*\*.*?\*\*)/g);
           return (
             <div key={i} className="flex items-start gap-2 pl-2">
-              <span className="text-indigo-400 mt-1">•</span>
-              <span className="text-slate-300">
+              <span className="text-[#4F7FFF] mt-1">•</span>
+              <span className="text-[#9CA3AF]">
                 {parts.map((p, idx) => p.startsWith('**') && p.endsWith('**') ? (
-                  <strong key={idx} className="text-white font-semibold">{p.slice(2, -2)}</strong>
+                  <strong key={idx} className="text-[#F3F4F6] font-semibold">{p.slice(2, -2)}</strong>
                 ) : p)}
               </span>
             </div>
@@ -61,10 +68,10 @@ const FormattedMarkdown: React.FC<{ content: string }> = ({ content }) => {
           <p key={i}>
             {parts.map((p, idx) => {
               if (p.startsWith('**') && p.endsWith('**')) {
-                return <strong key={idx} className="text-white font-bold">{p.slice(2, -2)}</strong>;
+                return <strong key={idx} className="text-[#F3F4F6] font-bold">{p.slice(2, -2)}</strong>;
               }
               if (p.startsWith('*') && p.endsWith('*')) {
-                return <em key={idx} className="text-slate-400 italic">{p.slice(1, -1)}</em>;
+                return <em key={idx} className="text-[#9CA3AF] italic">{p.slice(1, -1)}</em>;
               }
               return p;
             })}
@@ -291,75 +298,55 @@ export const AIWealthAdvisor: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
-      {/* Top Header Banner */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 backdrop-blur-xl relative overflow-hidden">
-        <div className="absolute -right-12 -top-12 w-56 h-56 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Bot className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white tracking-tight">AI Wealth Advisor Core</h1>
-                <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold rounded-md">
-                  v1.8.0 Orchestration Engine
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Evidence-Backed • Zero-Calculation Guardrails • Permission-Aware Multi-Skill Intelligence
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={handleExportConversation}
-              className="px-3.5 py-2 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 flex items-center gap-1.5 transition-all"
-              title="Export conversation history to Markdown"
-            >
-              <Download className="w-3.5 h-3.5 text-indigo-400" />
-              Export Session (.md)
-            </button>
-          </div>
-        </div>
-
-        {/* Skill Badges Bar */}
-        <div className="mt-5 pt-4 border-t border-slate-800/60 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1 flex-shrink-0 mr-1">
-            <BrainCircuit className="w-3.5 h-3.5 text-indigo-400" />
-            Skill Registry ({skills.length}):
-          </span>
-          {skills.map(s => (
-            <button
-              key={s.id}
-              onClick={() => {
-                setSelectedSkillFilter(selectedSkillFilter === s.id ? null : s.id);
-                handleSendQuery(`Tell me about my ${s.name} status`);
-              }}
-              className={`px-3 py-1 text-[11px] font-semibold rounded-full border transition-all flex items-center gap-1 flex-shrink-0 ${
-                selectedSkillFilter === s.id
-                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                  : 'bg-slate-800/40 text-slate-300 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600'
-              }`}
-            >
-              <Sparkles className="w-3 h-3 text-indigo-400" />
-              {s.name}
-            </button>
-          ))}
-        </div>
-      </div>
+    <PageShell
+      title="AI Wealth Advisor Core"
+      subtitle="Permission-aware, evidence-backed multi-skill wealth orchestration engine."
+      badge={<Badge variant="primary" icon={<Bot className="w-3.5 h-3.5" />}>Apple Intelligence Style</Badge>}
+      actions={
+        <Button
+          variant="secondary"
+          size="sm"
+          leftIcon={<Download className="w-3.5 h-3.5 text-[#4F7FFF]" />}
+          onClick={handleExportConversation}
+        >
+          Export Session (.md)
+        </Button>
+      }
+    >
+      {/* Skill Bar */}
+      <Card variant="glass" padding="sm" className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+        <span className="text-xs font-bold text-[#9CA3AF] flex items-center gap-1.5 flex-shrink-0 mr-1">
+          <BrainCircuit className="w-4 h-4 text-[#4F7FFF]" />
+          Skills ({skills.length}):
+        </span>
+        {skills.map(s => (
+          <button
+            key={s.id}
+            onClick={() => {
+              setSelectedSkillFilter(selectedSkillFilter === s.id ? null : s.id);
+              handleSendQuery(`Tell me about my ${s.name} status`);
+            }}
+            className={`px-3 py-1 text-xs font-semibold rounded-full border transition-all flex items-center gap-1 flex-shrink-0 ${
+              selectedSkillFilter === s.id
+                ? 'bg-[#4F7FFF] text-white border-[#4F7FFF] shadow-md shadow-[#4F7FFF]/20'
+                : 'bg-[#15161A] text-[#9CA3AF] border-[#2B2E35] hover:text-[#F3F4F6] hover:bg-[#1E2025]'
+            }`}
+          >
+            <Sparkles className="w-3 h-3 text-[#4F7FFF]" />
+            {s.name}
+          </button>
+        ))}
+      </Card>
 
       {actionSuccessMsg && (
-        <div className="p-4 bg-emerald-950/20 border border-emerald-800/40 rounded-2xl flex items-center gap-3 text-emerald-300 text-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+        <div className="p-4 bg-[#32D583]/15 border border-[#32D583]/30 rounded-2xl flex items-center gap-3 text-[#32D583] text-xs">
+          <CheckCircle2 className="w-4 h-4 text-[#32D583] flex-shrink-0" />
           <span>{actionSuccessMsg}</span>
         </div>
       )}
 
       {/* Main Chat Conversation Container */}
-      <div className="bg-slate-950/40 border border-slate-900 rounded-3xl p-6 min-h-[480px] flex flex-col justify-between shadow-2xl backdrop-blur-xl">
+      <Card variant="default" className="min-h-[500px] flex flex-col justify-between shadow-2xl">
         <div className="space-y-6 overflow-y-auto max-h-[580px] pr-2">
           {messages.map(msg => (
             <div
@@ -367,123 +354,98 @@ export const AIWealthAdvisor: React.FC = () => {
               className={`flex gap-3.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.sender === 'advisor' && (
-                <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 mt-1 shadow-md shadow-indigo-600/20">
-                  <Bot className="w-5 h-5 text-white" />
+                <div className="w-9 h-9 bg-[#4F7FFF]/20 border border-[#4F7FFF]/40 rounded-xl flex items-center justify-center flex-shrink-0 mt-1 shadow-md shadow-[#4F7FFF]/10">
+                  <Bot className="w-5 h-5 text-[#4F7FFF]" />
                 </div>
               )}
 
               <div className={`max-w-3xl space-y-3 ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                 {/* User Message Bubble */}
                 {msg.sender === 'user' ? (
-                  <div className="bg-indigo-600 text-white px-5 py-3.5 rounded-2xl rounded-tr-none text-xs font-medium shadow-md shadow-indigo-600/20">
+                  <div className="bg-[#4F7FFF] text-white px-5 py-3.5 rounded-2xl rounded-tr-none text-xs font-medium shadow-lg shadow-[#4F7FFF]/20">
                     {msg.query}
                   </div>
                 ) : (
                   /* Advisor Response Card */
-                  <div className="bg-slate-900/80 border border-slate-800/80 p-5 rounded-2xl rounded-tl-none text-xs space-y-4 shadow-xl">
+                  <div className="bg-[#15161A] border border-[#2B2E35] p-5 rounded-2xl rounded-tl-none text-xs space-y-4 shadow-xl">
                     {/* Matched Skills Header */}
                     {msg.matchedSkills && msg.matchedSkills.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-slate-800/60">
+                      <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-[#2B2E35]">
                         {msg.isMultiSkill && (
-                          <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[10px] font-bold rounded-md flex items-center gap-1">
-                            <Layers className="w-3 h-3 text-purple-400" />
+                          <Badge variant="warning" size="sm" icon={<Layers className="w-3 h-3" />}>
                             Multi-Skill Orchestrated
-                          </span>
+                          </Badge>
                         )}
                         {msg.matchedSkills.map(s => (
-                          <span key={s.id} className="px-2.5 py-0.5 bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-[10px] font-bold rounded-md flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 text-indigo-400" />
+                          <Badge key={s.id} variant="primary" size="sm" icon={<Sparkles className="w-3 h-3" />}>
                             {s.name}
-                          </span>
+                          </Badge>
                         ))}
                       </div>
                     )}
 
-                    {/* Advice Markdown Content */}
-                    <div className="prose prose-invert max-w-none text-slate-200 text-xs leading-relaxed space-y-2">
-                      <FormattedMarkdown content={msg.markdown || ''} />
-                    </div>
+                    <FormattedMarkdown content={msg.markdown || ''} />
 
-                    {/* Cited Evidence Cards */}
+                    {/* Evidence Citations */}
                     {msg.evidenceItems && msg.evidenceItems.length > 0 && (
-                      <div className="pt-3 border-t border-slate-800/60 space-y-2">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                          Verified Evidence Cards ({msg.evidenceItems.length}):
+                      <div className="pt-3 border-t border-[#2B2E35] space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                          Evidence & Data Sources ({msg.evidenceItems.length})
                         </span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {msg.evidenceItems.map(ev => (
-                            <div
+                            <button
                               key={ev.id}
                               onClick={() => setShowEvidenceModal(ev)}
-                              className="p-3 bg-slate-950/60 border border-slate-800/80 hover:border-indigo-500/40 rounded-xl cursor-pointer transition-all space-y-1 group"
+                              className="p-2.5 rounded-xl bg-[#1E2025] hover:bg-[#252830] border border-[#2B2E35] text-left transition flex items-center justify-between group"
                             >
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-slate-300 group-hover:text-indigo-300 text-xs truncate">
-                                  {ev.title}
-                                </span>
-                                <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-mono font-bold rounded">
-                                  {(ev.confidence * 100).toFixed(0)}% Match
-                                </span>
+                              <div>
+                                <h5 className="font-semibold text-[#F3F4F6] text-xs group-hover:text-[#4F7FFF] transition">{ev.title}</h5>
+                                <span className="text-[10px] text-[#9CA3AF]">{ev.sourceEngine} • {(ev.confidence * 100).toFixed(0)}% Conf</span>
                               </div>
-                              <p className="text-[10px] text-slate-400 line-clamp-1">{ev.summary}</p>
-                              <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono pt-1">
-                                <span>Engine: {ev.sourceEngine}</span>
-                                <span className="text-indigo-400 group-hover:underline">View Metadata →</span>
-                              </div>
-                            </div>
+                              <Info className="w-3.5 h-3.5 text-[#9CA3AF] group-hover:text-[#4F7FFF] transition" />
+                            </button>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {/* Action Execution Items */}
+                    {/* Action Items */}
                     {msg.actionItems && msg.actionItems.length > 0 && (
-                      <div className="pt-3 border-t border-slate-800/60 space-y-2">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                          Suggested Action Items:
+                      <div className="pt-3 border-t border-[#2B2E35] space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#F79009]">
+                          Suggested Actions ({msg.actionItems.length})
                         </span>
-                        <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
                           {msg.actionItems.map(act => (
-                            <div key={act.id} className="p-3 bg-indigo-950/20 border border-indigo-900/40 rounded-xl flex items-center justify-between gap-3">
-                              <div className="space-y-0.5">
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${act.type === 'EXECUTE' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-indigo-500/20 text-indigo-300'}`}>
-                                    {act.type}
-                                  </span>
-                                  <span className="font-bold text-slate-200">{act.title}</span>
-                                </div>
-                                <p className="text-[10px] text-slate-400">{act.description}</p>
-                              </div>
-                              <button
-                                onClick={() => handleExecuteAction(act)}
-                                disabled={executingAction}
-                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-[11px] flex-shrink-0 transition-all shadow-md shadow-indigo-600/20 disabled:opacity-50"
-                              >
-                                {act.requiresConfirmation ? 'Confirm & Trigger' : 'View Action'}
-                              </button>
-                            </div>
+                            <Button
+                              key={act.id}
+                              variant={act.type === 'EXECUTE' ? 'primary' : 'secondary'}
+                              size="sm"
+                              rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                              onClick={() => handleExecuteAction(act)}
+                            >
+                              {act.title}
+                            </Button>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {/* Interactive Follow-Up Prompt Chips */}
+                    {/* Follow up Prompts */}
                     {msg.followUpSuggestions && msg.followUpSuggestions.length > 0 && (
-                      <div className="pt-3 border-t border-slate-800/60 space-y-2">
-                        <span className="text-[10px] font-semibold text-slate-500 flex items-center gap-1">
-                          <HelpCircle className="w-3 h-3 text-indigo-400" />
-                          Recommended Follow-Up Actions:
+                      <div className="pt-3 border-t border-[#2B2E35] space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF]">
+                          Suggested Next Queries
                         </span>
                         <div className="flex flex-wrap gap-2">
                           {msg.followUpSuggestions.map((sug, idx) => (
                             <button
                               key={idx}
                               onClick={() => handleSendQuery(sug)}
-                              className="px-3 py-1.5 bg-slate-950 border border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-950/30 text-indigo-300 text-[11px] font-medium rounded-xl transition-all flex items-center gap-1.5 group"
+                              className="px-3 py-1.5 rounded-xl bg-[#1E2025] hover:bg-[#252830] text-[#4F7FFF] border border-[#4F7FFF]/30 text-xs font-medium transition text-left"
                             >
-                              <span>{sug}</span>
-                              <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-indigo-400 transition-all" />
+                              {sug}
                             </button>
                           ))}
                         </div>
@@ -491,148 +453,50 @@ export const AIWealthAdvisor: React.FC = () => {
                     )}
                   </div>
                 )}
-                <div className="text-[10px] text-slate-500 font-mono px-1">
-                  {msg.timestamp}
-                </div>
               </div>
-
-              {msg.sender === 'user' && (
-                <div className="w-9 h-9 bg-slate-800 border border-slate-700 rounded-xl flex items-center justify-center flex-shrink-0 mt-1">
-                  <span className="font-bold text-xs text-indigo-300">YOU</span>
-                </div>
-              )}
             </div>
           ))}
 
           {loading && (
-            <div className="flex gap-3.5 items-start">
-              <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-indigo-600/20">
-                <Bot className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-3 text-xs text-[#9CA3AF]">
+              <div className="w-9 h-9 bg-[#4F7FFF]/20 border border-[#4F7FFF]/40 rounded-xl flex items-center justify-center animate-pulse">
+                <Bot className="w-5 h-5 text-[#4F7FFF]" />
               </div>
-              <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl rounded-tl-none text-xs text-slate-400 flex items-center gap-3">
-                <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
-                <span>Orchestrating AI Skills & Aggregating Context Evidence...</span>
-              </div>
+              <span className="animate-pulse font-medium">Computing deterministic advice from rule engines...</span>
             </div>
           )}
           <div ref={chatBottomRef} />
         </div>
 
-        {/* Input Query Bar */}
-        <div className="mt-6 pt-4 border-t border-slate-800/80">
+        {/* Floating Query Input */}
+        <div className="pt-4 border-t border-[#2B2E35] mt-4">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSendQuery();
             }}
-            className="flex gap-3"
+            className="flex items-center gap-3 bg-[#15161A] border border-[#2B2E35] focus-within:border-[#4F7FFF] p-2 rounded-2xl transition-all shadow-inner"
           >
             <input
               type="text"
-              placeholder="Ask anything about your portfolio, taxes, retirement, goals, estate, or recommendations..."
               value={queryInput}
               onChange={(e) => setQueryInput(e.target.value)}
-              className="flex-1 bg-slate-900/90 text-slate-200 border border-slate-800 focus:border-indigo-500/60 rounded-2xl px-5 py-3.5 text-xs outline-none font-medium placeholder:text-slate-500 transition-all shadow-inner"
+              placeholder="Ask anything about tax, portfolio, estate, or financial goals..."
+              className="flex-1 bg-transparent px-3 py-2 text-xs sm:text-sm text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none"
             />
-            <button
+            <Button
               type="submit"
-              disabled={loading || !queryInput.trim()}
-              className="px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-xs shadow-lg shadow-indigo-600/20 disabled:opacity-50 flex items-center justify-center gap-2 transition-all flex-shrink-0"
+              variant="primary"
+              size="sm"
+              isLoading={loading}
+              disabled={!queryInput.trim() || loading}
+              leftIcon={<Send className="w-3.5 h-3.5" />}
             >
-              <span>Ask Advisor</span>
-              <Send className="w-3.5 h-3.5" />
-            </button>
+              Ask Advisor
+            </Button>
           </form>
         </div>
-      </div>
-
-      {/* Evidence Inspection Modal */}
-      {showEvidenceModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <h4 className="font-bold text-slate-200 text-sm">{showEvidenceModal.title}</h4>
-              </div>
-              <button
-                onClick={() => setShowEvidenceModal(null)}
-                className="text-slate-400 hover:text-white font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
-                <span className="text-slate-400 font-semibold block">Summary</span>
-                <p className="text-slate-200 font-medium">{showEvidenceModal.summary}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div className="p-2.5 bg-slate-950/40 border border-slate-800/60 rounded-lg">
-                  <span className="text-slate-500 block">Confidence Score</span>
-                  <span className="font-bold text-emerald-400">{(showEvidenceModal.confidence * 100).toFixed(0)}%</span>
-                </div>
-                <div className="p-2.5 bg-slate-950/40 border border-slate-800/60 rounded-lg">
-                  <span className="text-slate-500 block">Data Freshness</span>
-                  <span className="font-bold text-indigo-300">{showEvidenceModal.freshness}</span>
-                </div>
-                <div className="p-2.5 bg-slate-950/40 border border-slate-800/60 rounded-lg">
-                  <span className="text-slate-500 block">Source Engine</span>
-                  <span className="font-bold text-slate-300">{showEvidenceModal.sourceEngine}</span>
-                </div>
-                <div className="p-2.5 bg-slate-950/40 border border-slate-800/60 rounded-lg">
-                  <span className="text-slate-500 block">Calculation Version</span>
-                  <span className="font-bold text-slate-300">{showEvidenceModal.calculationVersion}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-2 flex justify-end">
-              <button
-                onClick={() => setShowEvidenceModal(null)}
-                className="px-5 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-500 transition-all"
-              >
-                Close Metadata
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation Modal for EXECUTE Actions */}
-      {confirmActionModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-amber-500/40 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center gap-3 text-amber-400">
-              <AlertTriangle className="w-6 h-6 flex-shrink-0" />
-              <h4 className="font-bold text-slate-100 text-base">User Confirmation Required</h4>
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed">
-              You are about to execute action: <strong className="text-white">{confirmActionModal.title}</strong>.
-              <br /><br />
-              {confirmActionModal.description}
-            </p>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={() => setConfirmActionModal(null)}
-                className="flex-1 py-2.5 border border-slate-700 text-slate-400 hover:text-white rounded-xl text-xs font-bold transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleExecuteAction(confirmActionModal)}
-                className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-amber-600/20 transition-all"
-              >
-                Confirm & Execute
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </Card>
+    </PageShell>
   );
 };

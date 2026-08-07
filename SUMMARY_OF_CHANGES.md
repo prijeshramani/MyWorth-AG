@@ -79,7 +79,39 @@ This document summarizes all systemic fixes, schema migrations, backend service 
 
 ---
 
-## 4. Verification & Testing Summary
+## 5. Recent Systemic Upgrades (Theme Engine, Insurance, Reports & PDF Engine)
+
+### A. Seamless Light & Dark Theme Engine
+- **Files**: [TopNavbar.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/layout/TopNavbar.tsx), [ThemeProvider.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/layout/ThemeProvider.tsx), [index.css](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/index.css)
+- Added Sun/Moon Theme Toggle Switch with `localStorage` persistence (`theme: 'light' | 'dark'`).
+- Created universal CSS glassmorphism tokens (`.card-glass`, `.glass-card-base`) for crisp, high-contrast layouts in both themes.
+- Fixed 5 Light Theme contrast issues: AI Action Center success message banner, Portfolio Cost Basis badge, Cashflow PDF badge, Protection Active status & sum assured text, and Production Readiness Score Card.
+
+### B. Insurance Policy Registration & Governance System
+- **File**: [ProtectionDashboard.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/protection/ProtectionDashboard.tsx)
+- Added Policy Registration Modal for Health, Term Life, LIC, ULIP, Endowment, and Critical Illness policies.
+- Added Policy Category Filter Tabs (`All Policies`, `Term Life`, `Health`, `LIC & Savings`) and Table/Grid view switcher.
+- Mounted `/api/v1/insurance/policies` and `/api/v1/policies` endpoints.
+
+### C. Portfolio Analytics Workspace Overhaul
+- **File**: [Portfolio.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/Portfolio.tsx)
+- Added Family Member Scope Filter chip bar (`All Members`, `Rajesh Sharma`, `Priya Sharma`).
+- Added side-by-side Invested Amount (Cost Basis) vs Current Market Valuation metrics across asset classes.
+
+### D. Idempotent AI Recommendations Engine
+- **File**: [SQLiteRecommendationRepository.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/repositories/SQLiteRecommendationRepository.ts)
+- Enforced idempotent recommendation generation by updating existing active recommendations in place and purging duplicate active records upon refresh.
+
+### E. Reports Generator & Executive PDF Engine
+- **Files**: [ReportsGenerator.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/reports/ReportsGenerator.tsx), [pdfGenerator.ts](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/utils/pdfGenerator.ts), [reportingService.ts](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/services/reportingService.ts)
+- Created dedicated Reports Generator page featuring a catalog of 5 statement templates (*Net Worth, Holdings Ledger, Tax Audit, Protection Audit, Estate Digest*), format selectors (`PDF`, `CSV`, `JSON`), and governance options.
+- Built an executive-grade binary PDF generator using `jsPDF` for 100% Adobe Acrobat-compliant PDF files with deep indigo headers, metric cards, styled data tables, and governance badges.
+- Fixed 404 route error and PDF corruption issue when exporting statements.
+
+---
+
+## 6. Verification & Testing Summary
 1. **Database Reset**: `npm run db:reset` ran successfully, applying all 11 database migrations (`001` - `011`).
 2. **Build Validation**: Root `npm run build` completed with **0 errors** (tsc backend build succeeded & Vite frontend bundle created).
 3. **Backend Unit Test Suite**: `npm test` in `backend` completed with **214 passing test assertions** across all 29 test sections.
+

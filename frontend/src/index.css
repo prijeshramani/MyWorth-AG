@@ -1,39 +1,76 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root, html.dark {
   /* Background & Surfaces */
-  --bg-dark-base: #0b0f19;
-  --bg-dark-surface: #141c2e;
-  --bg-dark-glass: rgba(20, 28, 46, 0.7);
-  --border-dark-subtle: rgba(255, 255, 255, 0.08);
+  --bg-dark-base: #0B0B0C;
+  --bg-dark-secondary: #15161A;
+  --bg-dark-surface: #1E2025;
+  --bg-dark-hover: #252830;
+  --bg-dark-glass: rgba(30, 32, 37, 0.75);
+  --border-dark-subtle: #2B2E35;
 
   /* Primary Brand & Accents */
-  --brand-primary: #0284c7;
-  --brand-accent: #8b5cf6;
+  --brand-primary: #4F7FFF;
+  --brand-primary-hover: #3B6EEF;
+  --brand-primary-glow: rgba(79, 127, 255, 0.25);
+  --brand-accent: #8B5CF6;
 
   /* Financial Status Colors */
-  --color-gain: #10b981;
-  --color-loss: #f43f5e;
-  --color-warning: #f59e0b;
-  --color-info: #3b82f6;
+  --color-gain: #32D583;
+  --color-loss: #F04438;
+  --color-warning: #F79009;
+  --color-info: #38BDF8;
 
   /* Typography Colors */
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
+  --text-primary: #F3F4F6;
+  --text-secondary: #9CA3AF;
+  --text-tertiary: #6B7280;
+}
+
+html.light {
+  /* Background & Surfaces */
+  --bg-dark-base: #F8FAFC;
+  --bg-dark-secondary: #FFFFFF;
+  --bg-dark-surface: #FFFFFF;
+  --bg-dark-hover: #F1F5F9;
+  --bg-dark-glass: rgba(255, 255, 255, 0.95);
+  --border-dark-subtle: #E2E8F0;
+
+  /* Primary Brand & Accents */
+  --brand-primary: #2563EB;
+  --brand-primary-hover: #1D4ED8;
+  --brand-primary-glow: rgba(37, 99, 235, 0.15);
+  --brand-accent: #7C3AED;
+
+  /* Financial Status Colors */
+  --color-gain: #10B981;
+  --color-loss: #EF4444;
+  --color-warning: #F59E0B;
+  --color-info: #0284C7;
+
+  /* Typography Colors */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-tertiary: #64748B;
 }
 
 @layer base {
+  * {
+    border-color: var(--border-dark-subtle);
+  }
+
   body {
     background-color: var(--bg-dark-base);
     color: var(--text-primary);
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 
   .font-mono {
@@ -41,28 +78,49 @@
   }
 }
 
-/* Glassmorphic utilities */
+/* Glassmorphism & Modern Card Styling */
 .card-glass {
   background: var(--bg-dark-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-dark-subtle);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  border-radius: 0.75rem;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.2);
+  border-radius: 1rem;
+}
+
+html.light .card-glass {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05) !important;
 }
 
 .card-glass-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .card-glass-hover:hover {
-  background: rgba(26, 34, 56, 0.85);
-  border-color: rgba(2, 132, 199, 0.4);
-  box-shadow: 0 10px 40px 0 rgba(2, 132, 199, 0.15);
+  background: var(--bg-dark-hover);
+  border-color: var(--brand-primary);
+  box-shadow: 0 8px 30px 0 var(--brand-primary-glow);
   transform: translateY(-2px);
 }
 
-/* Custom Scrollbars */
+html.light .card-glass-hover:hover {
+  background: #F8FAFC !important;
+  border-color: #2563EB !important;
+  box-shadow: 0 8px 30px 0 rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Glow effects */
+.glow-accent {
+  box-shadow: 0 0 25px 0 var(--brand-primary-glow);
+}
+
+.glow-success {
+  box-shadow: 0 0 25px 0 rgba(50, 213, 131, 0.2);
+}
+
+/* Custom Sleek Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -73,20 +131,129 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 4px;
+  background: var(--border-dark-subtle);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--brand-primary);
 }
 
-/* Animations */
-@keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+/* Pulse & Stream Animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px var(--brand-primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 30px var(--brand-primary-glow);
+  }
 }
 
-.pulse-soft {
-  animation: pulse-soft 2s infinite ease-in-out;
+.animate-pulse-glow {
+  animation: pulse-glow 3s infinite ease-in-out;
+}
+
+/* Comprehensive Universal Light Mode Theme Overrides */
+html.light {
+  color-scheme: light;
+}
+
+/* Background Color Overrides for Light Mode */
+html.light [class*="bg-\[\#0B0B0C\]"],
+html.light [class*="bg-\[\#0b0b0c\]"],
+html.light .bg-black,
+html.light .bg-slate-950,
+html.light [class*="bg-slate-950"] {
+  background-color: #F8FAFC !important;
+}
+
+html.light [class*="bg-\[\#15161A\]"],
+html.light [class*="bg-\[\#15161a\]"],
+html.light [class*="bg-\[\#1E2025\]"],
+html.light [class*="bg-\[\#1e2025\]"],
+html.light .bg-slate-900,
+html.light [class*="bg-slate-900"] {
+  background-color: #FFFFFF !important;
+}
+
+html.light .bg-slate-800,
+html.light [class*="bg-slate-800"],
+html.light [class*="bg-\[\#252830\]"] {
+  background-color: #F1F5F9 !important;
+}
+
+html.light .bg-slate-800\/50,
+html.light .bg-slate-800\/40,
+html.light .bg-slate-800\/20,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/50,
+html.light .bg-slate-900\/30,
+html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/40 {
+  background-color: #F8FAFC !important;
+}
+
+html.light .bg-black\/80,
+html.light [class*="bg-black\/"] {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+}
+
+/* Text Color Overrides for Light Mode */
+html.light .text-slate-100,
+html.light .text-slate-200,
+html.light .text-slate-300,
+html.light .text-white,
+html.light [class*="text-\[\#F3F4F6\]"],
+html.light [class*="text-\[\#f3f4f6\]"] {
+  color: #0F172A !important;
+}
+
+html.light .text-slate-400,
+html.light .text-slate-500,
+html.light [class*="text-\[\#9CA3AF\]"],
+html.light [class*="text-\[\#9ca3af\]"],
+html.light [class*="text-\[\#6B7280\]"],
+html.light [class*="text-\[\#6b7280\]"] {
+  color: #475569 !important;
+}
+
+/* Border Color Overrides for Light Mode */
+html.light .border-slate-800,
+html.light [class*="border-slate-800"],
+html.light .border-slate-900,
+html.light [class*="border-slate-900"],
+html.light .border-slate-700,
+html.light [class*="border-slate-700"],
+html.light [class*="border-\[\#2B2E35\]"],
+html.light [class*="border-\[\#2b2e35\]"] {
+  border-color: #E2E8F0 !important;
+}
+
+html.light .divide-slate-800 > * + *,
+html.light [class*="divide-slate-800"] > * + *,
+html.light [class*="divide-\[\#2B2E35\]"] > * + * {
+  border-color: #F1F5F9 !important;
+}
+
+/* Form Inputs, Selects & Textareas for Light Mode */
+html.light input,
+html.light select,
+html.light textarea {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+/* Table Headers & Rows in Light Mode */
+html.light table th {
+  color: #475569 !important;
+}
+
+html.light table tr:hover {
+  background-color: #F8FAFC !important;
 }

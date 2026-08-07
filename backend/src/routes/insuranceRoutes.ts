@@ -14,3 +14,5 @@ export const insuranceRouter = Router();
 insuranceRouter.get('/protection/summary', insuranceController.getProtectionSummary);
 insuranceRouter.get('/insurance/policies', insuranceController.getPolicies);
 insuranceRouter.get('/policies', insuranceController.getPolicies);
+insuranceRouter.post('/insurance/policies', insuranceController.createPolicy);
+insuranceRouter.post('/policies', insuranceController.createPolicy);

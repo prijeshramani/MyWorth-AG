@@ -125,4 +125,24 @@ export class InsuranceApplicationService {
   public getPoliciesByFamily(familyId: number) {
     return this.insuranceRepo.findByFamilyId(familyId);
   }
+
+  public createPolicy(policyData: any) {
+    return this.insuranceRepo.create({
+      family_id: policyData.familyId || 1,
+      policy_number: policyData.policyNumber,
+      insurer_name: policyData.insurerName,
+      policy_type: policyData.policyType,
+      policy_holder_id: policyData.policyHolderId || 1,
+      sum_assured: Number(policyData.sumAssured || 0),
+      premium_amount: Number(policyData.premiumAmount || 0),
+      premium_frequency: policyData.premiumFrequency || 'ANNUAL',
+      start_date: policyData.startDate || new Date().toISOString().split('T')[0],
+      maturity_date: policyData.maturityDate || undefined,
+      next_premium_due_date: policyData.nextPremiumDueDate || new Date().toISOString().split('T')[0],
+      status: policyData.status || 'ACTIVE',
+      nominee_name: policyData.nomineeName || undefined,
+      nominee_relationship: policyData.nomineeRelationship || undefined,
+      notes: policyData.notes || undefined,
+    });
+  }
 }

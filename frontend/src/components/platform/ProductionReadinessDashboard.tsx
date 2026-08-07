@@ -78,13 +78,13 @@ export const ProductionReadinessDashboard: React.FC = () => {
       {/* Main Score & High Level Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Score Card */}
-        <div className="bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-950/60 border border-emerald-800/40 rounded-3xl p-5 shadow-xl flex flex-col justify-between space-y-3">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Readiness Score</span>
+        <div className="bg-gradient-to-br from-emerald-50 via-white to-teal-50/50 border border-emerald-200 text-slate-900 shadow-md shadow-emerald-500/5 dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-950/60 dark:border-emerald-800/40 rounded-3xl p-5 flex flex-col justify-between space-y-3">
+          <span className="text-xs font-bold text-emerald-900 dark:text-slate-400 uppercase tracking-wider">Readiness Score</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-extrabold text-emerald-400 tracking-tight">{readinessScore}%</span>
-            <span className="text-xs text-slate-500 font-bold">/ 100%</span>
+            <span className="text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight">{readinessScore}%</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">/ 100%</span>
           </div>
-          <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div className="w-full bg-emerald-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
             <div className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full" style={{ width: `${readinessScore}%` }}></div>
           </div>
         </div>

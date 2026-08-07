@@ -46,5 +46,10 @@ export const insuranceService = {
       `/protection/summary?familyId=${familyId}`
     );
     return response.data;
+  },
+
+  async createPolicy(policyData: any): Promise<ApiResponseEnvelope<any>> {
+    const response = await apiClient.post<ApiResponseEnvelope<any>>('/insurance/policies', policyData);
+    return response.data;
   }
 };

@@ -179,8 +179,8 @@ export class AIContextAggregator {
     }
 
     // 4. Gather Knowledge Graph Evidence
-    const nodeCount = (db.prepare('SELECT COUNT(*) as cnt FROM graph_nodes WHERE status = "ACTIVE"').get() as any)?.cnt || 0;
-    const edgeCount = (db.prepare('SELECT COUNT(*) as cnt FROM graph_edges WHERE status = "ACTIVE"').get() as any)?.cnt || 0;
+    const nodeCount = (db.prepare('SELECT COUNT(*) as cnt FROM graph_nodes').get() as any)?.cnt || 0;
+    const edgeCount = (db.prepare("SELECT COUNT(*) as cnt FROM graph_edges WHERE status = 'ACTIVE'").get() as any)?.cnt || 0;
     const unassignedCount = (db.prepare('SELECT COUNT(*) as cnt FROM assets WHERE family_member_id IS NULL').get() as any)?.cnt || 0;
 
     // 5. Construct Structured Evidence Items with Confidence Metrics

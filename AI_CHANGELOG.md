@@ -1,5 +1,27 @@
 # AI Change Log
 
+## [2026-08-07] Theme Engine, Insurance Registration, Portfolio Analytics, Idempotent Recommendations & Executive PDF Engine
+
+### Added
+- [frontend/src/components/layout/TopNavbar.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/layout/TopNavbar.tsx) & [frontend/src/components/layout/ThemeProvider.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/layout/ThemeProvider.tsx): Added Theme Toggle Switch (Sun/Moon icons) with `localStorage` persistence and dynamic `html.dark` class toggle.
+- [frontend/src/index.css](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/index.css): Added universal glassmorphism & light mode CSS rules (`.card-glass`, `.glass-card-base`, `.text-heading`, `.text-body`, `.text-muted`) supporting seamless Theme switching.
+- [frontend/src/components/protection/ProtectionDashboard.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/protection/ProtectionDashboard.tsx): Added Insurance Policy Registration System (Health, Term Life, LIC, ULIP, Endowment, Critical Illness) with Policy Type filters (`All Policies`, `Term Life`, `Health`, `LIC & Savings`) and Table/Grid view switcher.
+- [frontend/src/components/Portfolio.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/Portfolio.tsx): Added Family Member Scope Filter chip bar (`All Members`, `Rajesh Sharma`, `Priya Sharma`) and side-by-side Cost Basis vs Current Valuation breakdown across asset classes.
+- [backend/src/repositories/SQLiteRecommendationRepository.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/repositories/SQLiteRecommendationRepository.ts): Enforced idempotent recommendation generation by updating existing active recommendations in place and purging duplicate active records upon refresh.
+- [frontend/src/components/reports/ReportsGenerator.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/reports/ReportsGenerator.tsx): Created dedicated Reports Generator page featuring a catalog of 5 statement templates (*Net Worth, Holdings Ledger, Tax Audit, Protection Audit, Estate Digest*), format selectors (`PDF`, `CSV`, `JSON`), and governance options.
+- [frontend/src/utils/pdfGenerator.ts](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/utils/pdfGenerator.ts): Created executive-grade binary PDF generator using `jsPDF` for 100% Adobe Acrobat-compliant PDF files with deep indigo headers, metric cards, styled data tables, and governance badges.
+- [backend/src/middleware/validationMiddleware.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/middleware/validationMiddleware.ts) & [backend/src/services/application/ReportingApplicationService.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/services/application/ReportingApplicationService.ts): Expanded allowed report types (`PORTFOLIO_SUMMARY`, `TAX_STATEMENT`, `HOLDINGS_LEDGER`, `PROTECTION_AUDIT`, `ESTATE_STATEMENT`) and defaulted `familyId` to `1`.
+
+### Fixed
+- [frontend/src/components/advisor/AIActionCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/advisor/AIActionCenter.tsx): Resolved unreadable pale teal text on success message banner (`Action "Refresh Live Portfolio Prices" executed successfully!`) in Light mode.
+- [frontend/src/components/ui/Badge.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ui/Badge.tsx): Updated `neutral` (`- Cost Basis`), `success` (`ACTIVE`), `primary`, `warning`, `danger`, and `info` badge variants with Tailwind `dark:` classes for crisp contrast in Light and Dark modes.
+- [frontend/src/components/Transactions.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/Transactions.tsx): Fixed low-contrast `PDF` source badge text in Cashflow & Activity page.
+- [frontend/src/components/platform/ProductionReadinessDashboard.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/platform/ProductionReadinessDashboard.tsx): Transformed Readiness Score Card from an unreadable dark slate box to a crisp light emerald gradient card in Light mode.
+- [frontend/src/components/settings/SettingsView.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/settings/SettingsView.tsx): Fixed dark burgundy background and unreadable text on "Revoke All Sessions" button in Light mode.
+- [frontend/src/services/reportingService.ts](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/services/reportingService.ts): Fixed 404 route error and corrupted PDF file error by integrating direct binary Blob streaming for Adobe Acrobat Reader compatibility.
+
+---
+
 ## [2026-07-29] Knowledge Graph, Route Resolution, Estate Planning Real-Data Hardening & CAMS PDF Parser Overhaul
 
 ### Added

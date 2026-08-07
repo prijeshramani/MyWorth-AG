@@ -102,7 +102,7 @@ export const SettingsView: React.FC = () => {
                 <span className="font-bold text-slate-200 block">Active User Sessions</span>
                 <span className="text-slate-400 text-[11px]">1 Active Refresh Token Session</span>
               </div>
-              <button className="px-3 py-1 bg-rose-900/40 hover:bg-rose-800/60 text-rose-300 rounded font-semibold text-[11px]">
+              <button className="px-3 py-1 bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-300 dark:border-rose-800/50 rounded-lg font-semibold text-[11px] transition-colors">
                 Revoke All Sessions
               </button>
             </div>

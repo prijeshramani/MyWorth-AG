@@ -35,5 +35,6 @@ router.use('/portfolio', portfolioRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reports', reportingRoutes);
 router.use('/insurance', insuranceRouter);
+router.use('/protection', insuranceRouter);
 
 export default router;

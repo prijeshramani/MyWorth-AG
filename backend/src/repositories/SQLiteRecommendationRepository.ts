@@ -37,7 +37,21 @@ export interface RecommendationJourneyRecord {
 export class SQLiteRecommendationRepository {
   constructor(private db: Database.Database) {}
 
+  public purgeDuplicateActiveRecommendations(familyId: number): void {
+    try {
+      this.db.prepare(`
+        DELETE FROM recommendations 
+        WHERE status = 'ACTIVE' AND family_id = ? AND id NOT IN (
+          SELECT MAX(id) FROM recommendations WHERE status = 'ACTIVE' AND family_id = ? GROUP BY rule_code
+        )
+      `).run(familyId, familyId);
+    } catch (err) {
+      console.warn('Warning purging duplicate recommendations:', err);
+    }
+  }
+
   public getRecommendations(familyId: number, statusFilter?: string): RecommendationRecord[] {
+    this.purgeDuplicateActiveRecommendations(familyId);
     if (statusFilter) {
       return this.db.prepare('SELECT * FROM recommendations WHERE family_id = ? AND status = ? ORDER BY financial_impact_amount DESC').all(familyId, statusFilter) as RecommendationRecord[];
     }
@@ -49,6 +63,48 @@ export class SQLiteRecommendationRepository {
   }
 
   public saveRecommendation(rec: Omit<RecommendationRecord, 'id' | 'created_at'>): RecommendationRecord {
+    const existing = this.db.prepare(
+      "SELECT * FROM recommendations WHERE family_id = ? AND rule_code = ? AND status = 'ACTIVE' ORDER BY id DESC LIMIT 1"
+    ).get(rec.family_id, rec.rule_code) as RecommendationRecord | undefined;
+
+    if (existing) {
+      this.db.prepare(`
+        UPDATE recommendations SET
+          rule_id = ?,
+          category = ?,
+          journey_id = ?,
+          title = ?,
+          description = ?,
+          priority = ?,
+          confidence_pct = ?,
+          financial_impact_amount = ?,
+          urgency = ?,
+          source_engines_json = ?,
+          supporting_evidence_json = ?,
+          next_action_json = ?,
+          ai_context_json = ?
+        WHERE id = ?
+      `).run(
+        rec.rule_id || null,
+        rec.category,
+        rec.journey_id || null,
+        rec.title,
+        rec.description,
+        rec.priority || 'HIGH',
+        rec.confidence_pct || 90.0,
+        rec.financial_impact_amount || 0.0,
+        rec.urgency || 'MEDIUM',
+        rec.source_engines_json,
+        rec.supporting_evidence_json || null,
+        rec.next_action_json || null,
+        rec.ai_context_json || null,
+        existing.id
+      );
+
+      this.purgeDuplicateActiveRecommendations(rec.family_id);
+      return { ...existing, ...rec };
+    }
+
     const stmt = this.db.prepare(`
       INSERT INTO recommendations (family_id, rule_id, rule_code, category, journey_id, title, description, priority, confidence_pct, financial_impact_amount, urgency, status, snoozed_until, source_engines_json, supporting_evidence_json, next_action_json, ai_context_json)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -100,14 +156,14 @@ export class SQLiteRecommendationRepository {
     return { id: Number(res.lastInsertRowid), created_at: new Date().toISOString(), ...journey };
   }
 
-  public logHistory(recommendationId: number, familyId: number, statusFrom: string, statusTo: string, changedBy: string, reason?: string): void {
+  public getHistory(familyId: number): any[] {
+    return this.db.prepare('SELECT * FROM recommendation_history WHERE family_id = ? ORDER BY created_at DESC').all(familyId);
+  }
+
+  private logHistory(recommendationId: number, familyId: number, statusFrom: string, statusTo: string, changedBy: string, reason: string): void {
     this.db.prepare(`
       INSERT INTO recommendation_history (recommendation_id, family_id, status_from, status_to, changed_by, reason)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(recommendationId, familyId, statusFrom, statusTo, changedBy, reason || null);
-  }
-
-  public getHistory(familyId: number): Array<{ id: number; recommendation_id: number; status_from: string; status_to: string; changed_by: string; reason: string; created_at: string }> {
-    return this.db.prepare('SELECT * FROM recommendation_history WHERE family_id = ? ORDER BY created_at DESC').all(familyId) as any[];
+    `).run(recommendationId, familyId, statusFrom, statusTo, changedBy, reason);
   }
 }

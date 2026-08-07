@@ -55,9 +55,12 @@ graph TD
 
 | Module Name | File Location | Responsibility |
 | :--- | :--- | :--- |
-| **Dashboard** | `backend/src/routes/dashboard.ts`<br>`frontend/src/components/Dashboard.tsx` | Calculates net worth KPIs, 30-day growth timeline, and category allocation. |
-| **Portfolio** | `backend/src/routes/assets.ts`<br>`frontend/src/components/Portfolio.tsx` | Asset CRUD, unit accumulation, cost basis, valuation, and XIRR calculation. |
-| **Ledger / Transactions** | `backend/src/routes/transactions.ts`<br>`frontend/src/components/Transactions.tsx` | Transaction grid, filtering by type/asset/date, manual transaction logging. |
+| **Dashboard** | `backend/src/routes/dashboardRoutes.ts`<br>`frontend/src/components/Dashboard.tsx` | Calculates net worth KPIs, 30-day growth timeline, and category allocation. |
+| **Portfolio & Holdings** | `backend/src/routes/portfolioRoutes.ts`<br>`frontend/src/components/Portfolio.tsx` | Asset CRUD, family member filtering, cost basis vs market valuation, and XIRR calculation. |
+| **Protection & Insurance** | `backend/src/routes/insuranceRoutes.ts`<br>`frontend/src/components/protection/ProtectionDashboard.tsx` | Policy registration modal, family floater matrix, status badges, and nominee audit. |
+| **Reports & PDF Generator** | `backend/src/routes/reportingRoutes.ts`<br>`frontend/src/components/reports/ReportsGenerator.tsx`<br>`frontend/src/utils/pdfGenerator.ts` | Executive report templates (Net Worth, Tax, Insurance, Estate) and Adobe Acrobat binary PDF generation. |
+| **Theme Engine** | `frontend/src/components/layout/ThemeProvider.tsx`<br>`frontend/src/components/layout/TopNavbar.tsx` | Seamless Light & Dark Theme switching with localStorage persistence and CSS design tokens. |
+| **Ledger / Transactions** | `backend/src/routes/transactions.ts`<br>`frontend/src/components/Transactions.tsx` | Transaction grid, PDF/Manual source tagging, category selection, and transaction logging. |
 | **Cash Flow (BankInsights)** | `backend/src/routes/cashflow.ts`<br>`frontend/src/components/CashFlowDashboard.tsx` | Bank statement ingestion, income vs. expense analytics, regex categorization. |
 | **Import Center** | `backend/src/routes/import.ts`<br>`frontend/src/components/ImportCenter.tsx` | Multi-format statement ingestion (CAS PDF, EPF, NPS CSV, Zerodha, AngelOne, INDmoney). |
 | **Market Sync** | `backend/src/services/marketSync.ts` | Daily AMFI mutual fund NAV text scraping and Yahoo Finance stock/gold price fetcher. |

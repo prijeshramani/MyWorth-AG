@@ -100,7 +100,19 @@ Comprehensive income vs. expense analytics powered by the **BankInsights** engin
 - **Category Breakdown**: Automatically categorizes transactions into Salary, Utilities, Shopping, Food, Transfers, Investments, etc.
 - **Bank Account Balances**: Tracks liquid balances across connected bank accounts.
 
-### 5. 📥 Import Center (`/import`)
+### 5. 🛡 Protection & Insurance (`/protection`)
+Comprehensive insurance policy management and life cover gap analysis.
+- **Policy Registration System**: Record Health, Term Life, LIC, ULIP, Endowment, and Critical Illness policies with policy numbers, sum assured, premium amounts, and renewal dates.
+- **Policy Category Filters**: Filter policies by category (`All Policies`, `Term Life`, `Health`, `LIC & Savings`).
+- **Nominee Verification Matrix**: Family protection heat map matrix tracking nominee assignments across all policies.
+
+### 6. 📄 Reports Generator & PDF Exporter (`/reports`)
+Compile and export audit-ready wealth statements and tax summaries.
+- **Statement Catalog**: 5 executive statement templates (*Comprehensive Net Worth, Holdings Ledger, Tax Audit, Protection Audit, Estate Digest*).
+- **Executive Binary PDF Engine**: Generates 100% Adobe Acrobat-compliant PDF files using `jsPDF` with deep indigo headers, metric cards, styled data tables, and governance badges.
+- **Format Options**: Export to PDF, CSV, or JSON with nominee details and account privacy masking.
+
+### 7. 📥 Import Center (`/import`)
 The multi-source statement ingestion engine supporting seamless imports:
 - **CAS PDF Importer**: Parses password-protected Consolidated Account Statements (CAS) from CAMS and KFintech.
 - **INDmoney Importer**: Ingests Indian stocks, US equities, and Mutual Fund tradebooks.

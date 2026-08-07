@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './components/layout/ThemeProvider';
 import { AppLayout } from './components/layout/AppLayout';
 import Dashboard from './components/Dashboard';
+import { AIMissionControl } from './components/dashboard/AIMissionControl';
 import ImportCenter from './components/ImportCenter';
 import Portfolio from './components/Portfolio';
 import Transactions from './components/Transactions';
@@ -33,6 +34,7 @@ import { LoginPage } from './components/auth/LoginPage';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
 import { ComponentDemo } from './components/ui/ComponentDemo';
 import { HoldingsView } from './components/holdings/HoldingsView';
+import { ReportsGenerator } from './components/reports/ReportsGenerator';
 import { useUiStore } from './store/useUiStore';
 import { useAuthStore } from './store/useAuthStore';
 
@@ -84,7 +86,7 @@ function AppContent() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard onNavigate={(tab) => setActiveTab(tab)} />;
+        return <AIMissionControl onNavigate={(tab) => setActiveTab(tab)} />;
       case 'family':
         return <FamilyManager />;
       case 'graph':
@@ -139,7 +141,7 @@ function AppContent() {
       case 'estate':
         return <EstateDashboard />;
       case 'reports':
-        return <CashFlowDashboard />;
+        return <ReportsGenerator />;
       case 'settings':
         return <SettingsView />;
       case 'developer':

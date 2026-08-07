@@ -2,7 +2,7 @@ import { portfolioApplicationService } from './PortfolioApplicationService';
 
 export interface ReportGenerationRequest {
   familyId: number;
-  reportType: 'PORTFOLIO_SUMMARY' | 'TAX_STATEMENT' | 'PERFORMANCE_REPORT';
+  reportType: 'PORTFOLIO_SUMMARY' | 'TAX_STATEMENT' | 'PERFORMANCE_REPORT' | 'HOLDINGS_LEDGER' | 'PROTECTION_AUDIT' | 'ESTATE_STATEMENT';
   asOfDate?: string;
   format: 'JSON' | 'CSV' | 'PDF';
 }

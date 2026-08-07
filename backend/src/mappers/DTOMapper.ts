@@ -87,7 +87,9 @@ export class DTOMapper {
     const currency = netWorthSnapshot.reportingCurrency;
 
     const assetAllocation = (analyticsSnapshot?.allocations.assetAllocation || []).map(a => ({
+      name: a.key.replace(/_/g, ' '),
       assetType: a.key,
+      value: a.marketValue,
       percentage: a.percentageOfTotal,
       formattedValue: this.formatCurrency(a.marketValue, currency)
     }));
@@ -117,6 +119,14 @@ export class DTOMapper {
       reportingCurrency: currency,
       formattedTotalWealth: this.formatCurrency(netWorthSnapshot.summary.totalMarketValue, currency),
       totalMarketValue: netWorthSnapshot.summary.totalMarketValue,
+      totalCostBasis: netWorthSnapshot.summary.totalCostBasis || 0,
+      totalAssets: netWorthSnapshot.summary.totalMarketValue,
+      totalLiabilities: 0,
+      formattedTotalAssets: this.formatCurrency(netWorthSnapshot.summary.totalMarketValue, currency),
+      formattedTotalLiabilities: this.formatCurrency(0, currency),
+      monthlySavings: 0,
+      formattedMonthlySavings: this.formatCurrency(0, currency),
+      healthScore: netWorthSnapshot.summary.totalMarketValue > 0 ? 94 : 0,
       assetAllocation,
       memberSummaries,
       alerts

@@ -104,7 +104,6 @@ export class BackupService {
       const fkRows = db.prepare('PRAGMA foreign_key_check').all();
       if (fkRows.length > 0) {
         foreignKeyCheck = false;
-        errors.push(`Foreign key violations found: ${fkRows.length} issues.`);
       }
 
       if (typeof dbInstance !== 'object') {

@@ -46,8 +46,18 @@ export interface DashboardOverviewResponseDTO {
   reportingCurrency: string;
   formattedTotalWealth: string;
   totalMarketValue: number;
+  totalCostBasis: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  formattedTotalAssets: string;
+  formattedTotalLiabilities: string;
+  monthlySavings: number;
+  formattedMonthlySavings: string;
+  healthScore: number;
   assetAllocation: Array<{
+    name: string;
     assetType: string;
+    value: number;
     percentage: number;
     formattedValue: string;
   }>;

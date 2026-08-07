@@ -17,11 +17,18 @@ import aiActionRoutes from './aiActionRoutes';
 import { platformRouter } from './platformRoutes';
 import itrRoutes from './itrRoutes';
 
+import briefingRoutes from './briefingRoutes';
+import searchRoutes from './searchRoutes';
+import notificationRoutes from './notificationRoutes';
+
 const router = Router();
 
 router.use('/auth', authRouter);
 router.use('/dx', dxRouter);
 router.use('/platform', platformRouter);
+router.use('/briefing', briefingRoutes);
+router.use('/search', searchRoutes);
+router.use('/notifications', notificationRoutes);
 router.use('/ai/actions', aiActionRoutes);
 router.use('/ai/advisor', aiAdvisorRoutes);
 router.use('/ai', aiContextRouter);

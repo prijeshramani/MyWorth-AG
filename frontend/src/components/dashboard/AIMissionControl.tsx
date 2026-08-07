@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { CardSkeleton } from '../ui/Skeleton';
 import { apiClient } from '../../services/apiClient';
+import { useUiStore } from '../../store/useUiStore';
 import {
   Sparkles,
   TrendingUp,
@@ -18,15 +19,37 @@ import {
   RefreshCw,
   Wallet,
   Activity,
-  Layers
+  Layers,
+  FileUp
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { AIMorningBriefingCard } from './AIMorningBriefingCard';
 
 interface AIMissionControlProps {
   onNavigate: (tab: string) => void;
 }
 
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const item = payload[0];
+    const name = item.name || item.payload?.name || item.payload?.assetType || 'Asset';
+    const val = Number(item.value || 0);
+    const color = item.color || item.payload?.fill || '#32D583';
+    return (
+      <div className="bg-[#15161A] border border-[#2B2E35] p-3 rounded-xl shadow-2xl text-xs z-50">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+          <span className="text-slate-300 font-semibold">{name}:</span>
+          <span className="text-white font-extrabold ml-1">₹{val.toLocaleString('en-IN')}</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export const AIMissionControl: React.FC<AIMissionControlProps> = ({ onNavigate }) => {
+  const { activeFamilyId } = useUiStore();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -34,32 +57,28 @@ export const AIMissionControl: React.FC<AIMissionControlProps> = ({ onNavigate }
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get('/dashboard');
-      setData(res.data);
+      const familyId = activeFamilyId || 1;
+      const res = await apiClient.get(`/dashboard/overview?familyId=${familyId}`);
+      setData(res.data?.data);
     } catch (err: any) {
       setError(err.message || 'Unable to fetch live metrics.');
-    } fontReady: {
+    } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [activeFamilyId]);
 
   const COLORS = ['#4F7FFF', '#32D583', '#F79009', '#8B5CF6', '#38BDF8'];
 
-  const bentoAssetAllocation = data?.assetAllocation || [
-    { name: 'Equity & Mutual Funds', value: 24500000 },
-    { name: 'Real Estate & Land', value: 15000000 },
-    { name: 'Fixed Income & Bonds', value: 5000000 },
-    { name: 'Gold & Commodities', value: 2300000 },
-    { name: 'Liquid Cash & Bank', value: 1000000 },
-  ];
-
-  const formattedNetWorth = data?.totalNetWorth 
-    ? `₹${(data.totalNetWorth / 10000000).toFixed(2)} Cr`
-    : '₹4.78 Cr';
+  const bentoAssetAllocation = data?.assetAllocation || [];
+  const formattedNetWorth = data?.formattedTotalWealth || '₹0.00';
+  const totalAssets = data?.formattedTotalAssets || '₹0.00';
+  const totalLiabilities = data?.formattedTotalLiabilities || '₹0.00';
+  const monthlySavings = data?.formattedMonthlySavings || '₹0.00';
+  const healthScore = data?.healthScore ?? 0;
 
   if (loading) {
     return (
@@ -89,6 +108,9 @@ export const AIMissionControl: React.FC<AIMissionControlProps> = ({ onNavigate }
         </Button>
       }
     >
+      {/* Workstream 2: AI Morning Briefing Card */}
+      <AIMorningBriefingCard />
+
       {/* Hero Bento Grid Header */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Net Worth Hero Card */}
@@ -105,50 +127,52 @@ export const AIMissionControl: React.FC<AIMissionControlProps> = ({ onNavigate }
               </h2>
             </div>
             <Badge variant="success" size="md" icon={<TrendingUp className="w-3.5 h-3.5" />}>
-              +₹84,000 (+1.8% Today)
+              Live Verified
             </Badge>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-[#2B2E35]">
             <div>
               <span className="text-xs text-[#9CA3AF]">Total Assets</span>
-              <p className="text-lg font-bold text-[#32D583]">₹5.12 Cr</p>
+              <p className="text-lg font-bold text-[#32D583]">{totalAssets}</p>
             </div>
             <div>
               <span className="text-xs text-[#9CA3AF]">Total Liabilities</span>
-              <p className="text-lg font-bold text-[#F04438]">₹34.00 L</p>
+              <p className="text-lg font-bold text-[#F04438]">{totalLiabilities}</p>
             </div>
             <div>
               <span className="text-xs text-[#9CA3AF]">Monthly Savings</span>
-              <p className="text-lg font-bold text-[#38BDF8]">₹2.45 L</p>
+              <p className="text-lg font-bold text-[#38BDF8]">{monthlySavings}</p>
             </div>
             <div>
               <span className="text-xs text-[#9CA3AF]">Health Score</span>
-              <p className="text-lg font-bold text-[#8B5CF6]">94 / 100</p>
+              <p className="text-lg font-bold text-[#8B5CF6]">{healthScore} / 100</p>
             </div>
           </div>
         </Card>
 
         {/* AI Copilot Quick Summary */}
-        <Card variant="default" className="relative overflow-hidden border-[#8B5CF6]/30">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="p-2 rounded-xl bg-[#8B5CF6]/15 text-[#8B5CF6]">
-              <Bot className="w-5 h-5" />
+        <Card variant="default" className="relative overflow-hidden border-[#8B5CF6]/30 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="p-2 rounded-xl bg-[#8B5CF6]/15 text-[#8B5CF6]">
+                <Bot className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-[#F3F4F6]">AI Wealth Intelligence</h3>
+                <p className="text-[11px] text-[#9CA3AF]">Active Recommendations</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-[#F3F4F6]">AI Wealth Intelligence</h3>
-              <p className="text-[11px] text-[#9CA3AF]">3 Active Recommendations</p>
-            </div>
-          </div>
 
-          <div className="space-y-3 mb-4 text-xs text-[#9CA3AF]">
-            <div className="p-2.5 rounded-xl bg-[#15161A] border border-[#2B2E35] flex items-start gap-2">
-              <Zap className="w-4 h-4 text-[#F79009] shrink-0 mt-0.5" />
-              <span>Rebalance ₹4.5L from Liquid Cash to High-Yield Debt for +₹38k annual return.</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[#15161A] border border-[#2B2E35] flex items-start gap-2">
-              <ShieldAlert className="w-4 h-4 text-[#F04438] shrink-0 mt-0.5" />
-              <span>Term Insurance gap of ₹1.2 Cr detected for primary earner.</span>
+            <div className="space-y-3 mb-4 text-xs text-[#9CA3AF]">
+              <div className="p-2.5 rounded-xl bg-[#15161A] border border-[#2B2E35] flex items-start gap-2">
+                <Zap className="w-4 h-4 text-[#F79009] shrink-0 mt-0.5" />
+                <span>Optimize Section 80C allocations for potential tax savings.</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-[#15161A] border border-[#2B2E35] flex items-start gap-2">
+                <ShieldAlert className="w-4 h-4 text-[#F04438] shrink-0 mt-0.5" />
+                <span>Verify term insurance sum assured against family dependent goals.</span>
+              </div>
             </div>
           </div>
 
@@ -178,45 +202,56 @@ export const AIMissionControl: React.FC<AIMissionControlProps> = ({ onNavigate }
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={bentoAssetAllocation}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {bentoAssetAllocation.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#1E2025', borderColor: '#2B2E35', borderRadius: '12px', color: '#F3F4F6' }}
-                    formatter={(val: any) => `₹${(Number(val) / 100000).toFixed(2)} L`}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+          {bentoAssetAllocation.length === 0 ? (
+            <div className="p-8 text-center border border-dashed border-slate-700/60 rounded-2xl space-y-3">
+              <p className="text-xs text-slate-400 font-medium">No assets registered yet in your portfolio.</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={<FileUp className="w-3.5 h-3.5" />}
+                onClick={() => onNavigate('import')}
+              >
+                Import Statement or CAS PDF
+              </Button>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={bentoAssetAllocation}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {bentoAssetAllocation.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
 
-            <div className="space-y-2">
-              {bentoAssetAllocation.map((item: any, idx: number) => (
-                <div key={item.name} className="flex items-center justify-between text-xs p-2 rounded-xl bg-[#15161A]/60">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                    <span className="text-[#9CA3AF] font-medium">{item.name}</span>
+              <div className="space-y-2">
+                {bentoAssetAllocation.map((item: any, idx: number) => (
+                  <div key={item.name || item.assetType} className="flex items-center justify-between text-xs p-2 rounded-xl bg-[#15161A]/60">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                      <span className="text-[#9CA3AF] font-medium">{item.name || item.assetType}</span>
+                    </div>
+                    <span className="text-[#F3F4F6] font-bold">
+                      {item.formattedValue || `₹${Number(item.value).toLocaleString('en-IN')}`}
+                    </span>
                   </div>
-                  <span className="text-[#F3F4F6] font-bold">
-                    ₹{(item.value / 100000).toFixed(1)} L
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </Card>
 
         {/* Quick Launchpad Actions */}

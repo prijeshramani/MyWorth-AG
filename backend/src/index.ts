@@ -5,7 +5,7 @@ import { initDb } from './db';
 import assetsRouter from './routes/assets';
 import transactionsRouter from './routes/transactions';
 import importRouter from './routes/import';
-import dashboardRouter from './routes/dashboard';
+import dashboardRouter from './routes/dashboardRoutes';
 import cashflowRouter from './routes/cashflow';
 import familiesRouter from './routes/v1/families';
 import familyMembersRouter from './routes/v1/familyMembers';
@@ -13,6 +13,7 @@ import entitiesRouter from './routes/v1/entities';
 import accountsRouter from './routes/v1/accounts';
 import assetsMasterRouter from './routes/v1/assetsMaster';
 import holdingsRouter from './routes/v1/holdings';
+import { insuranceRouter } from './routes/insuranceRoutes';
 import domainRoutes from './routes';
 import { syncAllAssets } from './services/marketSync';
 import { syncLogRepository } from './repositories/SQLiteSyncLogRepository';
@@ -64,6 +65,8 @@ app.use(['/api/entities', '/api/v1/entities', '/api/v1/v1/entities'], entitiesRo
 app.use(['/api/accounts', '/api/v1/accounts', '/api/v1/v1/accounts'], accountsRouter);
 app.use(['/api/assets-master', '/api/v1/assets-master', '/api/v1/v1/assets-master'], assetsMasterRouter);
 app.use(['/api/holdings', '/api/v1/holdings', '/api/v1/v1/holdings'], holdingsRouter);
+app.use(['/api/protection', '/api/v1/protection', '/api/v1/v1/protection'], insuranceRouter);
+app.use(['/api/insurance', '/api/v1/insurance', '/api/v1/v1/insurance'], insuranceRouter);
 
 // Mount domain routes (/graph, /estate, /planning, /tax, /recommendations, /ai, /dx, /auth)
 app.use(['/api/v1', '/api/v1/v1', '/api'], domainRoutes);

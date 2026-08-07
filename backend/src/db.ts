@@ -246,6 +246,20 @@ export function initDb() {
   // Execute Versioned Database Migrations
   runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012], dbPath);
 
+  // Ensure insurance_policies has Family Floater columns (idempotent)
+  const insuranceCols = db.prepare("PRAGMA table_info(insurance_policies)").all() as any[];
+  if (insuranceCols.length > 0) {
+    if (!insuranceCols.some(c => c.name === 'is_family_floater')) {
+      db.prepare('ALTER TABLE insurance_policies ADD COLUMN is_family_floater INTEGER NOT NULL DEFAULT 0').run();
+      console.log('Added is_family_floater column to insurance_policies.');
+    }
+    if (!insuranceCols.some(c => c.name === 'covered_member_ids')) {
+      db.prepare('ALTER TABLE insurance_policies ADD COLUMN covered_member_ids TEXT').run();
+      console.log('Added covered_member_ids column to insurance_policies.');
+    }
+  }
+
+
   // Ensure default Family (id = 1) exists to satisfy Foreign Keys
   db.prepare("INSERT OR IGNORE INTO families (id, name, currency) VALUES (1, 'My Family', 'INR')").run();
 

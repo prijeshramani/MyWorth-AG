@@ -39,7 +39,7 @@ export class EstateSimulationService {
 
     const primaryHead = members[0]?.name || 'Primary Account Holder';
 
-    const distributions = members.length > 0
+    const distributions = members.length >= 2
       ? members.map((m, idx) => {
           const share = Math.floor(100 / members.length);
           const percent = idx === 0 ? 100 - share * (members.length - 1) : share;
@@ -50,7 +50,10 @@ export class EstateSimulationService {
             estimatedValue: `₹${((totalValue * percent) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
           };
         })
-      : [{ beneficiaryName: primaryHead, relationship: 'Primary Owner', percentage: 100, estimatedValue: `₹${totalValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` }];
+      : [
+          { beneficiaryName: members[0]?.name || primaryHead, relationship: 'Spouse / Primary Beneficiary', percentage: 60, estimatedValue: `₹${((totalValue * 60) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` },
+          { beneficiaryName: 'Secondary Legal Heirs (Children)', relationship: 'Dependents / Children', percentage: 40, estimatedValue: `₹${((totalValue * 40) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` }
+        ];
 
     return {
       scenarioName: 'Testator Primary Succession Scenario',

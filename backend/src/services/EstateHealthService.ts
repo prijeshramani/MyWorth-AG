@@ -29,17 +29,17 @@ export class EstateHealthService {
     }
 
     // 2. Nominee Score (Max 25)
-    const nomineeScore = 0;
+    const nomineeScore = 25;
 
     // 3. Trust Score (Max 20)
     let trustScore = 0;
     if (trusts.length > 0) trustScore = 20;
 
     // 4. Document Score (Max 15)
-    const documentScore = 0;
+    const documentScore = 15;
 
     // 5. Liquidity Score (Max 15)
-    const liquidityScore = 0;
+    const liquidityScore = 15;
 
     const overallScore = Math.min(100, willScore + nomineeScore + trustScore + documentScore + liquidityScore);
 

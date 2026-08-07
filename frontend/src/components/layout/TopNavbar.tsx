@@ -18,7 +18,10 @@ import {
   Moon
 } from 'lucide-react';
 
+import { NotificationCenterModal } from '../common/NotificationCenterModal';
+
 export const TopNavbar: React.FC = () => {
+  const [isNotificationOpen, setIsNotificationOpen] = React.useState<boolean>(false);
   const { 
     reportingCurrency, 
     setReportingCurrency, 
@@ -32,6 +35,7 @@ export const TopNavbar: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
 
   return (
+    <>
     <header className="h-16 bg-[#15161A]/90 border-b border-[#2B2E35] px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 backdrop-blur-xl select-none">
       <div className="flex items-center gap-3">
         <button
@@ -162,14 +166,14 @@ export const TopNavbar: React.FC = () => {
           </button>
         </div>
 
-        {/* Notifications Icon */}
+        {/* Actionable Notification Center Bell */}
         <button 
-          onClick={() => setActiveTab('data-quality')}
+          onClick={() => setIsNotificationOpen(true)}
           className="p-2 text-[#9CA3AF] hover:text-[#F3F4F6] rounded-xl hover:bg-[#1E2025] relative transition-colors"
-          title="Data Quality & Audit Alerts"
+          title="Notification Center Alerts"
         >
           <Bell className="w-4 h-4" />
-          <span className="w-2 h-2 bg-[#32D583] rounded-full absolute top-1.5 right-1.5 shadow-sm shadow-[#32D583]"></span>
+          <span className="w-2 h-2 bg-[#F79009] rounded-full absolute top-1.5 right-1.5 shadow-sm shadow-[#F79009] animate-pulse"></span>
         </button>
 
         {/* Logout Button */}
@@ -182,5 +186,11 @@ export const TopNavbar: React.FC = () => {
         </button>
       </div>
     </header>
+
+    <NotificationCenterModal 
+      isOpen={isNotificationOpen}
+      onClose={() => setIsNotificationOpen(false)}
+    />
+    </>
   );
 };

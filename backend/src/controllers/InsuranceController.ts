@@ -94,4 +94,58 @@ export class InsuranceController {
       next(err);
     }
   };
+
+  public updatePolicy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Policy ID must be a valid number.' }
+        });
+        return;
+      }
+      const updated = this.insuranceAppService.updatePolicy(id, req.body);
+      if (!updated) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Policy not found or already deleted.' }
+        });
+        return;
+      }
+      res.status(200).json({
+        success: true,
+        data: updated
+      });
+    } catch (err: any) {
+      next(err);
+    }
+  };
+
+  public deletePolicy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Policy ID must be a valid number.' }
+        });
+        return;
+      }
+      const deleted = this.insuranceAppService.deletePolicy(id);
+      if (!deleted) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Policy not found or already deleted.' }
+        });
+        return;
+      }
+      res.status(200).json({
+        success: true,
+        message: 'Policy deleted successfully.'
+      });
+    } catch (err: any) {
+      next(err);
+    }
+  };
 }

@@ -62,17 +62,19 @@ export const StatCard: React.FC<StatCardProps> = ({
           {badge && <Badge variant="primary" size="sm">{badge}</Badge>}
         </div>
         {icon && (
-          <div className="p-2 rounded-xl bg-[#15161A] border border-[#2B2E35] text-[#4F7FFF]">
+          <div className="p-2 rounded-xl bg-slate-100 dark:bg-[#15161A] border border-slate-200 dark:border-[#2B2E35] text-[#4F7FFF]">
             {icon}
           </div>
         )}
       </div>
 
-      <div className="flex items-baseline justify-between gap-2">
-        <div className="text-2xl sm:text-3xl font-extrabold text-[#F3F4F6] tracking-tight">
+      <div className="flex flex-col gap-1.5">
+        <div className="text-2xl sm:text-3xl font-extrabold text-[#F3F4F6] tracking-tight truncate min-w-0">
           {value}
         </div>
-        {getTrendBadge()}
+        {getTrendBadge() && (
+          <div className="flex">{getTrendBadge()}</div>
+        )}
       </div>
 
       {subtitle && (

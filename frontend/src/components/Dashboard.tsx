@@ -289,11 +289,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 <Tooltip
                   contentStyle={{
                     background: '#0f172a',
-                    border: '1px solid #1e293b',
+                    border: '1px solid #334155',
                     borderRadius: '12px',
                     fontSize: '11px',
-                    color: '#f8fafc'
+                    color: '#f8fafc',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
                   }}
+                  itemStyle={{ color: '#f8fafc', fontWeight: 600 }}
+                  labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
                   formatter={(value: any) => [formatCurrency(Number(value)), 'Net Worth']}
                   labelFormatter={(label) => `Trading Date: ${new Date(label).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`}
                 />
@@ -336,10 +339,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 <Tooltip 
                   contentStyle={{
                     background: '#0f172a',
-                    border: '1px solid #1e293b',
+                    border: '1px solid #334155',
                     borderRadius: '8px',
-                    fontSize: '11px'
+                    fontSize: '11px',
+                    color: '#f8fafc',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
                   }}
+                  itemStyle={{ color: '#f8fafc', fontWeight: 600 }}
+                  labelStyle={{ color: '#94a3b8', fontWeight: 500 }}
                   formatter={(val: number) => [formatCurrency(val), 'Holdings']} 
                 />
               </PieChart>

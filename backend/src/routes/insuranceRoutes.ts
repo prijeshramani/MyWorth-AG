@@ -11,8 +11,15 @@ const insuranceController = new InsuranceController(insuranceAppService);
 
 export const insuranceRouter = Router();
 
+insuranceRouter.get('/', insuranceController.getProtectionSummary);
+insuranceRouter.get('/overview', insuranceController.getProtectionSummary);
 insuranceRouter.get('/protection/summary', insuranceController.getProtectionSummary);
+insuranceRouter.get('/summary', insuranceController.getProtectionSummary);
 insuranceRouter.get('/insurance/policies', insuranceController.getPolicies);
 insuranceRouter.get('/policies', insuranceController.getPolicies);
 insuranceRouter.post('/insurance/policies', insuranceController.createPolicy);
 insuranceRouter.post('/policies', insuranceController.createPolicy);
+insuranceRouter.delete('/insurance/policies/:id', insuranceController.deletePolicy);
+insuranceRouter.delete('/policies/:id', insuranceController.deletePolicy);
+insuranceRouter.put('/insurance/policies/:id', insuranceController.updatePolicy);
+insuranceRouter.put('/policies/:id', insuranceController.updatePolicy);

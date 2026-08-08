@@ -62,11 +62,15 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
   }
 
   const filteredData = data.filter(
-    (h) =>
-      h.assetName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (h.symbol && h.symbol.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      h.assetType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (h.familyMemberName && h.familyMemberName.toLowerCase().includes(searchQuery.toLowerCase()))
+    (h) => {
+      const q = (searchQuery || '').toLowerCase();
+      return (
+        (h.assetName || '').toLowerCase().includes(q) ||
+        (h.symbol || '').toLowerCase().includes(q) ||
+        (h.assetType || '').toLowerCase().includes(q) ||
+        (h.familyMemberName || '').toLowerCase().includes(q)
+      );
+    }
   );
 
   const sortedData = [...filteredData].sort((a, b) => {

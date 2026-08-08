@@ -16,9 +16,13 @@ function calculateElapsedYears(startDateStr: string, endDateStr: string): number
 }
 
 export class FixedDepositValuationStrategy implements IValuationStrategy {
-  public readonly assetType = 'FD';
+  public readonly assetType: string;
   public readonly name = 'Fixed Deposit Compounding Interest Strategy';
   public readonly valuationMethod = 'COMPOUND_INTEREST_MATURITY';
+
+  constructor(assetType: string = 'FD') {
+    this.assetType = assetType;
+  }
 
   public value(context: ValuationContext): ValuationResult {
     const auditTrail: string[] = [];
@@ -107,5 +111,6 @@ export class FixedDepositValuationStrategy implements IValuationStrategy {
   }
 }
 
-export const fixedDepositValuationStrategy = new FixedDepositValuationStrategy();
+export const fixedDepositValuationStrategy = new FixedDepositValuationStrategy('FD');
 valuationRegistry.register(fixedDepositValuationStrategy);
+valuationRegistry.register(new FixedDepositValuationStrategy('FIXED_DEPOSIT'));

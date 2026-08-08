@@ -12,6 +12,7 @@ import {
   FileCheck
 } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
+import { useUiStore } from '../../store/useUiStore';
 
 interface CapitalGainsSummaryData {
   financialYear: string;
@@ -47,6 +48,7 @@ interface FamilyMember {
 }
 
 export const ITRFilingCenter: React.FC = () => {
+  const { activeFamilyId } = useUiStore();
   const [cgData, setCgData] = useState<CapitalGainsSummaryData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [members, setMembers] = useState<FamilyMember[]>([]);
@@ -67,7 +69,7 @@ export const ITRFilingCenter: React.FC = () => {
 
   const fetchFamilyMembers = async () => {
     try {
-      const res = await apiClient.get<any>('/family-members?familyId=1');
+      const res = await apiClient.get<any>(`/family-members?familyId=${activeFamilyId}`);
       const memberList = res.data?.data || res.data || [];
       setMembers(Array.isArray(memberList) ? memberList : []);
     } catch (err) {

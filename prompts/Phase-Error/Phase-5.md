@@ -1,0 +1,170 @@
+Portfolio.tsx:227  GET http://localhost:5173/api/v1/assets 500 (Internal Server Error)
+dispatchXhrRequest @ axios.js?v=e30a4e8d:2104
+xhr @ axios.js?v=e30a4e8d:1964
+dispatchRequest @ axios.js?v=e30a4e8d:2805
+Promise.then
+_request @ axios.js?v=e30a4e8d:3043
+request @ axios.js?v=e30a4e8d:2926
+Axios.<computed> @ axios.js?v=e30a4e8d:3079
+wrap @ axios.js?v=e30a4e8d:8
+(anonymous) @ Portfolio.tsx:227
+(anonymous) @ Portfolio.tsx:271
+commitHookEffectListMount @ chunk-XQLYTHWV.js?v=e30a4e8d:16915
+commitPassiveMountOnFiber @ chunk-XQLYTHWV.js?v=e30a4e8d:18156
+commitPassiveMountEffects_complete @ chunk-XQLYTHWV.js?v=e30a4e8d:18129
+commitPassiveMountEffects_begin @ chunk-XQLYTHWV.js?v=e30a4e8d:18119
+commitPassiveMountEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:18109
+flushPassiveEffectsImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19490
+flushPassiveEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:19447
+commitRootImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19416
+commitRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:19277
+performSyncWorkOnRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:18895
+flushSyncCallbacks @ chunk-XQLYTHWV.js?v=e30a4e8d:9119
+(anonymous) @ chunk-XQLYTHWV.js?v=e30a4e8d:18627
+Portfolio.tsx:227  GET http://localhost:5173/api/v1/assets 500 (Internal Server Error)
+dispatchXhrRequest @ axios.js?v=e30a4e8d:2104
+xhr @ axios.js?v=e30a4e8d:1964
+dispatchRequest @ axios.js?v=e30a4e8d:2805
+Promise.then
+_request @ axios.js?v=e30a4e8d:3043
+request @ axios.js?v=e30a4e8d:2926
+Axios.<computed> @ axios.js?v=e30a4e8d:3079
+wrap @ axios.js?v=e30a4e8d:8
+(anonymous) @ Portfolio.tsx:227
+(anonymous) @ Portfolio.tsx:271
+commitHookEffectListMount @ chunk-XQLYTHWV.js?v=e30a4e8d:16915
+invokePassiveEffectMountInDEV @ chunk-XQLYTHWV.js?v=e30a4e8d:18324
+invokeEffectsInDev @ chunk-XQLYTHWV.js?v=e30a4e8d:19701
+commitDoubleInvokeEffectsInDEV @ chunk-XQLYTHWV.js?v=e30a4e8d:19686
+flushPassiveEffectsImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19503
+flushPassiveEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:19447
+commitRootImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19416
+commitRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:19277
+performSyncWorkOnRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:18895
+flushSyncCallbacks @ chunk-XQLYTHWV.js?v=e30a4e8d:9119
+(anonymous) @ chunk-XQLYTHWV.js?v=e30a4e8d:18627
+Transactions.tsx:81  GET http://localhost:5173/api/v1/assets 500 (Internal Server Error)
+dispatchXhrRequest @ axios.js?v=e30a4e8d:2104
+xhr @ axios.js?v=e30a4e8d:1964
+dispatchRequest @ axios.js?v=e30a4e8d:2805
+Promise.then
+_request @ axios.js?v=e30a4e8d:3043
+request @ axios.js?v=e30a4e8d:2926
+Axios.<computed> @ axios.js?v=e30a4e8d:3079
+wrap @ axios.js?v=e30a4e8d:8
+(anonymous) @ Transactions.tsx:81
+(anonymous) @ Transactions.tsx:90
+commitHookEffectListMount @ chunk-XQLYTHWV.js?v=e30a4e8d:16915
+commitPassiveMountOnFiber @ chunk-XQLYTHWV.js?v=e30a4e8d:18156
+commitPassiveMountEffects_complete @ chunk-XQLYTHWV.js?v=e30a4e8d:18129
+commitPassiveMountEffects_begin @ chunk-XQLYTHWV.js?v=e30a4e8d:18119
+commitPassiveMountEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:18109
+flushPassiveEffectsImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19490
+flushPassiveEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:19447
+commitRootImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19416
+commitRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:19277
+performSyncWorkOnRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:18895
+flushSyncCallbacks @ chunk-XQLYTHWV.js?v=e30a4e8d:9119
+(anonymous) @ chunk-XQLYTHWV.js?v=e30a4e8d:18627
+Transactions.tsx:84 AxiosError: Request failed with status code 500
+    at settle (axios.js?v=e30a4e8d:1534:12)
+    at XMLHttpRequest.onloadend (axios.js?v=e30a4e8d:1997:7)
+(anonymous) @ Transactions.tsx:84
+await in (anonymous)
+(anonymous) @ Transactions.tsx:90
+commitHookEffectListMount @ chunk-XQLYTHWV.js?v=e30a4e8d:16915
+commitPassiveMountOnFiber @ chunk-XQLYTHWV.js?v=e30a4e8d:18156
+commitPassiveMountEffects_complete @ chunk-XQLYTHWV.js?v=e30a4e8d:18129
+commitPassiveMountEffects_begin @ chunk-XQLYTHWV.js?v=e30a4e8d:18119
+commitPassiveMountEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:18109
+flushPassiveEffectsImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19490
+flushPassiveEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:19447
+commitRootImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19416
+commitRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:19277
+performSyncWorkOnRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:18895
+flushSyncCallbacks @ chunk-XQLYTHWV.js?v=e30a4e8d:9119
+(anonymous) @ chunk-XQLYTHWV.js?v=e30a4e8d:18627
+Transactions.tsx:81  GET http://localhost:5173/api/v1/assets 500 (Internal Server Error)
+dispatchXhrRequest @ axios.js?v=e30a4e8d:2104
+xhr @ axios.js?v=e30a4e8d:1964
+dispatchRequest @ axios.js?v=e30a4e8d:2805
+Promise.then
+_request @ axios.js?v=e30a4e8d:3043
+request @ axios.js?v=e30a4e8d:2926
+Axios.<computed> @ axios.js?v=e30a4e8d:3079
+wrap @ axios.js?v=e30a4e8d:8
+(anonymous) @ Transactions.tsx:81
+(anonymous) @ Transactions.tsx:90
+commitHookEffectListMount @ chunk-XQLYTHWV.js?v=e30a4e8d:16915
+invokePassiveEffectMountInDEV @ chunk-XQLYTHWV.js?v=e30a4e8d:18324
+invokeEffectsInDev @ chunk-XQLYTHWV.js?v=e30a4e8d:19701
+commitDoubleInvokeEffectsInDEV @ chunk-XQLYTHWV.js?v=e30a4e8d:19686
+flushPassiveEffectsImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19503
+flushPassiveEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:19447
+commitRootImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19416
+commitRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:19277
+performSyncWorkOnRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:18895
+flushSyncCallbacks @ chunk-XQLYTHWV.js?v=e30a4e8d:9119
+(anonymous) @ chunk-XQLYTHWV.js?v=e30a4e8d:18627
+Transactions.tsx:84 AxiosError: Request failed with status code 500
+    at settle (axios.js?v=e30a4e8d:1534:12)
+    at XMLHttpRequest.onloadend (axios.js?v=e30a4e8d:1997:7)
+(anonymous) @ Transactions.tsx:84
+await in (anonymous)
+(anonymous) @ Transactions.tsx:90
+commitHookEffectListMount @ chunk-XQLYTHWV.js?v=e30a4e8d:16915
+invokePassiveEffectMountInDEV @ chunk-XQLYTHWV.js?v=e30a4e8d:18324
+invokeEffectsInDev @ chunk-XQLYTHWV.js?v=e30a4e8d:19701
+commitDoubleInvokeEffectsInDEV @ chunk-XQLYTHWV.js?v=e30a4e8d:19686
+flushPassiveEffectsImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19503
+flushPassiveEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:19447
+commitRootImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19416
+commitRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:19277
+performSyncWorkOnRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:18895
+flushSyncCallbacks @ chunk-XQLYTHWV.js?v=e30a4e8d:9119
+(anonymous) @ chunk-XQLYTHWV.js?v=e30a4e8d:18627
+HoldingsView.tsx:35  GET http://localhost:5173/api/v1/assets 500 (Internal Server Error)
+dispatchXhrRequest @ axios.js?v=e30a4e8d:2104
+xhr @ axios.js?v=e30a4e8d:1964
+dispatchRequest @ axios.js?v=e30a4e8d:2805
+Promise.then
+_request @ axios.js?v=e30a4e8d:3043
+request @ axios.js?v=e30a4e8d:2926
+Axios.<computed> @ axios.js?v=e30a4e8d:3079
+wrap @ axios.js?v=e30a4e8d:8
+(anonymous) @ HoldingsView.tsx:35
+(anonymous) @ HoldingsView.tsx:70
+commitHookEffectListMount @ chunk-XQLYTHWV.js?v=e30a4e8d:16915
+commitPassiveMountOnFiber @ chunk-XQLYTHWV.js?v=e30a4e8d:18156
+commitPassiveMountEffects_complete @ chunk-XQLYTHWV.js?v=e30a4e8d:18129
+commitPassiveMountEffects_begin @ chunk-XQLYTHWV.js?v=e30a4e8d:18119
+commitPassiveMountEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:18109
+flushPassiveEffectsImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19490
+flushPassiveEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:19447
+commitRootImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19416
+commitRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:19277
+performSyncWorkOnRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:18895
+flushSyncCallbacks @ chunk-XQLYTHWV.js?v=e30a4e8d:9119
+(anonymous) @ chunk-XQLYTHWV.js?v=e30a4e8d:18627
+HoldingsView.tsx:35  GET http://localhost:5173/api/v1/assets 500 (Internal Server Error)
+dispatchXhrRequest @ axios.js?v=e30a4e8d:2104
+xhr @ axios.js?v=e30a4e8d:1964
+dispatchRequest @ axios.js?v=e30a4e8d:2805
+Promise.then
+_request @ axios.js?v=e30a4e8d:3043
+request @ axios.js?v=e30a4e8d:2926
+Axios.<computed> @ axios.js?v=e30a4e8d:3079
+wrap @ axios.js?v=e30a4e8d:8
+(anonymous) @ HoldingsView.tsx:35
+(anonymous) @ HoldingsView.tsx:70
+commitHookEffectListMount @ chunk-XQLYTHWV.js?v=e30a4e8d:16915
+invokePassiveEffectMountInDEV @ chunk-XQLYTHWV.js?v=e30a4e8d:18324
+invokeEffectsInDev @ chunk-XQLYTHWV.js?v=e30a4e8d:19701
+commitDoubleInvokeEffectsInDEV @ chunk-XQLYTHWV.js?v=e30a4e8d:19686
+flushPassiveEffectsImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19503
+flushPassiveEffects @ chunk-XQLYTHWV.js?v=e30a4e8d:19447
+commitRootImpl @ chunk-XQLYTHWV.js?v=e30a4e8d:19416
+commitRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:19277
+performSyncWorkOnRoot @ chunk-XQLYTHWV.js?v=e30a4e8d:18895
+flushSyncCallbacks @ chunk-XQLYTHWV.js?v=e30a4e8d:9119
+(anonymous) @ chunk-XQLYTHWV.js?v=e30a4e8d:18627

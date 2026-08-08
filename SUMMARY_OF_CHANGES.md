@@ -110,8 +110,33 @@ This document summarizes all systemic fixes, schema migrations, backend service 
 
 ---
 
-## 6. Verification & Testing Summary
+## 6. Fixed Deposit Accrued Interest & Target Maturity Valuation Engine
+- **Utility Created**: [fdValuation.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/utils/fdValuation.ts)
+  - Added interest accrual math calculating accrued market value via compound interest ($A = P \times (1 + r/n)^{n \times t}$) and target maturity progress ($P \times (M/P)^{\text{progress}}$).
+- **Backend Services & Routes Updated**:
+  - [assets.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/assets.ts): Updated `GET /api/v1/assets` to accrue FD market value and return percentage. Updated `POST /api/assets` & `PUT /api/assets/:id` to save `metadata` (`interestRate`, `maturityAmount`, `startDate`, `maturityDate`).
+  - [dashboard.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/dashboard.ts): Updated asset valuation loop to compute accrued FD market values for net worth totals and debt asset allocation.
+  - [AIContextAggregator.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/services/ai/AIContextAggregator.ts): Passes accrued FD market values to AI advisor briefing context.
+  - [FixedDepositValuationStrategy.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/engines/valuation/strategies/FixedDepositValuationStrategy.ts): Registered under both `'FD'` and `'FIXED_DEPOSIT'`.
+- **Frontend UI Modal**:
+  - [Portfolio.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/Portfolio.tsx): Added dedicated form fields when adding or editing a Fixed Deposit: Deposit Principal (₹), Target Maturity Amount (₹), Interest Rate (% p.a.), Start Date, and Maturity Date.
+
+---
+
+## 7. Active Family Scope & Null-Safety Crash Hardening
+- **Active Family Office Filtering**:
+  - [useUiStore.ts](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/store/useUiStore.ts): Restored active Ramani family office data (Family ID 6: Prijesh Hiralal Ramani [SELF], Dhvani Prijesh Ramani [SPOUSE], 38 assets, 8,005 transactions).
+  - [HoldingsView.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/holdings/HoldingsView.tsx), [ImportCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ImportCenter.tsx), & [ITRFilingCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/tax/ITRFilingCenter.tsx): Updated to destructure `activeFamilyId` from `useUiStore` and query `/family-members?familyId=${activeFamilyId}` instead of hardcoded `familyId=1`.
+- **Null Safety Bug Prevention**:
+  - [CashFlowDashboard.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/CashFlowDashboard.tsx): Resolved `Cannot read properties of null (reading 'toLowerCase')` crash by safely wrapping `(tx.narration || '').toLowerCase()` and `(tx.tx_category || 'Uncategorized').toLowerCase()`. Filtered null values when building category dropdown filters.
+  - [Transactions.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/Transactions.tsx), [HoldingTable.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ui/HoldingTable.tsx), & [ProtectionDashboard.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/protection/ProtectionDashboard.tsx): Hardened search filters against null/undefined property accesses.
+- **SQLite PK Migration Fix**:
+  - [db.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/db.ts): Refined legacy primary key auto-migration loop to inspect existing column data types (`TEXT PRIMARY KEY`), preventing primary key collision errors on startup.
+
+---
+
+## 8. Verification & Testing Summary
 1. **Database Reset**: `npm run db:reset` ran successfully, applying all 11 database migrations (`001` - `011`).
 2. **Build Validation**: Root `npm run build` completed with **0 errors** (tsc backend build succeeded & Vite frontend bundle created).
-3. **Backend Unit Test Suite**: `npm test` in `backend` completed with **214 passing test assertions** across all 29 test sections.
+3. **Backend Unit Test Suite**: `npm test` in `backend` completed with **215 passing test assertions** (58/58 test files green).
 

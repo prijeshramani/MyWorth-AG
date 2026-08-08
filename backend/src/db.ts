@@ -41,21 +41,70 @@ db.pragma('foreign_keys = ON');
 export function initDb() {
   console.log(`Initializing database at: ${dbPath}`);
 
-  // HEAL BROKEN FOREIGN KEYS POINTING TO 'assets_old'
-  const brokenTables = db.prepare("SELECT name, sql FROM sqlite_master WHERE type='table' AND sql LIKE '%assets_old%'").all() as Array<{ name: string; sql: string }>;
+  // HEAL ANY LEGACY TABLES MISSING PRIMARY KEY ON id COLUMN
+  const allTables = db.prepare("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_old' AND name NOT LIKE '%_legacy%'").all() as Array<{ name: string; sql: string }>;
+  for (const t of allTables) {
+    if (t.sql && !t.sql.toUpperCase().includes('PRIMARY KEY')) {
+      const cols = db.prepare(`PRAGMA table_info("${t.name}")`).all() as any[];
+      const idCol = cols.find(c => c.name === 'id');
+      if (idCol && (idCol.type.toUpperCase().includes('INT') || idCol.type === '')) {
+        console.log(`Migrating legacy table '${t.name}' to include INTEGER PRIMARY KEY AUTOINCREMENT on id...`);
+        db.pragma('foreign_keys = OFF');
+        db.prepare(`ALTER TABLE "${t.name}" RENAME TO "${t.name}_legacy_pk"`).run();
+        
+        let newSql = t.sql.replace(/\bid\b\s+INT(EGER)?/i, 'id INTEGER PRIMARY KEY AUTOINCREMENT');
+        if (!newSql.toUpperCase().includes('PRIMARY KEY')) {
+          newSql = t.sql.replace(new RegExp(`CREATE TABLE\\s+"?${t.name}"?\\s*\\(`, 'i'), `CREATE TABLE "${t.name}" (id INTEGER PRIMARY KEY AUTOINCREMENT, `);
+        }
+        db.prepare(newSql).run();
+
+        const colNames = cols.map(c => `"${c.name}"`).join(', ');
+        db.prepare(`
+          INSERT INTO "${t.name}" (${colNames})
+          SELECT ${colNames} FROM "${t.name}_legacy_pk"
+        `).run();
+
+        db.prepare(`DROP TABLE "${t.name}_legacy_pk"`).run();
+        db.pragma('foreign_keys = ON');
+        console.log(`Legacy table '${t.name}' primary key migration completed.`);
+      } else if (idCol && idCol.type.toUpperCase().includes('TEXT')) {
+        console.log(`Migrating legacy table '${t.name}' to include TEXT PRIMARY KEY on id...`);
+        db.pragma('foreign_keys = OFF');
+        db.prepare(`ALTER TABLE "${t.name}" RENAME TO "${t.name}_legacy_pk"`).run();
+        
+        let newSql = t.sql.replace(/\bid\b\s+TEXT/i, 'id TEXT PRIMARY KEY');
+        if (!newSql.toUpperCase().includes('PRIMARY KEY')) {
+          newSql = t.sql.replace(new RegExp(`CREATE TABLE\\s+"?${t.name}"?\\s*\\(`, 'i'), `CREATE TABLE "${t.name}" (id TEXT PRIMARY KEY, `);
+        }
+        db.prepare(newSql).run();
+
+        const colNames = cols.map(c => `"${c.name}"`).join(', ');
+        db.prepare(`
+          INSERT INTO "${t.name}" (${colNames})
+          SELECT ${colNames} FROM "${t.name}_legacy_pk"
+        `).run();
+
+        db.prepare(`DROP TABLE "${t.name}_legacy_pk"`).run();
+        db.pragma('foreign_keys = ON');
+        console.log(`Legacy table '${t.name}' primary key migration completed.`);
+      }
+    }
+  }
+
+  // HEAL BROKEN FOREIGN KEYS POINTING TO ANY '_old' TABLES
+  const brokenTables = db.prepare("SELECT name, sql FROM sqlite_master WHERE type='table' AND sql LIKE '%_old%'").all() as Array<{ name: string; sql: string }>;
   if (brokenTables.length > 0) {
-    console.log(`Database schema correction required: Found ${brokenTables.length} tables referencing non-existent 'assets_old' due to a past migration. Correcting now...`);
+    console.log(`Database schema correction required: Found ${brokenTables.length} tables referencing non-existent '_old' tables due to past migrations. Correcting now...`);
+    db.pragma('foreign_keys = OFF');
     db.transaction(() => {
-      db.pragma('foreign_keys = OFF');
-      
       for (const table of brokenTables) {
         console.log(`Correcting foreign keys for table: ${table.name}...`);
         
         // Rename existing table
         db.prepare(`ALTER TABLE "${table.name}" RENAME TO "${table.name}_old"`).run();
         
-        // Create new table with corrected foreign key pointing to "assets"
-        const newSql = table.sql.replace(/REFERENCES\s+"assets_old"/gi, 'REFERENCES assets');
+        // Create new table with corrected foreign key pointing to clean table names
+        const newSql = table.sql.replace(/REFERENCES\s+"?(\w+)_old"?/gi, 'REFERENCES $1');
         db.prepare(newSql).run();
         
         // Copy data dynamically
@@ -70,9 +119,8 @@ export function initDb() {
         // Drop old table
         db.prepare(`DROP TABLE "${table.name}_old"`).run();
       }
-      
-      db.pragma('foreign_keys = ON');
     })();
+    db.pragma('foreign_keys = ON');
     console.log('Database schema correction successfully completed.');
   }
 
@@ -80,11 +128,10 @@ export function initDb() {
   const assetsTableCheck = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='assets'").get() as { sql: string } | undefined;
   
   if (assetsTableCheck) {
-    if (!assetsTableCheck.sql.includes("'EPF'")) {
-      console.log('Running database schema migration for assets table to support EPF (Provident Fund)...');
+    if (!assetsTableCheck.sql.includes("'FIXED_DEPOSIT'")) {
+      console.log('Running database schema migration for assets table to support FIXED_DEPOSIT...');
+      db.pragma('foreign_keys = OFF');
       db.transaction(() => {
-        db.pragma('foreign_keys = OFF');
-        
         // Rename table
         db.prepare('ALTER TABLE assets RENAME TO assets_old').run();
         
@@ -92,28 +139,34 @@ export function initDb() {
         db.prepare(`
           CREATE TABLE assets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            family_member_id INTEGER,
             name TEXT NOT NULL,
-            type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'OTHER')),
+            type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'FIXED_DEPOSIT', 'OTHER')),
             category TEXT NOT NULL CHECK(category IN ('Equity', 'Debt', 'Cash', 'Hybrid', 'Alternative', 'Other')),
             identifier TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (family_member_id) REFERENCES family_members(id)
           )
         `).run();
         
+        // Check if family_member_id exists in assets_old
+        const hasFamilyMemberCol = (db.prepare("PRAGMA table_info(assets_old)").all() as any[]).some(c => c.name === 'family_member_id');
+        const selectColStr = hasFamilyMemberCol 
+          ? 'id, family_member_id, name, type, category, identifier, created_at, updated_at'
+          : 'id, NULL as family_member_id, name, type, category, identifier, created_at, updated_at';
+
         // Copy old data
         db.prepare(`
-          INSERT INTO assets (id, name, type, category, identifier, created_at, updated_at)
-          SELECT id, name, type, category, identifier, created_at, updated_at
-          FROM assets_old
+          INSERT INTO assets (id, family_member_id, name, type, category, identifier, created_at, updated_at)
+          SELECT ${selectColStr} FROM assets_old
         `).run();
         
         // Drop old table
         db.prepare('DROP TABLE assets_old').run();
-        
-        db.pragma('foreign_keys = ON');
       })();
-      console.log('Database assets schema migration successfully completed.');
+      db.pragma('foreign_keys = ON');
+      console.log('Database assets schema migration for FIXED_DEPOSIT successfully completed.');
     }
   } else {
     // Create new table directly
@@ -122,7 +175,7 @@ export function initDb() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         family_member_id INTEGER,
         name TEXT NOT NULL,
-        type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'OTHER')),
+        type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'FIXED_DEPOSIT', 'OTHER')),
         category TEXT NOT NULL CHECK(category IN ('Equity', 'Debt', 'Cash', 'Hybrid', 'Alternative', 'Other')),
         identifier TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -132,10 +185,13 @@ export function initDb() {
     `).run();
   }
 
-  // Ensure assets table has family_member_id column
+  // Ensure assets table has family_member_id & metadata columns
   const assetsCols = db.prepare("PRAGMA table_info(assets)").all() as any[];
   if (assetsCols.length > 0 && !assetsCols.some(c => c.name === 'family_member_id')) {
     db.prepare('ALTER TABLE assets ADD COLUMN family_member_id INTEGER REFERENCES family_members(id)').run();
+  }
+  if (assetsCols.length > 0 && !assetsCols.some(c => c.name === 'metadata')) {
+    db.prepare('ALTER TABLE assets ADD COLUMN metadata TEXT').run();
   }
 
   // Ensure accounts table has family_member_id column
@@ -153,9 +209,8 @@ export function initDb() {
     
     if (!hasNarration) {
       console.log('Running database schema migration for transactions table to support Cash Flow & BankInsights...');
+      db.pragma('foreign_keys = OFF');
       db.transaction(() => {
-        db.pragma('foreign_keys = OFF');
-        
         // Rename table
         db.prepare('ALTER TABLE transactions RENAME TO transactions_old').run();
         
@@ -186,9 +241,8 @@ export function initDb() {
         
         // Drop old table
         db.prepare('DROP TABLE transactions_old').run();
-        
-        db.pragma('foreign_keys = ON');
       })();
+      db.pragma('foreign_keys = ON');
       console.log('Database schema migration successfully completed.');
     }
   } else {

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { assetRepository } from '../repositories/SQLiteAssetRepository';
 import { transactionRepository } from '../repositories/SQLiteTransactionRepository';
 import { priceRepository } from '../repositories/SQLitePriceRepository';
+import { calculateFixedDepositValuation, extractFdMetadata } from '../utils/fdValuation';
 
 const router = Router();
 
@@ -35,10 +36,41 @@ router.get('/', (req: Request, res: Response, next) => {
     
     // Initialize map
     for (const asset of assets) {
-      if (asset.type === 'BANK_ACCOUNT') {
+      if (asset.type === 'FIXED_DEPOSIT') {
         const latestPriceInfo = latestPriceMap.get(asset.id);
-        const balance = latestPriceInfo ? latestPriceInfo.price : 0;
-        currentAssetHoldings.set(asset.id, { units: balance > 0 ? 1.0 : 0, cost: 0, lastTxPrice: balance });
+        const assetTxs = transactions.filter(t => t.asset_id === asset.id);
+        let txSum = 0;
+        let firstTxDate = '';
+        for (const tx of assetTxs) {
+          if (tx.type === 'BUY' || tx.type === 'REINVEST') {
+            txSum += tx.amount;
+            if (!firstTxDate || tx.date < firstTxDate) firstTxDate = tx.date;
+          } else if (tx.type === 'SELL') {
+            txSum -= tx.amount;
+          }
+        }
+        const meta = extractFdMetadata(asset, firstTxDate);
+        const fdVal = calculateFixedDepositValuation({
+          costBasis: txSum,
+          interestRate: meta.interestRate,
+          startDateStr: meta.startDate,
+          compoundingFrequency: meta.compoundingFrequency
+        });
+        let balance = fdVal.marketValue > 0 ? fdVal.marketValue : txSum;
+        if (latestPriceInfo && latestPriceInfo.price !== txSum && latestPriceInfo.price > 0) {
+          balance = latestPriceInfo.price;
+        }
+        currentAssetHoldings.set(asset.id, { units: balance > 0 ? 1.0 : 0, cost: txSum > 0 ? txSum : balance, lastTxPrice: balance });
+      } else if (asset.type === 'BANK_ACCOUNT') {
+        const latestPriceInfo = latestPriceMap.get(asset.id);
+        const assetTxs = transactions.filter(t => t.asset_id === asset.id);
+        let txSum = 0;
+        for (const tx of assetTxs) {
+          if (tx.type === 'BUY' || tx.type === 'REINVEST') txSum += tx.amount;
+          else if (tx.type === 'SELL') txSum -= tx.amount;
+        }
+        const balance = latestPriceInfo ? latestPriceInfo.price : txSum;
+        currentAssetHoldings.set(asset.id, { units: balance > 0 ? 1.0 : 0, cost: txSum > 0 ? txSum : balance, lastTxPrice: balance });
       } else if (asset.type === 'EPF') {
         const latestPriceInfo = priceRepository.findLatestPriceAbove(asset.id, 1.0);
 
@@ -72,7 +104,7 @@ router.get('/', (req: Request, res: Response, next) => {
 
     for (const tx of transactions) {
       const asset = assets.find(a => a.id === tx.asset_id);
-      if (!asset || asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF') continue;
+      if (!asset || asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF' || asset.type === 'FIXED_DEPOSIT') continue;
 
       const holding = currentAssetHoldings.get(tx.asset_id);
       if (!holding) continue;

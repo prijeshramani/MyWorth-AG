@@ -208,16 +208,20 @@ export default function CashFlowDashboard() {
   const isSavingPositive = summary.netSavings >= 0;
 
   // Filter Transactions list
-  const filteredTxs = recentTransactions.filter((tx: Transaction) => {
-    const matchesSearch = tx.narration.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          tx.tx_category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategoryFilter === 'all' || tx.tx_category === selectedCategoryFilter;
+  const filteredTxs = (recentTransactions || []).filter((tx: Transaction) => {
+    const narration = (tx.narration || '').toLowerCase();
+    const category = (tx.tx_category || 'Uncategorized').toLowerCase();
+    const search = (searchTerm || '').toLowerCase();
+    const matchesSearch = narration.includes(search) || category.includes(search);
+    const matchesCategory = selectedCategoryFilter === 'all' || (tx.tx_category || 'Uncategorized') === selectedCategoryFilter;
     const matchesType = selectedTypeFilter === 'all' || tx.type === selectedTypeFilter;
     return matchesSearch && matchesCategory && matchesType;
   });
 
   // Get distinct categories in dataset for dropdown filters
-  const uniqueCategories = Array.from(new Set(recentTransactions.map((tx: any) => tx.tx_category)));
+  const uniqueCategories = Array.from(
+    new Set((recentTransactions || []).map((tx: any) => tx.tx_category || 'Uncategorized'))
+  ).filter(Boolean);
 
   // Preset list of categorizations for the inline tagger
   const categoriesList = [

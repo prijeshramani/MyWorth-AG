@@ -25,15 +25,15 @@ export interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  activeFamilyId: 1,
+  activeFamilyId: 6,
   reportingCurrency: 'INR',
   isDrawerOpen: true,
   activeTab: 'dashboard',
   datasetMode: 'REAL',
   isGlobalSearchOpen: false,
   searchQuery: '',
-  onboardingStep: 1,
-  isOnboardingComplete: false,
+  onboardingStep: 8,
+  isOnboardingComplete: true,
   dashboardWidgets: ['networth', 'investments', 'protection', 'tax', 'quality', 'activity'],
 
   setActiveFamilyId: (id) => set({ activeFamilyId: id }),

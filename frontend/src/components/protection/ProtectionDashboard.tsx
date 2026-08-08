@@ -268,9 +268,10 @@ export const ProtectionDashboard: React.FC = () => {
   };
 
   const filteredPolicies = policiesList.filter(p => {
-    const matchesSearch = p.insurerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          p.policyNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          p.holderName.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = (searchQuery || '').toLowerCase();
+    const matchesSearch = (p.insurerName || '').toLowerCase().includes(q) ||
+                          (p.policyNumber || '').toLowerCase().includes(q) ||
+                          (p.holderName || '').toLowerCase().includes(q);
     if (!matchesSearch) return false;
     if (categoryFilter === 'LIFE') return LIFE_TYPES.includes(p.policyType);
     if (categoryFilter === 'HEALTH') return HEALTH_TYPES.includes(p.policyType);

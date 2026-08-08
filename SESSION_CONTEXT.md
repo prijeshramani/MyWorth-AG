@@ -83,15 +83,25 @@
     - Created dedicated Reports Generator page (`ReportsGenerator.tsx`) featuring 5 statement templates (*Net Worth, Holdings Ledger, Tax Audit, Protection Audit, Estate Digest*), format selectors (`PDF`, `CSV`, `JSON`), and governance options.
     - Created executive binary PDF generator (`pdfGenerator.ts`) using `jsPDF` for 100% Adobe Acrobat-compliant PDF files with deep indigo headers, metric cards, styled data tables, and governance badges.
     - Fixed 404 route error and PDF corruption issue when exporting statements.
-11. **Build & Test Status**:
+11. **Fixed Deposit Accrued Interest & Target Maturity Valuation Engine**:
+    - Created [fdValuation.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/utils/fdValuation.ts) utility supporting compounding interest accrual ($A = P \times (1 + r/n)^{n \times t}$) and target maturity progress accrual ($P \times (M/P)^{\text{progress}}$).
+    - Integrated accrued FD market values into `GET /api/v1/assets`, `GET /api/v1/dashboard`, `AIContextAggregator.ts`, and `FixedDepositValuationStrategy.ts`.
+    - Added explicit form fields on `Portfolio.tsx` modal: Deposit Principal (₹), Target Maturity Amount (₹), Interest Rate (% p.a.), Start Date, and Maturity Date.
+12. **Active Family Scope Restoration & System-Wide Null Safety**:
+    - Restored Ramani family office dataset (Family ID 6: Prijesh Hiralal Ramani [SELF], Dhvani Prijesh Ramani [SPOUSE], 38 assets, 8,005 transactions) and dynamically routed API requests using `activeFamilyId` from `useUiStore`.
+    - Resolved `Cannot read properties of null (reading 'toLowerCase')` on Cashflow & Activity page (`CashFlowDashboard.tsx`).
+    - Hardened `Transactions.tsx`, `HoldingTable.tsx`, and `ProtectionDashboard.tsx` against null property dereferencing.
+    - Refined primary key auto-migration loop in `db.ts` to inspect existing column data types (`TEXT PRIMARY KEY`).
+13. **Build & Test Status**:
     - Backend TypeScript build: **PASSED (0 ERRORS)**
     - Frontend Vite production build: **PASSED (0 ERRORS)**
-    - Adobe Acrobat PDF Reader verification: **PASSED (100% VERIFIED)**
+    - Backend Unit Test Suite: **58/58 PASSED (215 Assertions Green)**
 
 ---
 
 ## Instructions for Next Session / Developer Commands
 - **Reset Database**: `npm run db:reset` (runs migrations 001 through 011 cleanly).
-- **Run Application**: `npm run dev` (launches backend Express server on port 3001 and frontend Vite dev server on port 5173).
+- **Run Application**: `npm run dev` (launches backend Express server on port 5000 and frontend Vite dev server on port 5173).
 - **Run Full Build**: `npm run build`
 - **Run Backend Tests**: `cd backend && npm test`
+

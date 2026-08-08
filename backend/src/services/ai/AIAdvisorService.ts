@@ -1,5 +1,6 @@
 import { aiSkillRegistry, AISkillDefinition } from './AISkillRegistry';
 import { aiContextAggregator, AggregatedAIContext, EvidenceItem } from './AIContextAggregator';
+import { geminiLLMService } from './GeminiLLMService';
 
 export interface AdvisorActionItem {
   id: string;
@@ -123,15 +124,29 @@ export class AIAdvisorService {
     }
 
     // Pipeline Step 5: Evidence-Backed Response Generation
-    const adviceMarkdown = this.generateEvidenceBackedAdvice(
-      cleanQuery,
-      matchedSkills,
-      context,
-      uniqueEvidence,
-      recommendationsReferenced,
-      safetyCheckPassed,
-      guardrailNote
-    );
+    let adviceMarkdown: string | null = null;
+    if (safetyCheckPassed) {
+      adviceMarkdown = await geminiLLMService.generateAdvice(
+        cleanQuery,
+        matchedSkills,
+        context,
+        uniqueEvidence,
+        recommendationsReferenced
+      );
+    }
+
+    // Fallback to rule-based deterministic template if Gemini API key isn't provided or call fails
+    if (!adviceMarkdown) {
+      adviceMarkdown = this.generateEvidenceBackedAdvice(
+        cleanQuery,
+        matchedSkills,
+        context,
+        uniqueEvidence,
+        recommendationsReferenced,
+        safetyCheckPassed,
+        guardrailNote
+      );
+    }
 
     // Pipeline Step 6: Collect Follow-up Prompt Suggestions from Matched Skills
     const followUpSuggestions: string[] = [];
@@ -171,7 +186,23 @@ export class AIAdvisorService {
       return `### ⚠️ Safety Policy Enforcement\n\n${guardrailNote || 'Query rejected due to safety policy guidelines.'}`;
     }
 
-    const primarySkill = skills[0];
+    const cleanQ = (query || '').toLowerCase().trim();
+    if (/^(hi|hello|hey|greetings|help|who are you|what can you do)$/i.test(cleanQ)) {
+      return `### 👋 Hello! I am your AI Wealth Advisor
+
+I am your permission-aware, evidence-backed wealth advisor grounded in your authentic MyWorth database context.
+
+Your current total net worth is **₹${context.totalNetWorth.toLocaleString('en-IN')}**. Here is how I can assist you:
+
+- **📊 Portfolio Analysis**: Evaluate asset allocation, equity vs debt balance, and concentration risk.
+- **📜 Tax Planning**: Calculate STCG/LTCG capital gains under Finance Act 2024, Section 80C/80D, and Tax Loss Harvesting.
+- **🛡️ Insurance Audit**: Audit term life cover adequacy (10-15x income rule) and health insurance policy coverage.
+- **📈 Retirement & Goals**: Run Monte Carlo projections for retirement target age and milestone goals.
+- **🕸️ Estate & Nominees**: Review Knowledge Graph nodes and unassigned family assets.
+
+Ask me any specific query or select one of the suggested prompts below to get started!`;
+    }
+    const primarySkill = skills[0] || { name: 'Portfolio Analysis', description: 'Evaluates asset allocation' };
     const skillNames = skills.map(s => `**${s.name}**`).join(' & ');
     let text = `### 🧠 AI Wealth Advisor Overview\n\n`;
 

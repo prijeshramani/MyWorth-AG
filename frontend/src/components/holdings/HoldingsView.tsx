@@ -17,7 +17,7 @@ const DEMO_HOLDINGS: HoldingRow[] = [
 ];
 
 export const HoldingsView: React.FC = () => {
-  const { datasetMode, setActiveTab } = useUiStore();
+  const { datasetMode, setActiveTab, activeFamilyId } = useUiStore();
   const [holdings, setHoldings] = useState<HoldingRow[]>([]);
   const [familyMembers, setFamilyMembers] = useState<Array<{ id: number; name: string; relationship: string }>>([]);
   const [selectedMemberFilter, setSelectedMemberFilter] = useState<number | 'ALL'>('ALL');
@@ -56,7 +56,7 @@ export const HoldingsView: React.FC = () => {
   };
 
   const fetchMembers = () => {
-    apiClient.get<any>('/v1/family-members?familyId=1')
+    apiClient.get<any>(`/family-members?familyId=${activeFamilyId}`)
       .then((res) => {
         const members = res.data?.data || res.data || [];
         if (Array.isArray(members)) {

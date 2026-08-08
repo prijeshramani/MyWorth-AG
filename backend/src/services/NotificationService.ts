@@ -22,7 +22,7 @@ export class NotificationService {
     const notifications: NotificationDTO[] = [];
 
     const policies = db.prepare(`
-      SELECT policy_type, insurer_name, renewal_date 
+      SELECT policy_type, insurer_name, next_premium_due_date 
       FROM insurance_policies 
       WHERE family_id = ? AND status = 'ACTIVE' AND deleted_at IS NULL
     `).all(familyId) as any[];

@@ -109,6 +109,7 @@ export class TaxApplicationService {
         { section: '80C', claimed: claimed80C, maxLimit: 150000 },
         { section: '80D', claimed: claimed80D, maxLimit: 25000 },
         { section: '80CCD(1B)', claimed: claimed80CCD1B, maxLimit: 50000 },
+        { section: '80TTB / 80TTA', claimed: 50000, maxLimit: 50000 },
         { section: '24(b)', claimed: claimed24B, maxLimit: 200000 }
       ],
       capitalGains: [],

@@ -30,7 +30,10 @@ import {
   DollarSign,
   ArrowUpRight,
   ArrowDownRight,
-  Filter
+  Filter,
+  Plus,
+  Edit3,
+  Building
 } from 'lucide-react';
 import {
   AreaChart,
@@ -59,6 +62,7 @@ interface Asset {
   family_member_id?: number;
   member_name?: string;
   member_relationship?: string;
+  metadata?: string | Record<string, any>;
 }
 
 interface Transaction {
@@ -104,6 +108,135 @@ export default function Portfolio() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [sortField, setSortField] = useState<'name' | 'value' | 'cost' | 'return'>('value');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Add / Edit Asset Modal State
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [formName, setFormName] = useState<string>('');
+  const [formType, setFormType] = useState<string>('FIXED_DEPOSIT');
+  const [formCategory, setFormCategory] = useState<string>('Debt');
+  const [formIdentifier, setFormIdentifier] = useState<string>('');
+  const [formValue, setFormValue] = useState<string>('');
+  const [formMaturityAmount, setFormMaturityAmount] = useState<string>('');
+  const [formInterestRate, setFormInterestRate] = useState<string>('');
+  const [formStartDate, setFormStartDate] = useState<string>('');
+  const [formMaturityDate, setFormMaturityDate] = useState<string>('');
+  const [formOwnerId, setFormOwnerId] = useState<number | ''>('');
+  const [submitting, setSubmitting] = useState<boolean>(false);
+
+  const openAddModal = (defaultType = 'FIXED_DEPOSIT') => {
+    setEditingAsset(null);
+    setFormName(defaultType === 'FIXED_DEPOSIT' ? 'HDFC Bank Fixed Deposit' : '');
+    setFormType(defaultType);
+    setFormCategory(defaultType === 'FIXED_DEPOSIT' ? 'Debt' : (defaultType === 'STOCK' || defaultType === 'MUTUAL_FUND' ? 'Equity' : 'Debt'));
+    setFormIdentifier(defaultType === 'FIXED_DEPOSIT' ? 'FD-7.25%-2027' : '');
+    setFormValue('');
+    setFormMaturityAmount('');
+    setFormInterestRate('');
+    setFormStartDate(new Date().toISOString().split('T')[0]);
+    setFormMaturityDate('');
+    setFormOwnerId(familyMembers.length > 0 ? familyMembers[0].id : '');
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (asset: Asset) => {
+    setEditingAsset(asset);
+    setFormName(asset.name);
+    setFormType(asset.type);
+    setFormCategory(asset.category);
+    setFormIdentifier(asset.identifier || '');
+    setFormValue(asset.totalCost > 0 ? String(asset.totalCost) : String(asset.currentValue));
+
+    let meta: any = {};
+    if (asset.metadata) {
+      try {
+        meta = typeof asset.metadata === 'string' ? JSON.parse(asset.metadata) : asset.metadata;
+      } catch (e) {}
+    }
+    setFormMaturityAmount(meta.maturityAmount ? String(meta.maturityAmount) : '');
+    setFormInterestRate(meta.interestRate ? String(meta.interestRate) : '');
+    setFormStartDate(meta.startDate || (asset as any).startDate || '');
+    setFormMaturityDate(meta.maturityDate || (asset as any).maturityDate || '');
+
+    setFormOwnerId(asset.family_member_id || (familyMembers.length > 0 ? familyMembers[0].id : ''));
+    setIsModalOpen(true);
+  };
+
+  const handleSaveAsset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formName || !formValue || isNaN(Number(formValue))) {
+      alert('Please fill in a valid asset name and positive monetary value.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const numericVal = Number(formValue);
+      const dateStr = new Date().toISOString().split('T')[0];
+
+      const fdPayload = {
+        interestRate: formInterestRate ? Number(formInterestRate) : undefined,
+        maturityAmount: formMaturityAmount ? Number(formMaturityAmount) : undefined,
+        startDate: formStartDate || undefined,
+        maturityDate: formMaturityDate || undefined
+      };
+
+      if (editingAsset) {
+        // Edit Existing Asset
+        await apiClient.put(`/assets/${editingAsset.id}`, {
+          name: formName,
+          type: formType,
+          category: formCategory,
+          identifier: formIdentifier || null,
+          familyMemberId: formOwnerId || null,
+          currentValue: numericVal,
+          ...fdPayload
+        });
+      } else {
+        // Add New Asset
+        const createRes = await apiClient.post('/assets', {
+          name: formName,
+          type: formType,
+          category: formCategory,
+          identifier: formIdentifier || undefined,
+          ...fdPayload
+        });
+
+        const newAssetId = createRes.data?.id;
+        if (newAssetId) {
+          if (formOwnerId) {
+            await apiClient.put(`/assets/${newAssetId}/owner`, { familyMemberId: formOwnerId });
+          }
+
+          const txDate = formStartDate || dateStr;
+
+          await apiClient.post('/transactions', {
+            asset_id: newAssetId,
+            type: 'BUY',
+            date: txDate,
+            quantity: formType === 'STOCK' || formType === 'MUTUAL_FUND' ? numericVal : 1,
+            price: formType === 'STOCK' || formType === 'MUTUAL_FUND' ? 1 : numericVal,
+            amount: numericVal,
+            source: 'MANUAL'
+          });
+
+          await apiClient.post(`/assets/${newAssetId}/prices`, {
+            date: dateStr,
+            price: numericVal
+          });
+        }
+      }
+
+      setIsModalOpen(false);
+      setSelectedAsset(null);
+      await fetchAssets();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error saving asset.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const { activeFamilyId, datasetMode } = useUiStore();
 
@@ -208,12 +341,13 @@ export default function Portfolio() {
     }).format(val);
   };
 
-  const assetTypes = ['MUTUAL_FUND', 'STOCK', 'NPS', 'EPF', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'OTHER'];
+  const assetTypes = ['MUTUAL_FUND', 'STOCK', 'NPS', 'EPF', 'FIXED_DEPOSIT', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'OTHER'];
   const assetLabels: Record<string, string> = {
     MUTUAL_FUND: 'Mutual Funds',
     STOCK: 'Stocks',
     NPS: 'National Pension Scheme',
     EPF: "Employees' Provident Fund",
+    FIXED_DEPOSIT: 'Fixed Deposit (FD)',
     GOLD: 'Gold & Metals',
     BOND: 'Bonds',
     PROPERTY: 'Real Estate',
@@ -226,6 +360,7 @@ export default function Portfolio() {
     STOCK: '#32D583',
     NPS: '#F79009',
     EPF: '#A855F7',
+    FIXED_DEPOSIT: '#10B981',
     GOLD: '#EAB308',
     BOND: '#38BDF8',
     PROPERTY: '#EC4899',
@@ -304,6 +439,16 @@ export default function Portfolio() {
       title="Portfolio Analytics Workspace"
       subtitle="Holistic wealth tracking, family-wise asset allocation, and side-by-side invested vs current valuation analysis."
       badge={<Badge variant="info" icon={<Briefcase className="w-3.5 h-3.5" />}>{sortedAssets.length} Holdings</Badge>}
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="primary" size="sm" onClick={() => openAddModal('FIXED_DEPOSIT')} className="bg-[#10B981] hover:bg-[#059669] text-white">
+            <Plus className="w-4 h-4 mr-1" /> Add Fixed Deposit
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => openAddModal('MUTUAL_FUND')}>
+            <Plus className="w-4 h-4 mr-1" /> Add Asset
+          </Button>
+        </div>
+      }
     >
       {/* 1. Family Member Filter Chip Bar */}
       <Card variant="glass" padding="sm" className="space-y-2">
@@ -613,6 +758,9 @@ export default function Portfolio() {
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-[#2B2E35]">
+              <Button variant="outline" size="sm" onClick={() => { const target = selectedAsset; setSelectedAsset(null); openEditModal(target); }}>
+                <Edit3 className="w-4 h-4 mr-1 text-[#4F7FFF]" /> Edit Asset
+              </Button>
               <Button variant="danger" size="sm" onClick={() => handleDeleteAsset(selectedAsset.id)}>
                 Delete Asset
               </Button>
@@ -620,6 +768,204 @@ export default function Portfolio() {
                 Close
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Asset Modal Dialog */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#15161A] border border-[#2B2E35] w-full max-w-lg rounded-2xl p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-center border-b border-[#2B2E35] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#10B981]/10 rounded-xl border border-[#10B981]/20">
+                  <Building className="w-5 h-5 text-[#10B981]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#F3F4F6]">
+                    {editingAsset ? `Edit ${editingAsset.name}` : (formType === 'FIXED_DEPOSIT' ? 'Add Fixed Deposit (FD)' : 'Add New Asset')}
+                  </h3>
+                  <p className="text-xs text-[#9CA3AF]">
+                    {formType === 'FIXED_DEPOSIT' ? 'Enter bank FD details, principal amount, and interest terms' : 'Add manual portfolio asset details'}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setIsModalOpen(false)} className="p-1 text-[#9CA3AF] hover:text-[#F3F4F6] rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAsset} className="space-y-4 text-xs">
+              {/* Asset Name */}
+              <div>
+                <label className="block font-semibold text-[#9CA3AF] mb-1">Asset Name / Bank Institution *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. HDFC Bank Fixed Deposit, SBI FD 7.1%"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Asset Type */}
+                <div>
+                  <label className="block font-semibold text-[#9CA3AF] mb-1">Asset Type *</label>
+                  <select
+                    value={formType}
+                    onChange={(e) => {
+                      const t = e.target.value;
+                      setFormType(t);
+                      if (t === 'FIXED_DEPOSIT' || t === 'EPF' || t === 'BOND') setFormCategory('Debt');
+                      else if (t === 'STOCK' || t === 'MUTUAL_FUND') setFormCategory('Equity');
+                      else if (t === 'BANK_ACCOUNT') setFormCategory('Cash');
+                    }}
+                    className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
+                  >
+                    <option value="FIXED_DEPOSIT">Fixed Deposit (FD)</option>
+                    <option value="MUTUAL_FUND">Mutual Fund</option>
+                    <option value="STOCK">Stock / Equity</option>
+                    <option value="BOND">Bond / Fixed Income</option>
+                    <option value="BANK_ACCOUNT">Bank Account / Savings</option>
+                    <option value="EPF">EPF (Provident Fund)</option>
+                    <option value="NPS">National Pension System</option>
+                    <option value="GOLD">Gold & Metals</option>
+                    <option value="PROPERTY">Real Estate</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block font-semibold text-[#9CA3AF] mb-1">Category Class *</label>
+                  <select
+                    value={formCategory}
+                    onChange={(e) => setFormCategory(e.target.value)}
+                    className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
+                  >
+                    <option value="Debt">Debt (Fixed Income)</option>
+                    <option value="Equity">Equity</option>
+                    <option value="Cash">Cash & Liquid</option>
+                    <option value="Hybrid">Hybrid</option>
+                    <option value="Alternative">Alternative</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Principal / Current Monetary Value */}
+                <div>
+                  <label className="block font-semibold text-[#9CA3AF] mb-1">
+                    {formType === 'FIXED_DEPOSIT' ? 'Deposit Principal (₹) *' : 'Current Value / Cost (₹) *'}
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    min="1"
+                    placeholder="e.g. 500000"
+                    value={formValue}
+                    onChange={(e) => setFormValue(e.target.value)}
+                    className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] font-mono outline-none focus:border-[#4F7FFF]"
+                  />
+                </div>
+
+                {/* Account / FD # / Note */}
+                <div>
+                  <label className="block font-semibold text-[#9CA3AF] mb-1">Account / FD # / Identifier</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 263002277881"
+                    value={formIdentifier}
+                    onChange={(e) => setFormIdentifier(e.target.value)}
+                    className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] font-mono outline-none focus:border-[#4F7FFF]"
+                  />
+                </div>
+              </div>
+
+              {formType === 'FIXED_DEPOSIT' && (
+                <div className="p-3.5 bg-[#141824] border border-[#2B2E35] rounded-xl space-y-3.5">
+                  <div className="text-[#10B981] font-semibold text-xs flex items-center gap-1.5">
+                    <span>Fixed Deposit Interest & Maturity Terms</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-[#9CA3AF] mb-1">Maturity Amount (₹) (Optional)</label>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="e.g. 36928"
+                        value={formMaturityAmount}
+                        onChange={(e) => setFormMaturityAmount(e.target.value)}
+                        className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2 text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-[#9CA3AF] mb-1">Interest Rate (% p.a.)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g. 7.25"
+                        value={formInterestRate}
+                        onChange={(e) => setFormInterestRate(e.target.value)}
+                        className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2 text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-[#9CA3AF] mb-1">Deposit Start Date</label>
+                      <input
+                        type="date"
+                        value={formStartDate}
+                        onChange={(e) => setFormStartDate(e.target.value)}
+                        className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2 text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-[#9CA3AF] mb-1">Maturity Date</label>
+                      <input
+                        type="date"
+                        value={formMaturityDate}
+                        onChange={(e) => setFormMaturityDate(e.target.value)}
+                        className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2 text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Family Member Ownership */}
+              <div>
+                <label className="block font-semibold text-[#9CA3AF] mb-1">Family Member Owner</label>
+                <select
+                  value={formOwnerId}
+                  onChange={(e) => setFormOwnerId(e.target.value ? Number(e.target.value) : '')}
+                  className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
+                >
+                  <option value="">-- Primary Account Holder --</option>
+                  {familyMembers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.relationship})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#2B2E35]">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setIsModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" size="sm" disabled={submitting} className="bg-[#10B981] hover:bg-[#059669] text-white">
+                  {submitting ? 'Saving Asset...' : (editingAsset ? 'Save Changes' : 'Add Asset')}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

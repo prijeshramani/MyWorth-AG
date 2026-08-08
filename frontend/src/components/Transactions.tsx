@@ -220,15 +220,17 @@ export default function Transactions() {
     setNewAssetType(type);
     if (type === 'BANK_ACCOUNT') setNewAssetCat('Cash');
     else if (type === 'STOCK' || type === 'MUTUAL_FUND') setNewAssetCat('Equity');
-    else if (type === 'BOND' || type === 'EPF') setNewAssetCat('Debt');
+    else if (type === 'BOND' || type === 'EPF' || type === 'FIXED_DEPOSIT') setNewAssetCat('Debt');
     else if (type === 'NPS') setNewAssetCat('Hybrid');
     else setNewAssetCat('Alternative');
   };
 
   // Filtering
   const filteredTxs = txs.filter((tx) => {
-    const matchesSearch = tx.asset_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (tx.identifier && tx.identifier.toLowerCase().includes(searchTerm.toLowerCase()));
+    const assetName = (tx.asset_name || '').toLowerCase();
+    const identifier = (tx.identifier || '').toLowerCase();
+    const search = (searchTerm || '').toLowerCase();
+    const matchesSearch = assetName.includes(search) || identifier.includes(search);
     
     const matchesType = typeFilter ? tx.type === typeFilter : true;
     const matchesClass = classFilter ? tx.asset_type === classFilter : true;
@@ -241,6 +243,7 @@ export default function Transactions() {
     STOCK: 'Stock',
     NPS: 'NPS Pension',
     EPF: 'EPF (Provident Fund)',
+    FIXED_DEPOSIT: 'Fixed Deposit (FD)',
     GOLD: 'Gold Metal',
     BOND: 'Bond',
     PROPERTY: 'Real Estate',

@@ -81,11 +81,11 @@ The central command center providing a high-level visual summary of total financ
 - **Quick Metrics**: Highlights top asset holdings, cash balance, and recent transaction activity.
 
 ### 2. 💼 Portfolio (`/portfolio`)
-A detailed granular breakdown of all tracked assets.
-- **Asset Grouping**: Filterable by Asset Type (`MUTUAL_FUND`, `STOCK`, `EPF`, `NPS`, `GOLD`, `BANK_ACCOUNT`, `PROPERTY`, `OTHER`).
+- **Asset Grouping**: Filterable by Asset Type (`MUTUAL_FUND`, `STOCK`, `FIXED_DEPOSIT`, `EPF`, `NPS`, `GOLD`, `BANK_ACCOUNT`, `PROPERTY`, `OTHER`).
+- **Fixed Deposit Accrued Interest Engine**: Calculates compounding accrued interest ($A = P \times (1 + r/n)^{n \times t}$) and target maturity progress ($P \times (M/P)^{\text{progress}}$) based on Interest Rate (% p.a.), Start Date, and Maturity Amount.
 - **Asset Performance Metrics**: Shows Units owned, Average Purchase Price, Current NAV/Price, Total Cost, Current Market Value, Absolute Return (₹ and %), and XIRR.
-- **Manual Asset & Transaction Modal**: Form to manually add un-trackable or physical assets (e.g., Real Estate, Physical Gold, Private Investments) and record Buy/Sell transactions.
-- **Asset Management**: Supports asset deletion and transaction editing.
+- **Manual Asset & Transaction Modal**: Form to manually add or edit assets (including FD Principal, Maturity Amount, Interest Rate, Start Date, Maturity Date, Real Estate, Gold) and record Buy/Sell transactions.
+- **Asset Management**: Supports asset deletion, owner reassignment, and transaction editing.
 
 ### 3. 📜 Ledger / Transactions (`/transactions`)
 A unified audit trail of every transaction across all brokers and bank accounts.

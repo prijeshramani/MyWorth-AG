@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useUiStore } from '../store/useUiStore';
 import { 
   FileUp, 
   Lock, 
@@ -44,6 +45,7 @@ export default function ImportCenter({
   initialUpstoxCode,
   clearUpstoxCode
 }: ImportCenterProps = {}) {
+  const { activeFamilyId } = useUiStore();
   const [importMethod, setImportMethod] = useState<'file' | 'kite' | 'angelone' | 'upstox' | 'indmoney' | 'epf' | 'bankinsights'>('file');
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState<string>('');
@@ -180,7 +182,7 @@ export default function ImportCenter({
 
   const fetchFamilyMembers = async () => {
     try {
-      const res = await fetch('/api/v1/family-members?familyId=1');
+      const res = await fetch(`/api/v1/family-members?familyId=${activeFamilyId}`);
       if (res.ok) {
         const json = await res.json();
         const members = json.data || json || [];

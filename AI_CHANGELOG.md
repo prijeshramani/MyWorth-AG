@@ -1,5 +1,25 @@
 # AI Change Log
 
+## [2026-08-08] Fixed Deposit Accrued Interest Engine, Target Maturity Valuation, Family Member Scope Restoration & Null Safety Hardening
+
+### Added
+- [backend/src/utils/fdValuation.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/utils/fdValuation.ts): Created Fixed Deposit Valuation engine supporting compounding interest accrual ($A = P \times (1 + r/n)^{n \times t}$) and target maturity amount progress accrual ($P \times (M/P)^{\text{progress}}$).
+- [backend/src/routes/assets.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/assets.ts), [backend/src/routes/dashboard.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/dashboard.ts), & [backend/src/services/ai/AIContextAggregator.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/services/ai/AIContextAggregator.ts): Integrated FD accrued market value calculation into asset listings, net worth totals, debt asset allocation, and AI context aggregator.
+- [backend/src/db.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/db.ts): Auto-migrated `metadata TEXT` column on `assets` table and updated `POST /api/assets` & `PUT /api/assets/:id` to parse and persist FD parameters (`interestRate`, `maturityAmount`, `startDate`, `maturityDate`).
+- [frontend/src/components/Portfolio.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/Portfolio.tsx): Added dedicated input fields on the Fixed Deposit Add/Edit modal:
+  - Deposit Principal (₹)
+  - Target Maturity Amount (₹) *(Optional)*
+  - Interest Rate (% p.a.)
+  - Deposit Start Date & Maturity Date
+
+### Fixed
+- [frontend/src/store/useUiStore.ts](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/store/useUiStore.ts), [frontend/src/components/holdings/HoldingsView.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/holdings/HoldingsView.tsx), [frontend/src/components/ImportCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ImportCenter.tsx), & [frontend/src/components/tax/ITRFilingCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/tax/ITRFilingCenter.tsx): Restored active Ramani family office data (Family ID 6: Prijesh Hiralal Ramani [SELF], Dhvani Prijesh Ramani [SPOUSE], 38 assets, 8,005 transactions) and dynamically routed API requests using `activeFamilyId` from `useUiStore` instead of hardcoded `familyId=1`.
+- [frontend/src/components/CashFlowDashboard.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/CashFlowDashboard.tsx): Resolved `Cannot read properties of null (reading 'toLowerCase')` application crash by adding null fallbacks `(tx.narration || '').toLowerCase()` and `(tx.tx_category || 'Uncategorized').toLowerCase()`. Filtered null values when rendering category dropdown filters.
+- [frontend/src/components/Transactions.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/Transactions.tsx), [frontend/src/components/ui/HoldingTable.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ui/HoldingTable.tsx), & [frontend/src/components/protection/ProtectionDashboard.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/protection/ProtectionDashboard.tsx): Hardened search filtering across all table views against null/undefined property dereferencing.
+- [backend/src/db.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/db.ts): Enhanced database primary key auto-migration loop to inspect existing column data types (supporting `TEXT PRIMARY KEY` tables like `ai_action_items`), eliminating primary key collision errors on startup.
+
+---
+
 ## [2026-08-07] Phase 7E – Product Hardening, Beta Readiness & UX Excellence
 
 ### Added

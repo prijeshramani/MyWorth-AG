@@ -149,6 +149,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     STOCK: '#10b981',       // Emerald
     NPS: '#f59e0b',         // Amber
     EPF: '#8b5cf6',         // Violet/Indigo
+    FIXED_DEPOSIT: '#10b981',// Emerald
     GOLD: '#eab308',        // Yellow
     BOND: '#3b82f6',        // Blue
     PROPERTY: '#ec4899',    // Pink
@@ -170,6 +171,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     STOCK: 'Stocks',
     NPS: 'National Pension Scheme',
     EPF: "Employees' Provident Fund (EPF)",
+    FIXED_DEPOSIT: 'Fixed Deposit (FD)',
     GOLD: 'Gold',
     BOND: 'Bonds',
     PROPERTY: 'Real Estate',

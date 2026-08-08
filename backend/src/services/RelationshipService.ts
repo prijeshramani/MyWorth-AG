@@ -69,7 +69,12 @@ export class RelationshipService {
       const accountsTable = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='accounts'").get();
       if (accountsTable) {
         const accounts = this.db
-          .prepare(`SELECT id, account_name as name, account_type as type, masked_account_number as account_number_masked, institution_name, family_member_id FROM accounts WHERE family_id = ? AND deleted_at IS NULL`)
+          .prepare(`
+            SELECT a.id, a.account_name as name, a.account_type as type, a.masked_account_number as account_number_masked, a.institution_name, a.family_member_id 
+            FROM accounts a 
+            LEFT JOIN family_members fm ON a.family_member_id = fm.id 
+            WHERE (fm.family_id = ? OR a.family_member_id IS NULL) AND a.deleted_at IS NULL
+          `)
           .all(targetFamilyId) as Array<{ id: number; name: string; type: string; account_number_masked?: string; institution_name?: string; family_member_id?: number | null }>;
 
         for (const acc of accounts) {

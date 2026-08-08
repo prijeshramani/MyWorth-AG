@@ -1,4 +1,5 @@
 import { db } from '../../db';
+import { calculateFixedDepositValuation, extractFdMetadata } from '../../utils/fdValuation';
 import { CapitalGainsCalculator } from '../../engines/tax/CapitalGainsCalculator';
 import { SQLiteRecommendationRuleRepository } from '../../repositories/SQLiteRecommendationRuleRepository';
 import { SQLiteRecommendationRepository } from '../../repositories/SQLiteRecommendationRepository';
@@ -88,7 +89,24 @@ export class AIContextAggregator {
       const txs = db.prepare('SELECT type, amount, quantity FROM transactions WHERE asset_id = ?').all(asset.id) as any[];
       let val = 0;
 
-      if (asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF') {
+      if (asset.type === 'FIXED_DEPOSIT') {
+        const latestPrice = db.prepare('SELECT price FROM asset_prices WHERE asset_id = ? ORDER BY date DESC LIMIT 1').get(asset.id) as { price: number } | undefined;
+        const costBasis = txs.reduce((acc, t) => t.type === 'BUY' || t.type === 'REINVEST' ? acc + t.amount : acc - t.amount, 0);
+        const firstTx = db.prepare('SELECT date FROM transactions WHERE asset_id = ? ORDER BY date ASC LIMIT 1').get(asset.id) as { date: string } | undefined;
+        const meta = extractFdMetadata(asset, firstTx?.date);
+        const fdVal = calculateFixedDepositValuation({
+          costBasis,
+          interestRate: meta.interestRate,
+          startDateStr: meta.startDate,
+          compoundingFrequency: meta.compoundingFrequency
+        });
+
+        if (latestPrice && latestPrice.price !== costBasis && latestPrice.price > 0) {
+          val = latestPrice.price;
+        } else {
+          val = fdVal.marketValue > 0 ? fdVal.marketValue : costBasis;
+        }
+      } else if (asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF') {
         const latestPrice = db.prepare('SELECT price FROM asset_prices WHERE asset_id = ? ORDER BY date DESC LIMIT 1').get(asset.id) as { price: number } | undefined;
         if (latestPrice) {
           val = latestPrice.price;
@@ -106,7 +124,7 @@ export class AIContextAggregator {
 
       if (asset.category === 'Equity' || asset.type === 'STOCK' || asset.type === 'MUTUAL_FUND') {
         equityTotal += val;
-      } else if (asset.category === 'Debt' || asset.type === 'EPF' || asset.type === 'NPS') {
+      } else if (asset.category === 'Debt' || asset.type === 'EPF' || asset.type === 'NPS' || asset.type === 'FIXED_DEPOSIT') {
         debtTotal += val;
       } else if (asset.category === 'Cash' || asset.type === 'BANK_ACCOUNT') {
         cashTotal += val;

@@ -160,22 +160,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: -20 }}
           transition={{ duration: 0.15 }}
-          className="w-full max-w-xl bg-[#15161A] border border-[#2B2E35] rounded-2xl shadow-2xl overflow-hidden"
+          className="w-full max-w-xl bg-white dark:bg-[#15161A] border border-slate-200 dark:border-[#2B2E35] rounded-2xl shadow-2xl overflow-hidden"
         >
           {/* Search Header */}
-          <div className="flex items-center px-4 py-3 border-b border-[#2B2E35]">
-            <Search className="w-5 h-5 text-[#9CA3AF] mr-3" />
+          <div className="flex items-center px-4 py-3 border-b border-slate-200 dark:border-[#2B2E35] bg-slate-50/50 dark:bg-transparent">
+            <Search className="w-5 h-5 text-slate-400 dark:text-[#9CA3AF] mr-3" />
             <input
               type="text"
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Type a command or ask AI wealth advisor..."
-              className="w-full bg-transparent text-sm text-[#F3F4F6] placeholder-[#6B7280] focus:outline-none"
+              className="w-full bg-transparent text-sm text-slate-900 dark:text-[#F3F4F6] placeholder-slate-400 dark:placeholder-[#6B7280] focus:outline-none"
             />
             <button
               onClick={onClose}
-              className="p-1 text-[#6B7280] hover:text-[#F3F4F6] rounded-lg"
+              className="p-1 text-slate-400 hover:text-slate-600 dark:text-[#6B7280] dark:hover:text-[#F3F4F6] rounded-lg"
             >
               <X className="w-4 h-4" />
             </button>
@@ -193,8 +193,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                     onMouseEnter={() => setSelectedIndex(idx)}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
                       isSelected
-                        ? 'bg-[#4F7FFF]/15 text-[#4F7FFF] border border-[#4F7FFF]/30'
-                        : 'text-[#9CA3AF] hover:bg-[#1E2025] hover:text-[#F3F4F6]'
+                        ? 'bg-indigo-50 text-indigo-600 border border-indigo-200 dark:bg-[#4F7FFF]/15 dark:text-[#4F7FFF] dark:border-[#4F7FFF]/30'
+                        : 'text-slate-700 dark:text-[#9CA3AF] hover:bg-slate-100 dark:hover:bg-[#1E2025] hover:text-slate-900 dark:hover:text-[#F3F4F6]'
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -203,11 +203,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                     </div>
                     <div className="flex items-center gap-2">
                       {cmd.shortcut && (
-                        <span className="px-1.5 py-0.5 text-[10px] font-mono bg-[#2B2E35] text-[#9CA3AF] rounded">
+                        <span className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 dark:bg-[#2B2E35] text-slate-600 dark:text-[#9CA3AF] rounded border border-slate-200 dark:border-slate-700/50 font-bold">
                           {cmd.shortcut}
                         </span>
                       )}
-                      {isSelected && <ArrowRight className="w-3.5 h-3.5 text-[#4F7FFF]" />}
+                      {isSelected && <ArrowRight className="w-3.5 h-3.5 text-indigo-600 dark:text-[#4F7FFF]" />}
                     </div>
                   </button>
                 );
@@ -220,15 +220,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                     onClose();
                   }
                 }}
-                className="p-4 text-center cursor-pointer hover:bg-[#1E2025] rounded-xl transition"
+                className="p-4 text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1E2025] rounded-xl transition"
               >
                 <div className="inline-flex items-center justify-center p-2 rounded-xl bg-[#8B5CF6]/15 text-[#8B5CF6] mb-2">
                   <Sparkles className="w-5 h-5" />
                 </div>
-                <p className="text-sm font-semibold text-[#F3F4F6]">
+                <p className="text-sm font-semibold text-slate-900 dark:text-[#F3F4F6]">
                   Ask AI Advisor: "{query}"
                 </p>
-                <p className="text-xs text-[#6B7280] mt-1">
+                <p className="text-xs text-slate-500 dark:text-[#6B7280] mt-1">
                   Press Enter to execute AI query with contextual financial context
                 </p>
               </div>
@@ -236,15 +236,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           </div>
 
           {/* Footer */}
-          <div className="px-4 py-2 border-t border-[#2B2E35] bg-[#0B0B0C] flex items-center justify-between text-[11px] text-[#6B7280]">
+          <div className="px-4 py-2 border-t border-slate-200 dark:border-[#2B2E35] bg-slate-50 dark:bg-[#0B0B0C] flex items-center justify-between text-[11px] text-slate-500 dark:text-[#6B7280]">
             <div className="flex items-center gap-2">
-              <kbd className="px-1.5 py-0.5 bg-[#1E2025] rounded text-[#9CA3AF]">↑↓</kbd>
+              <kbd className="px-1.5 py-0.5 bg-slate-200/80 dark:bg-[#1E2025] rounded text-slate-700 dark:text-[#9CA3AF] font-bold border border-slate-300/60 dark:border-slate-700">↑↓</kbd>
               <span>Navigate</span>
-              <kbd className="px-1.5 py-0.5 bg-[#1E2025] rounded text-[#9CA3AF]">↵</kbd>
+              <kbd className="px-1.5 py-0.5 bg-slate-200/80 dark:bg-[#1E2025] rounded text-slate-700 dark:text-[#9CA3AF] font-bold border border-slate-300/60 dark:border-slate-700">↵</kbd>
               <span>Select</span>
             </div>
             <div className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 bg-[#1E2025] rounded text-[#9CA3AF]">ESC</kbd>
+              <kbd className="px-1.5 py-0.5 bg-slate-200/80 dark:bg-[#1E2025] rounded text-slate-700 dark:text-[#9CA3AF] font-bold border border-slate-300/60 dark:border-slate-700">ESC</kbd>
               <span>Close</span>
             </div>
           </div>

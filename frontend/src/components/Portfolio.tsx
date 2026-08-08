@@ -775,22 +775,22 @@ export default function Portfolio() {
       {/* Add / Edit Asset Modal Dialog */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#15161A] border border-[#2B2E35] w-full max-w-lg rounded-2xl p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex justify-between items-center border-b border-[#2B2E35] pb-4">
+          <div className="bg-white dark:bg-[#15161A] border border-slate-200 dark:border-[#2B2E35] w-full max-w-lg rounded-2xl p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#2B2E35] pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-[#10B981]/10 rounded-xl border border-[#10B981]/20">
-                  <Building className="w-5 h-5 text-[#10B981]" />
+                <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                  <Building className="w-5 h-5 text-emerald-600 dark:text-[#10B981]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-[#F3F4F6]">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-[#F3F4F6]">
                     {editingAsset ? `Edit ${editingAsset.name}` : (formType === 'FIXED_DEPOSIT' ? 'Add Fixed Deposit (FD)' : 'Add New Asset')}
                   </h3>
-                  <p className="text-xs text-[#9CA3AF]">
+                  <p className="text-xs text-slate-500 dark:text-[#9CA3AF]">
                     {formType === 'FIXED_DEPOSIT' ? 'Enter bank FD details, principal amount, and interest terms' : 'Add manual portfolio asset details'}
                   </p>
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="p-1 text-[#9CA3AF] hover:text-[#F3F4F6] rounded-lg">
+              <button onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:text-[#9CA3AF] dark:hover:text-[#F3F4F6] rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -798,21 +798,21 @@ export default function Portfolio() {
             <form onSubmit={handleSaveAsset} className="space-y-4 text-xs">
               {/* Asset Name */}
               <div>
-                <label className="block font-semibold text-[#9CA3AF] mb-1">Asset Name / Bank Institution *</label>
+                <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Asset Name / Bank Institution *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. HDFC Bank Fixed Deposit, SBI FD 7.1%"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
+                  className="w-full bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 {/* Asset Type */}
                 <div>
-                  <label className="block font-semibold text-[#9CA3AF] mb-1">Asset Type *</label>
+                  <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Asset Type *</label>
                   <select
                     value={formType}
                     onChange={(e) => {
@@ -822,7 +822,7 @@ export default function Portfolio() {
                       else if (t === 'STOCK' || t === 'MUTUAL_FUND') setFormCategory('Equity');
                       else if (t === 'BANK_ACCOUNT') setFormCategory('Cash');
                     }}
-                    className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
+                    className="w-full bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
                   >
                     <option value="FIXED_DEPOSIT">Fixed Deposit (FD)</option>
                     <option value="MUTUAL_FUND">Mutual Fund</option>
@@ -839,11 +839,11 @@ export default function Portfolio() {
 
                 {/* Category */}
                 <div>
-                  <label className="block font-semibold text-[#9CA3AF] mb-1">Category Class *</label>
+                  <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Category Class *</label>
                   <select
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
+                    className="w-full bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
                   >
                     <option value="Debt">Debt (Fixed Income)</option>
                     <option value="Equity">Equity</option>
@@ -858,7 +858,7 @@ export default function Portfolio() {
               <div className="grid grid-cols-2 gap-4">
                 {/* Principal / Current Monetary Value */}
                 <div>
-                  <label className="block font-semibold text-[#9CA3AF] mb-1">
+                  <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">
                     {formType === 'FIXED_DEPOSIT' ? 'Deposit Principal (₹) *' : 'Current Value / Cost (₹) *'}
                   </label>
                   <input
@@ -869,71 +869,71 @@ export default function Portfolio() {
                     placeholder="e.g. 500000"
                     value={formValue}
                     onChange={(e) => setFormValue(e.target.value)}
-                    className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] font-mono outline-none focus:border-[#4F7FFF]"
+                    className="w-full bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-[#F3F4F6] font-mono outline-none focus:border-[#4F7FFF]"
                   />
                 </div>
 
                 {/* Account / FD # / Note */}
                 <div>
-                  <label className="block font-semibold text-[#9CA3AF] mb-1">Account / FD # / Identifier</label>
+                  <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Account / FD # / Identifier</label>
                   <input
                     type="text"
                     placeholder="e.g. 263002277881"
                     value={formIdentifier}
                     onChange={(e) => setFormIdentifier(e.target.value)}
-                    className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] font-mono outline-none focus:border-[#4F7FFF]"
+                    className="w-full bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-[#F3F4F6] font-mono outline-none focus:border-[#4F7FFF]"
                   />
                 </div>
               </div>
 
               {formType === 'FIXED_DEPOSIT' && (
-                <div className="p-3.5 bg-[#141824] border border-[#2B2E35] rounded-xl space-y-3.5">
-                  <div className="text-[#10B981] font-semibold text-xs flex items-center gap-1.5">
+                <div className="p-3.5 bg-emerald-50/60 dark:bg-[#141824] border border-emerald-200/80 dark:border-[#2B2E35] rounded-xl space-y-3.5">
+                  <div className="text-emerald-700 dark:text-[#10B981] font-semibold text-xs flex items-center gap-1.5">
                     <span>Fixed Deposit Interest & Maturity Terms</span>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block font-semibold text-[#9CA3AF] mb-1">Maturity Amount (₹) (Optional)</label>
+                      <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Maturity Amount (₹) (Optional)</label>
                       <input
                         type="number"
                         step="any"
                         placeholder="e.g. 36928"
                         value={formMaturityAmount}
                         onChange={(e) => setFormMaturityAmount(e.target.value)}
-                        className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2 text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
+                        className="w-full bg-white dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2 text-slate-900 dark:text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-[#9CA3AF] mb-1">Interest Rate (% p.a.)</label>
+                      <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Interest Rate (% p.a.)</label>
                       <input
                         type="number"
                         step="0.01"
                         placeholder="e.g. 7.25"
                         value={formInterestRate}
                         onChange={(e) => setFormInterestRate(e.target.value)}
-                        className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2 text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
+                        className="w-full bg-white dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2 text-slate-900 dark:text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block font-semibold text-[#9CA3AF] mb-1">Deposit Start Date</label>
+                      <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Deposit Start Date</label>
                       <input
                         type="date"
                         value={formStartDate}
                         onChange={(e) => setFormStartDate(e.target.value)}
-                        className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2 text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
+                        className="w-full bg-white dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2 text-slate-900 dark:text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-[#9CA3AF] mb-1">Maturity Date</label>
+                      <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Maturity Date</label>
                       <input
                         type="date"
                         value={formMaturityDate}
                         onChange={(e) => setFormMaturityDate(e.target.value)}
-                        className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2 text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
+                        className="w-full bg-white dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2 text-slate-900 dark:text-[#F3F4F6] font-mono outline-none focus:border-[#10B981]"
                       />
                     </div>
                   </div>
@@ -942,11 +942,11 @@ export default function Portfolio() {
 
               {/* Family Member Ownership */}
               <div>
-                <label className="block font-semibold text-[#9CA3AF] mb-1">Family Member Owner</label>
+                <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Family Member Owner</label>
                 <select
                   value={formOwnerId}
                   onChange={(e) => setFormOwnerId(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full bg-[#0B0B0C] border border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
+                  className="w-full bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
                 >
                   <option value="">-- Primary Account Holder --</option>
                   {familyMembers.map((m) => (
@@ -957,7 +957,7 @@ export default function Portfolio() {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-[#2B2E35]">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-[#2B2E35]">
                 <Button type="button" variant="ghost" size="sm" onClick={() => setIsModalOpen(false)}>
                   Cancel
                 </Button>

@@ -93,7 +93,7 @@ router.get('/', (req: Request, res: Response, next) => {
         bankEpfBalance = latestPriceRow ? latestPriceRow.price : txSum;
         currentUnits = bankEpfBalance > 0 ? 1.0 : 0;
         totalCost = txSum > 0 ? txSum : bankEpfBalance;
-      } else if (asset.type === 'EPF') {
+      } else if (asset.type === 'EPF' || asset.type === 'SSY') {
         const latestPriceRow = priceRepository.findLatestPriceAbove(asset.id, 1.0);
 
         let txSum = 0;
@@ -112,11 +112,11 @@ router.get('/', (req: Request, res: Response, next) => {
         if (latestPriceRow && (!lastTxDate || latestPriceRow.date >= lastTxDate)) {
           bankEpfBalance = latestPriceRow.price;
         } else {
-          bankEpfBalance = txSum;
+          bankEpfBalance = txSum || Number(asset.cost_basis) || 0;
         }
 
         currentUnits = bankEpfBalance > 0 ? 1.0 : 0;
-        totalCost = 0;
+        totalCost = asset.type === 'SSY' ? (txSum || Number(asset.cost_basis) || bankEpfBalance) : 0;
       } else {
         for (const tx of transactions) {
           if (tx.type === 'BUY' || tx.type === 'REINVEST') {
@@ -134,15 +134,15 @@ router.get('/', (req: Request, res: Response, next) => {
         }
       }
 
-      currentUnits = Math.max(0, currentUnits);
-      totalCost = Math.max(0, totalCost);
+      currentUnits = Math.round(Math.max(0, currentUnits) * 10000) / 10000;
+      totalCost = Math.round(Math.max(0, totalCost) * 100) / 100;
 
       const avgBuyPrice = currentUnits > 0 ? (totalCost / currentUnits) : 0;
 
       let currentPrice = 0;
       let priceDate = '';
 
-      if (asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF' || asset.type === 'FIXED_DEPOSIT') {
+      if (asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF' || asset.type === 'FIXED_DEPOSIT' || asset.type === 'SSY') {
         currentPrice = bankEpfBalance;
         const latestPriceRow = priceRepository.findLatestPrice(asset.id);
         priceDate = latestPriceRow ? latestPriceRow.date : (transactions.length > 0 ? transactions[transactions.length - 1].date : '');
@@ -378,6 +378,24 @@ router.put('/:id', (req: Request, res: Response, next) => {
     }
 
     res.json({ success: true, message: 'Asset updated successfully.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/assets/:id - Delete an asset and associated transactions/prices
+router.delete('/:id', (req: Request, res: Response, next) => {
+  try {
+    const assetId = parseInt(req.params.id, 10);
+    if (isNaN(assetId)) {
+      throw new ValidationError('Invalid Asset ID');
+    }
+
+    db.prepare('DELETE FROM transactions WHERE asset_id = ?').run(assetId);
+    db.prepare('DELETE FROM asset_prices WHERE asset_id = ?').run(assetId);
+    const result = db.prepare('DELETE FROM assets WHERE id = ?').run(assetId);
+
+    res.json({ success: true, message: `Asset ${assetId} deleted successfully.` });
   } catch (error) {
     next(error);
   }

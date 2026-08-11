@@ -23,19 +23,22 @@ const INITIAL_ACCOUNTS: AccountItem[] = [
 export const AccountsManager: React.FC = () => {
   const { datasetMode, activeFamilyId } = useUiStore();
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newAcc, setNewAcc] = useState<Partial<AccountItem>>({
     institutionName: '',
     accountNumber: '',
     accountType: 'SAVINGS',
-    holderName: 'Primary Member',
+    holderName: 'Prijesh Ramani',
     balance: 0,
     syncStatus: 'CONNECTED'
   });
 
-  useEffect(() => {
+  const loadAccounts = () => {
+    setLoading(true);
     if (datasetMode === 'DEMO') {
       setAccounts(INITIAL_ACCOUNTS);
+      setLoading(false);
     } else {
       apiClient.get<any[]>(`/accounts?familyId=${activeFamilyId}`)
         .then(res => {
@@ -45,34 +48,61 @@ export const AccountsManager: React.FC = () => {
             institutionName: a.institutionName || a.provider || 'Bank/Broker',
             accountNumber: a.accountNumber || a.maskedAccountNumber || 'N/A',
             accountType: (a.accountType === 'BANK' ? 'SAVINGS' : a.accountType) || 'SAVINGS',
-            holderName: a.accountName || 'Primary Member',
-            balance: a.balance || 0,
+            holderName: a.holderName || a.accountName || 'Prijesh Ramani',
+            balance: Number(a.balance) || 0,
             syncStatus: 'CONNECTED'
           })));
         })
-        .catch(() => setAccounts([]));
+        .catch(() => setAccounts([]))
+        .finally(() => setLoading(false));
     }
-  }, [datasetMode, activeFamilyId]);
-
-  const handleAddAccount = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newAcc.institutionName || !newAcc.accountNumber) return;
-    const item: AccountItem = {
-      id: Date.now(),
-      institutionName: newAcc.institutionName,
-      accountNumber: newAcc.accountNumber,
-      accountType: newAcc.accountType as any || 'SAVINGS',
-      holderName: newAcc.holderName || 'Primary Member',
-      balance: Number(newAcc.balance) || 0,
-      syncStatus: 'CONNECTED'
-    };
-    setAccounts([...accounts, item]);
-    setShowAddModal(false);
-    setNewAcc({ institutionName: '', accountNumber: '', accountType: 'SAVINGS', balance: 0 });
   };
 
-  const handleDelete = (id: number) => {
-    setAccounts(accounts.filter(a => a.id !== id));
+  useEffect(() => {
+    loadAccounts();
+  }, [datasetMode, activeFamilyId]);
+
+  const handleAddAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAcc.institutionName || !newAcc.accountNumber) return;
+
+    try {
+      // Get head member for active family
+      const membersRes = await apiClient.get<any[]>(`/family/members?familyId=${activeFamilyId}`).catch(() => ({ data: [] }));
+      const members = Array.isArray(membersRes.data) ? membersRes.data : [];
+      const familyMemberId = members[0]?.id;
+
+      const assetType = newAcc.accountType === 'SAVINGS' ? 'BANK_ACCOUNT' : (newAcc.accountType === 'DEMAT' ? 'STOCK' : newAcc.accountType);
+      const category = newAcc.accountType === 'SAVINGS' ? 'Cash' : 'Equity';
+
+      await apiClient.post('/assets', {
+        name: newAcc.institutionName,
+        type: assetType,
+        category,
+        identifier: newAcc.accountNumber,
+        currentValue: Number(newAcc.balance) || 0,
+        familyMemberId
+      });
+    } catch (err) {
+      console.error('Failed to create account asset:', err);
+    }
+
+    setShowAddModal(false);
+    setNewAcc({ institutionName: '', accountNumber: '', accountType: 'SAVINGS', balance: 0, holderName: 'Prijesh Ramani' });
+    loadAccounts();
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      await apiClient.delete(`/accounts/${id}`);
+    } catch (e) {
+      try {
+        await apiClient.delete(`/assets/${id}`);
+      } catch (err) {
+        console.error('Failed to delete account:', err);
+      }
+    }
+    setAccounts(prev => prev.filter(a => a.id !== id));
   };
 
   return (

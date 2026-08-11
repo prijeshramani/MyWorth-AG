@@ -1,94 +1,137 @@
-import { portfolioApplicationService } from './PortfolioApplicationService';
 import { familyRepository } from '../../repositories/SQLiteFamilyRepository';
 import { familyMemberRepository } from '../../repositories/SQLiteFamilyMemberRepository';
 import { DashboardOverviewResponseDTO } from '../../dto/PortfolioDTOs';
 import { DTOMapper } from '../../mappers/DTOMapper';
 import { db } from '../../db';
+import { priceRepository } from '../../repositories/SQLitePriceRepository';
+import { transactionRepository } from '../../repositories/SQLiteTransactionRepository';
+import { calculateFixedDepositValuation, extractFdMetadata } from '../../utils/fdValuation';
 
 export class DashboardApplicationService {
-  private computeRealDatabaseNetWorth(familyId: number): { totalMarketValue: number; totalCostBasis: number; assetAllocation: any[] } {
+  private computeRealDatabaseNetWorth(familyId: number): {
+    totalMarketValue: number;
+    totalCostBasis: number;
+    assetAllocation: any[];
+    memberValues: Map<number, number>;
+  } {
     let totalMarketValue = 0;
     let totalCostBasis = 0;
     const allocationMap = new Map<string, number>();
+    const memberValues = new Map<number, number>();
 
-    // 1. Calculate from `assets` table (direct user assets)
     try {
       const assets = db.prepare(`
-        SELECT a.* 
+        SELECT a.*, fm.family_id 
         FROM assets a 
         LEFT JOIN family_members fm ON a.family_member_id = fm.id
-        WHERE (fm.family_id = ? OR a.family_member_id IS NULL OR ? = 1)
-      `).all(familyId, familyId) as any[];
+        WHERE fm.family_id = ? OR a.family_member_id IS NULL
+      `).all(familyId) as any[];
 
       for (const asset of assets) {
-        let val = Number(asset.current_value || 0);
-        let cost = Number(asset.cost_basis || 0);
+        const transactions = transactionRepository.findByAssetId(asset.id);
+        let currentUnits = 0;
+        let totalCost = 0;
+        let totalUnitsBought = 0;
+        let bankEpfBalance = 0;
 
-        // If current_value is 0, compute from transactions
-        if (val === 0) {
-          try {
-            const txs = db.prepare(`
-              SELECT type, amount, quantity, price FROM transactions WHERE asset_id = ? ORDER BY date ASC
-            `).all(asset.id) as any[];
-
-            let units = 0;
-            let txCost = 0;
-            let lastPrice = 0;
-
-            for (const tx of txs) {
-              if (tx.type === 'BUY' || tx.type === 'REINVEST') {
-                units += Number(tx.quantity || 0);
-                txCost += Number(tx.amount || 0);
-                lastPrice = Number(tx.price || 0);
-              } else if (tx.type === 'SELL') {
-                units = Math.max(0, units - Number(tx.quantity || 0));
+        if (asset.type === 'FIXED_DEPOSIT') {
+          const latestPriceRow = priceRepository.findLatestPrice(asset.id);
+          let txSum = 0;
+          let firstTxDate = '';
+          for (const tx of transactions) {
+            if (tx.type === 'BUY' || tx.type === 'REINVEST') {
+              txSum += tx.amount;
+              if (!firstTxDate || tx.date < firstTxDate) firstTxDate = tx.date;
+            } else if (tx.type === 'SELL') {
+              txSum -= tx.amount;
+            }
+          }
+          const meta = extractFdMetadata(asset, firstTxDate);
+          const fdVal = calculateFixedDepositValuation({
+            costBasis: txSum,
+            interestRate: meta.interestRate,
+            startDateStr: meta.startDate,
+            compoundingFrequency: meta.compoundingFrequency
+          });
+          if (latestPriceRow && latestPriceRow.price !== txSum && latestPriceRow.price > 0) {
+            bankEpfBalance = latestPriceRow.price;
+          } else {
+            bankEpfBalance = fdVal.marketValue > 0 ? fdVal.marketValue : txSum;
+          }
+          currentUnits = bankEpfBalance > 0 ? 1.0 : 0;
+          totalCost = txSum > 0 ? txSum : bankEpfBalance;
+        } else if (asset.type === 'BANK_ACCOUNT') {
+          const latestPriceRow = priceRepository.findLatestPrice(asset.id);
+          let txSum = 0;
+          for (const tx of transactions) {
+            if (tx.type === 'BUY' || tx.type === 'REINVEST') txSum += tx.amount;
+            else if (tx.type === 'SELL') txSum -= tx.amount;
+          }
+          bankEpfBalance = latestPriceRow ? latestPriceRow.price : txSum;
+          currentUnits = bankEpfBalance > 0 ? 1.0 : 0;
+          totalCost = txSum > 0 ? txSum : bankEpfBalance;
+        } else if (asset.type === 'EPF' || asset.type === 'SSY') {
+          const latestPriceRow = priceRepository.findLatestPriceAbove(asset.id, 1.0);
+          let txSum = 0;
+          let lastTxDate = '';
+          for (const tx of transactions) {
+            if (tx.type === 'BUY' || tx.type === 'REINVEST') txSum += tx.amount;
+            else if (tx.type === 'SELL') txSum -= tx.amount;
+            if (tx.date > lastTxDate) lastTxDate = tx.date;
+          }
+          if (latestPriceRow && (!lastTxDate || latestPriceRow.date >= lastTxDate)) {
+            bankEpfBalance = latestPriceRow.price;
+          } else {
+            bankEpfBalance = txSum || Number(asset.cost_basis) || 0;
+          }
+          currentUnits = bankEpfBalance > 0 ? 1.0 : 0;
+          totalCost = asset.type === 'SSY' ? (txSum || Number(asset.cost_basis) || bankEpfBalance) : 0;
+        } else {
+          for (const tx of transactions) {
+            if (tx.type === 'BUY' || tx.type === 'REINVEST') {
+              currentUnits += tx.quantity;
+              totalCost += tx.amount;
+              totalUnitsBought += tx.quantity;
+            } else if (tx.type === 'SELL') {
+              currentUnits -= tx.quantity;
+              if (totalUnitsBought > 0) {
+                const avgBuyPrice = totalCost / totalUnitsBought;
+                totalCost -= tx.quantity * avgBuyPrice;
+                totalUnitsBought -= tx.quantity;
               }
             }
-
-            if (asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF') {
-              val = txCost;
-              cost = 0;
-            } else if (units > 0) {
-              val = units * (lastPrice || 1);
-              cost = txCost;
-            } else {
-              val = txCost;
-              cost = txCost;
-            }
-          } catch (e) {
-            val = Number(asset.current_value || asset.cost_basis || 0);
-            cost = Number(asset.cost_basis || 0);
           }
         }
 
-        totalMarketValue += val;
-        totalCostBasis += cost;
+        currentUnits = Math.round(Math.max(0, currentUnits) * 10000) / 10000;
+        totalCost = Math.round(Math.max(0, totalCost) * 100) / 100;
+
+        let currentPrice = 0;
+        if (asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF' || asset.type === 'FIXED_DEPOSIT') {
+          currentPrice = bankEpfBalance;
+        } else {
+          const latestPriceRow = priceRepository.findLatestPrice(asset.id);
+          if (latestPriceRow) {
+            currentPrice = latestPriceRow.price;
+          } else if (transactions.length > 0) {
+            currentPrice = transactions[transactions.length - 1].price;
+          }
+        }
+
+        const currentValue = currentUnits * currentPrice;
+        totalMarketValue += currentValue;
+        totalCostBasis += totalCost;
 
         const assetType = asset.type || 'OTHER';
-        allocationMap.set(assetType, (allocationMap.get(assetType) || 0) + val);
+        allocationMap.set(assetType, (allocationMap.get(assetType) || 0) + currentValue);
+
+        if (asset.family_member_id) {
+          memberValues.set(asset.family_member_id, (memberValues.get(asset.family_member_id) || 0) + currentValue);
+        }
       }
     } catch (e) {
-      console.error('Error computing assets valuation:', e);
+      console.error('Error computing assets valuation for dashboard overview:', e);
     }
-
-    // 2. Calculate from 3-tier master assets `holdings` & `assets_master`
-    try {
-      const holdingRows = db.prepare(`
-        SELECT h.*, am.asset_type, am.name
-        FROM holdings h
-        JOIN assets_master am ON h.asset_id = am.id
-        WHERE h.deleted_at IS NULL AND am.deleted_at IS NULL
-      `).all() as any[];
-
-      for (const h of holdingRows) {
-        const val = (Number(h.id) * 50000) + 100000;
-        const cost = val * 0.8;
-        totalMarketValue += val;
-        totalCostBasis += cost;
-        const type = h.asset_type || 'STOCK';
-        allocationMap.set(type, (allocationMap.get(type) || 0) + val);
-      }
-    } catch (e) {}
 
     const assetAllocation: any[] = [];
     allocationMap.forEach((val, key) => {
@@ -107,7 +150,7 @@ export class DashboardApplicationService {
       item.percentage = totalMarketValue > 0 ? Number(((item.value / totalMarketValue) * 100).toFixed(2)) : 0;
     });
 
-    return { totalMarketValue, totalCostBasis, assetAllocation };
+    return { totalMarketValue, totalCostBasis, assetAllocation, memberValues };
   }
 
   public async getDashboardOverview(
@@ -120,7 +163,6 @@ export class DashboardApplicationService {
     let family = familyRepository.findById(rawFamilyId);
 
     if (!family || rawFamilyId === 1) {
-      // Find active family with assets
       try {
         const famWithAssets = db.prepare(`
           SELECT DISTINCT fm.family_id 
@@ -144,33 +186,22 @@ export class DashboardApplicationService {
     const familyId = family.id;
     const currency = family.currency || 'INR';
 
-    // Compute live database net worth across all tables
+    // Compute unified single-source-of-truth database net worth
     const realDbMetrics = this.computeRealDatabaseNetWorth(familyId);
     
-    let totalMarketValue = realDbMetrics.totalMarketValue;
-    let totalCostBasis = realDbMetrics.totalCostBasis;
-    let assetAllocation = realDbMetrics.assetAllocation;
-
-    // Also attempt consolidation via PortfolioApplicationService
-    try {
-      const portfolioDTO = await portfolioApplicationService.getConsolidatedPortfolio({
-        familyId,
-        asOfDate,
-        reportingCurrency: currency,
-        includeRiskMetrics: false
-      });
-      if (portfolioDTO?.netWorth?.totalMarketValue > totalMarketValue) {
-        totalMarketValue = portfolioDTO.netWorth.totalMarketValue;
-        totalCostBasis = portfolioDTO.netWorth.totalCostBasis;
-      }
-    } catch {}
+    const totalMarketValue = realDbMetrics.totalMarketValue;
+    const totalCostBasis = realDbMetrics.totalCostBasis;
+    const assetAllocation = realDbMetrics.assetAllocation;
 
     const members = familyMemberRepository.findAll(familyId);
-    const memberNodes = members.map(m => ({
-      id: m.id,
-      name: m.name,
-      marketValue: totalMarketValue / (members.length || 1)
-    }));
+    const memberNodes = members.map(m => {
+      const realVal = realDbMetrics.memberValues.get(m.id) || (totalMarketValue / (members.length || 1));
+      return {
+        id: m.id,
+        name: m.name,
+        marketValue: realVal
+      };
+    });
 
     return {
       familyId,

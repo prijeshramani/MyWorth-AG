@@ -91,6 +91,7 @@ export default function Portfolio() {
   const [familyMembers, setFamilyMembers] = useState<FamilyMemberOption[]>([]);
   const [cashflow, setCashflow] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [syncingPrices, setSyncingPrices] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   
   // Drill-down asset details drawer state
@@ -126,13 +127,13 @@ export default function Portfolio() {
 
   const openAddModal = (defaultType = 'FIXED_DEPOSIT') => {
     setEditingAsset(null);
-    setFormName(defaultType === 'FIXED_DEPOSIT' ? 'HDFC Bank Fixed Deposit' : '');
+    setFormName(defaultType === 'FIXED_DEPOSIT' ? 'HDFC Bank Fixed Deposit' : (defaultType === 'SSY' ? 'Sukanya Samriddhi Yojana Account' : ''));
     setFormType(defaultType);
-    setFormCategory(defaultType === 'FIXED_DEPOSIT' ? 'Debt' : (defaultType === 'STOCK' || defaultType === 'MUTUAL_FUND' ? 'Equity' : 'Debt'));
-    setFormIdentifier(defaultType === 'FIXED_DEPOSIT' ? 'FD-7.25%-2027' : '');
+    setFormCategory(defaultType === 'FIXED_DEPOSIT' || defaultType === 'SSY' || defaultType === 'EPF' || defaultType === 'BOND' ? 'Debt' : (defaultType === 'STOCK' || defaultType === 'MUTUAL_FUND' ? 'Equity' : 'Debt'));
+    setFormIdentifier(defaultType === 'FIXED_DEPOSIT' ? 'FD-7.25%-2027' : (defaultType === 'SSY' ? 'SSY-8.2%-2047' : ''));
     setFormValue('');
     setFormMaturityAmount('');
-    setFormInterestRate('');
+    setFormInterestRate(defaultType === 'SSY' ? '8.2' : '');
     setFormStartDate(new Date().toISOString().split('T')[0]);
     setFormMaturityDate('');
     setFormOwnerId(familyMembers.length > 0 ? familyMembers[0].id : '');
@@ -341,13 +342,14 @@ export default function Portfolio() {
     }).format(val);
   };
 
-  const assetTypes = ['MUTUAL_FUND', 'STOCK', 'NPS', 'EPF', 'FIXED_DEPOSIT', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'OTHER'];
+  const assetTypes = ['MUTUAL_FUND', 'STOCK', 'NPS', 'EPF', 'FIXED_DEPOSIT', 'SSY', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'OTHER'];
   const assetLabels: Record<string, string> = {
     MUTUAL_FUND: 'Mutual Funds',
     STOCK: 'Stocks',
     NPS: 'National Pension Scheme',
     EPF: "Employees' Provident Fund",
     FIXED_DEPOSIT: 'Fixed Deposit (FD)',
+    SSY: 'Sukanya Samriddhi Yojana (SSY)',
     GOLD: 'Gold & Metals',
     BOND: 'Bonds',
     PROPERTY: 'Real Estate',
@@ -361,9 +363,10 @@ export default function Portfolio() {
     NPS: '#F79009',
     EPF: '#A855F7',
     FIXED_DEPOSIT: '#10B981',
+    SSY: '#EC4899',
     GOLD: '#EAB308',
     BOND: '#38BDF8',
-    PROPERTY: '#EC4899',
+    PROPERTY: '#F43F5E',
     BANK_ACCOUNT: '#06B6D4',
     OTHER: '#6B7280'
   };
@@ -434,6 +437,18 @@ export default function Portfolio() {
     return sortDirection === 'asc' ? compA - compB : compB - compA;
   });
 
+  const handleSyncMarketPrices = async () => {
+    try {
+      setSyncingPrices(true);
+      await apiClient.post('/sync');
+      await fetchAssets();
+    } catch (err: any) {
+      console.error('Failed to sync market prices:', err);
+    } finally {
+      setSyncingPrices(false);
+    }
+  };
+
   return (
     <PageShell
       title="Portfolio Analytics Workspace"
@@ -441,8 +456,20 @@ export default function Portfolio() {
       badge={<Badge variant="info" icon={<Briefcase className="w-3.5 h-3.5" />}>{sortedAssets.length} Holdings</Badge>}
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="primary" size="sm" onClick={() => openAddModal('FIXED_DEPOSIT')} className="bg-[#10B981] hover:bg-[#059669] text-white">
-            <Plus className="w-4 h-4 mr-1" /> Add Fixed Deposit
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncMarketPrices}
+            disabled={syncingPrices || loading}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 mr-1 ${syncingPrices ? 'animate-spin' : ''}`} />
+            {syncingPrices ? 'Syncing Prices...' : 'Sync Market Prices'}
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => openAddModal('SSY')} className="bg-[#EC4899] hover:bg-[#DB2777] text-white">
+            <Plus className="w-4 h-4 mr-1" /> Add SSY Account
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => openAddModal('FIXED_DEPOSIT')} className="border-[#10B981] text-[#10B981] hover:bg-[#10B981]/10">
+            <Plus className="w-4 h-4 mr-1" /> Add FD
           </Button>
           <Button variant="outline" size="sm" onClick={() => openAddModal('MUTUAL_FUND')}>
             <Plus className="w-4 h-4 mr-1" /> Add Asset
@@ -637,15 +664,28 @@ export default function Portfolio() {
                   </th>
                   <th className="py-4 px-4">Owner / Family Member</th>
                   <th className="py-4 px-4">Category</th>
-                  <th onClick={() => handleSort('cost')} className="py-4 px-4 text-right cursor-pointer hover:text-white">
-                    Total Invested (Cost) {sortField === 'cost' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
-                  </th>
-                  <th onClick={() => handleSort('value')} className="py-4 px-4 text-right cursor-pointer hover:text-white">
-                    Current Market Value {sortField === 'value' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
-                  </th>
-                  <th onClick={() => handleSort('return')} className="py-4 px-6 text-right cursor-pointer hover:text-white">
-                    Unrealized Return {sortField === 'return' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
-                  </th>
+                  {workspaceMode === 'holdings' ? (
+                    <>
+                      <th className="py-4 px-4 text-right">Holding Units / Qty</th>
+                      <th className="py-4 px-4 text-right">Unit Price / NAV</th>
+                      <th onClick={() => handleSort('value')} className="py-4 px-4 text-right cursor-pointer hover:text-white">
+                        Current Market Value {sortField === 'value' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th className="py-4 px-6 text-right">Price Date / Status</th>
+                    </>
+                  ) : (
+                    <>
+                      <th onClick={() => handleSort('cost')} className="py-4 px-4 text-right cursor-pointer hover:text-white">
+                        Total Invested (Cost) {sortField === 'cost' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th onClick={() => handleSort('value')} className="py-4 px-4 text-right cursor-pointer hover:text-white">
+                        Current Market Value {sortField === 'value' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                      <th onClick={() => handleSort('return')} className="py-4 px-6 text-right cursor-pointer hover:text-white">
+                        Unrealized Return {sortField === 'return' ? (sortDirection === 'asc' ? '↑' : '↓') : ''}
+                      </th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#2B2E35]/50">
@@ -672,20 +712,39 @@ export default function Portfolio() {
                           {asset.category}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-right font-mono font-semibold text-[#9CA3AF]">
-                        {formatCurrency(asset.totalCost)}
-                      </td>
-                      <td className="py-4 px-4 text-right font-mono font-bold text-[#F3F4F6]">
-                        {formatCurrency(asset.currentValue)}
-                      </td>
-                      <td className="py-4 px-6 text-right font-mono">
-                        <div className={`font-bold ${isProfit ? 'text-[#32D583]' : 'text-[#F43F5E]'}`}>
-                          {isProfit ? '+' : ''}{formatCurrency(asset.absoluteReturn)}
-                        </div>
-                        <div className={`text-[10px] font-bold ${isProfit ? 'text-[#32D583]' : 'text-[#F43F5E]'}`}>
-                          ({isProfit ? '+' : ''}{asset.absoluteReturnPercent.toFixed(2)}%)
-                        </div>
-                      </td>
+                      {workspaceMode === 'holdings' ? (
+                        <>
+                          <td className="py-4 px-4 text-right font-mono font-semibold text-[#F3F4F6]">
+                            {Number((asset.currentUnits || 0).toFixed(2)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-4 px-4 text-right font-mono text-[#38BDF8]">
+                            {formatCurrency(asset.currentPrice || 0)}
+                          </td>
+                          <td className="py-4 px-4 text-right font-mono font-bold text-[#F3F4F6]">
+                            {formatCurrency(asset.currentValue)}
+                          </td>
+                          <td className="py-4 px-6 text-right font-mono text-[11px] text-[#9CA3AF]">
+                            {asset.priceDate || 'Live'}
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-4 px-4 text-right font-mono font-semibold text-[#9CA3AF]">
+                            {formatCurrency(asset.totalCost)}
+                          </td>
+                          <td className="py-4 px-4 text-right font-mono font-bold text-[#F3F4F6]">
+                            {formatCurrency(asset.currentValue)}
+                          </td>
+                          <td className="py-4 px-6 text-right font-mono">
+                            <div className={`font-bold ${isProfit ? 'text-[#32D583]' : 'text-[#F43F5E]'}`}>
+                              {isProfit ? '+' : ''}{formatCurrency(asset.absoluteReturn)}
+                            </div>
+                            <div className={`text-[10px] font-bold ${isProfit ? 'text-[#32D583]' : 'text-[#F43F5E]'}`}>
+                              ({isProfit ? '+' : ''}{asset.absoluteReturnPercent.toFixed(2)}%)
+                            </div>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   );
                 })}
@@ -710,22 +769,41 @@ export default function Portfolio() {
                   </Badge>
                 </div>
 
-                <div className="p-3 bg-[#15161A] border border-[#2B2E35] rounded-xl font-mono text-xs space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-[#9CA3AF]">Invested Amount:</span>
-                    <span className="text-[#9CA3AF] font-semibold">{formatCurrency(asset.totalCost)}</span>
+                {workspaceMode === 'holdings' ? (
+                  <div className="p-3 bg-[#15161A] border border-[#2B2E35] rounded-xl font-mono text-xs space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-[#9CA3AF]">Holding Units / Qty:</span>
+                      <span className="text-[#F3F4F6] font-semibold">
+                        {Number((asset.currentUnits || 0).toFixed(2)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#9CA3AF]">Unit Price / NAV:</span>
+                      <span className="text-[#38BDF8] font-semibold">{formatCurrency(asset.currentPrice || 0)}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-[#2B2E35] pt-2">
+                      <span className="text-[#9CA3AF]">Market Value:</span>
+                      <span className="text-[#F3F4F6] font-bold">{formatCurrency(asset.currentValue)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#9CA3AF]">Current Value:</span>
-                    <span className="text-[#F3F4F6] font-bold">{formatCurrency(asset.currentValue)}</span>
+                ) : (
+                  <div className="p-3 bg-[#15161A] border border-[#2B2E35] rounded-xl font-mono text-xs space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-[#9CA3AF]">Invested Amount:</span>
+                      <span className="text-[#9CA3AF] font-semibold">{formatCurrency(asset.totalCost)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#9CA3AF]">Current Value:</span>
+                      <span className="text-[#F3F4F6] font-bold">{formatCurrency(asset.currentValue)}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-[#2B2E35] pt-2">
+                      <span className="text-[#9CA3AF]">Gain / Loss:</span>
+                      <span className={`font-bold ${isProfit ? 'text-[#32D583]' : 'text-[#F43F5E]'}`}>
+                        {isProfit ? '+' : ''}{formatCurrency(asset.absoluteReturn)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between border-t border-[#2B2E35] pt-2">
-                    <span className="text-[#9CA3AF]">Gain / Loss:</span>
-                    <span className={`font-bold ${isProfit ? 'text-[#32D583]' : 'text-[#F43F5E]'}`}>
-                      {isProfit ? '+' : ''}{formatCurrency(asset.absoluteReturn)}
-                    </span>
-                  </div>
-                </div>
+                )}
               </Card>
             );
           })}
@@ -739,22 +817,150 @@ export default function Portfolio() {
             <div className="flex justify-between items-center border-b border-[#2B2E35] pb-4">
               <div>
                 <h3 className="text-lg font-bold text-[#F3F4F6]">{selectedAsset.name}</h3>
-                <span className="text-xs text-[#38BDF8] font-mono">{selectedAsset.member_name || 'Rajesh Sharma'} • {selectedAsset.category}</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-[#38BDF8] font-mono">{selectedAsset.member_name || 'Rajesh Sharma'}</span>
+                  <span className="text-[10px] text-[#9CA3AF] font-mono">• {selectedAsset.category}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#0B0B0C] border border-[#2B2E35] text-[#9CA3AF] font-mono">
+                    {selectedAsset.identifier || selectedAsset.type}
+                  </span>
+                </div>
               </div>
-              <button onClick={() => setSelectedAsset(null)} className="p-1 text-[#9CA3AF] hover:text-[#F3F4F6]">
+              <button onClick={() => setSelectedAsset(null)} className="p-1 text-[#9CA3AF] hover:text-[#F3F4F6] transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-[#0B0B0C] border border-[#2B2E35] rounded-xl">
-                <span className="text-xs text-[#9CA3AF] block">Invested Amount (Cost)</span>
-                <span className="text-base font-bold font-mono text-[#F3F4F6]">{formatCurrency(selectedAsset.totalCost)}</span>
+            {/* 4 Metric KPI Cards */}
+            <div className="grid grid-cols-2 gap-3 font-mono">
+              <div className="p-3.5 bg-[#0B0B0C] border border-[#2B2E35] rounded-xl">
+                <span className="text-[11px] text-[#9CA3AF] block font-sans">Invested Amount (Cost)</span>
+                <span className="text-sm font-bold text-[#F3F4F6]">{formatCurrency(selectedAsset.totalCost)}</span>
               </div>
-              <div className="p-4 bg-[#0B0B0C] border border-[#2B2E35] rounded-xl">
-                <span className="text-xs text-[#9CA3AF] block">Current Market Value</span>
-                <span className="text-base font-bold font-mono text-[#32D583]">{formatCurrency(selectedAsset.currentValue)}</span>
+              <div className="p-3.5 bg-[#0B0B0C] border border-[#2B2E35] rounded-xl">
+                <span className="text-[11px] text-[#9CA3AF] block font-sans">Current Market Value</span>
+                <span className="text-sm font-bold text-[#32D583]">{formatCurrency(selectedAsset.currentValue)}</span>
               </div>
+              <div className="p-3.5 bg-[#0B0B0C] border border-[#2B2E35] rounded-xl">
+                <span className="text-[11px] text-[#9CA3AF] block font-sans">Unrealized Gain / Return</span>
+                <div className={`text-sm font-bold ${selectedAsset.absoluteReturn >= 0 ? 'text-[#32D583]' : 'text-[#F43F5E]'}`}>
+                  {selectedAsset.absoluteReturn >= 0 ? '+' : ''}{formatCurrency(selectedAsset.absoluteReturn)} ({selectedAsset.absoluteReturnPercent.toFixed(2)}%)
+                </div>
+              </div>
+              <div className="p-3.5 bg-[#0B0B0C] border border-[#2B2E35] rounded-xl">
+                <span className="text-[11px] text-[#9CA3AF] block font-sans">Holding Units / NAV</span>
+                <span className="text-xs font-semibold text-[#38BDF8]">
+                  {Number((selectedAsset.currentUnits || 0).toFixed(2)).toLocaleString('en-IN', { minimumFractionDigits: 2 })} units @ {formatCurrency(selectedAsset.currentPrice || 0)}
+                </span>
+              </div>
+            </div>
+
+            {/* Historical Valuation & Price Growth Chart */}
+            <div className="p-4 bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl space-y-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-semibold text-slate-600 dark:text-[#9CA3AF] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                  <TrendingUp className="w-3.5 h-3.5 text-[#38BDF8]" />
+                  Valuation & Price Growth Chart
+                </span>
+                {priceHistoryLoading ? (
+                  <span className="text-[10px] text-slate-500 dark:text-[#9CA3AF]">Loading price trend...</span>
+                ) : (
+                  <span className={`font-mono font-bold text-xs ${selectedAsset.absoluteReturn >= 0 ? 'text-emerald-600 dark:text-[#32D583]' : 'text-rose-600 dark:text-[#F43F5E]'}`}>
+                    {selectedAsset.absoluteReturn >= 0 ? '▲ Growth' : '▼ Return'} {selectedAsset.absoluteReturnPercent.toFixed(2)}%
+                  </span>
+                )}
+              </div>
+
+              {(() => {
+                let points = priceHistory.map(p => ({ date: p.date, price: p.price }));
+                if (points.length === 0) {
+                  points = [
+                    { date: selectedAsset.lastTransactionDate || 'Initial', price: selectedAsset.totalCost > 0 ? selectedAsset.totalCost : selectedAsset.currentValue * 0.8 },
+                    { date: selectedAsset.priceDate || 'Today', price: selectedAsset.currentValue }
+                  ];
+                } else if (points.length === 1) {
+                  points = [
+                    { date: 'Initial', price: selectedAsset.totalCost > 0 ? selectedAsset.totalCost : points[0].price * 0.85 },
+                    points[0]
+                  ];
+                }
+
+                const pricesArr = points.map(p => p.price);
+                const minVal = Math.min(...pricesArr);
+                const maxVal = Math.max(...pricesArr);
+                const range = (maxVal - minVal) || 1;
+
+                const width = 500;
+                const height = 110;
+
+                const coords = points.map((p, idx) => {
+                  const x = (idx / Math.max(1, points.length - 1)) * width;
+                  const y = height - ((p.price - minVal) / range) * (height - 20) - 10;
+                  return `${x.toFixed(1)},${y.toFixed(1)}`;
+                });
+
+                const d = `M ${coords.join(' L ')}`;
+                const areaD = `M 0,${height} L ${coords.join(' L ')} L ${width},${height} Z`;
+                const isUp = selectedAsset.absoluteReturn >= 0;
+                const color = isUp ? '#10B981' : '#F43F5E';
+
+                return (
+                  <div className="bg-white dark:bg-[#15161A] border border-slate-200 dark:border-[#2B2E35] rounded-xl p-3 space-y-2">
+                    <div className="relative w-full h-32 flex items-center justify-center">
+                      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id={`assetGradient-${selectedAsset.id}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+                            <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+                          </linearGradient>
+                        </defs>
+                        <path d={areaD} fill={`url(#assetGradient-${selectedAsset.id})`} />
+                        <path d={d} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] font-mono font-semibold text-slate-600 dark:text-[#9CA3AF] pt-2 border-t border-slate-200 dark:border-[#2B2E35]/60">
+                      <span>{points[0]?.date || 'Start'}</span>
+                      <span>{points[points.length - 1]?.date || 'Latest'}</span>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Transaction Ledger Section */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center text-xs border-b border-[#2B2E35] pb-2">
+                <span className="font-semibold text-[#9CA3AF] uppercase tracking-wider font-mono">Recent Transaction History</span>
+                <span className="text-[10px] text-[#38BDF8] font-mono">{assetTxs.length} Transactions</span>
+              </div>
+
+              {txLoading ? (
+                <div className="text-center py-4 text-xs text-[#9CA3AF]">Loading transaction ledger...</div>
+              ) : assetTxs.length === 0 ? (
+                <div className="text-center py-4 text-xs text-[#6B7280] font-mono">No direct transaction log entries found.</div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {assetTxs.map(tx => (
+                    <div key={tx.id} className="p-2.5 bg-[#0B0B0C] border border-[#2B2E35] rounded-xl flex items-center justify-between text-xs font-mono">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            tx.type === 'BUY' ? 'bg-[#32D583]/10 text-[#32D583] border border-[#32D583]/30' :
+                            tx.type === 'SELL' ? 'bg-[#F43F5E]/10 text-[#F43F5E] border border-[#F43F5E]/30' :
+                            'bg-[#38BDF8]/10 text-[#38BDF8] border border-[#38BDF8]/30'
+                          }`}>
+                            {tx.type}
+                          </span>
+                          <span className="text-[#F3F4F6]">{tx.date}</span>
+                        </div>
+                        <div className="text-[10px] text-[#9CA3AF] mt-1">
+                          Qty: {tx.quantity} @ {formatCurrency(tx.price)}
+                        </div>
+                      </div>
+                      <span className="font-bold text-[#F3F4F6]">{formatCurrency(tx.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-[#2B2E35]">
@@ -825,6 +1031,7 @@ export default function Portfolio() {
                     className="w-full bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
                   >
                     <option value="FIXED_DEPOSIT">Fixed Deposit (FD)</option>
+                    <option value="SSY">Sukanya Samriddhi Yojana (SSY)</option>
                     <option value="MUTUAL_FUND">Mutual Fund</option>
                     <option value="STOCK">Stock / Equity</option>
                     <option value="BOND">Bond / Fixed Income</option>
@@ -859,14 +1066,14 @@ export default function Portfolio() {
                 {/* Principal / Current Monetary Value */}
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">
-                    {formType === 'FIXED_DEPOSIT' ? 'Deposit Principal (₹) *' : 'Current Value / Cost (₹) *'}
+                    {formType === 'FIXED_DEPOSIT' ? 'Deposit Principal (₹) *' : (formType === 'SSY' ? 'SSY Current Balance / Deposit (₹) *' : 'Current Value / Cost (₹) *')}
                   </label>
                   <input
                     type="number"
                     step="any"
                     required
                     min="1"
-                    placeholder="e.g. 500000"
+                    placeholder="e.g. 150000"
                     value={formValue}
                     onChange={(e) => setFormValue(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-[#F3F4F6] font-mono outline-none focus:border-[#4F7FFF]"
@@ -875,16 +1082,52 @@ export default function Portfolio() {
 
                 {/* Account / FD # / Note */}
                 <div>
-                  <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Account / FD # / Identifier</label>
+                  <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">
+                    {formType === 'SSY' ? 'SSY Passbook / Account #' : 'Account / FD # / Identifier'}
+                  </label>
                   <input
                     type="text"
-                    placeholder="e.g. 263002277881"
+                    placeholder={formType === 'SSY' ? 'e.g. SSY-981204' : 'e.g. 263002277881'}
                     value={formIdentifier}
                     onChange={(e) => setFormIdentifier(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-[#F3F4F6] font-mono outline-none focus:border-[#4F7FFF]"
                   />
                 </div>
               </div>
+
+              {formType === 'SSY' && (
+                <div className="p-3.5 bg-rose-50/60 dark:bg-[#1f131a] border border-rose-200/80 dark:border-[#3b1c2a] rounded-xl space-y-3.5">
+                  <div className="text-rose-700 dark:text-[#EC4899] font-semibold text-xs flex items-center justify-between">
+                    <span>Sukanya Samriddhi Yojana (SSY) Terms & Tax Benefits</span>
+                    <span className="px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 text-[10px] font-bold">
+                      Section 80C • EEE Status (100% Tax Free)
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Interest Rate (% p.a. Compounded)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="8.2"
+                        value={formInterestRate || '8.2'}
+                        onChange={(e) => setFormInterestRate(e.target.value)}
+                        className="w-full bg-white dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2 text-slate-900 dark:text-[#F3F4F6] font-mono outline-none focus:border-[#EC4899]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 dark:text-[#9CA3AF] mb-1">Maturity Date (21 Years)</label>
+                      <input
+                        type="date"
+                        value={formMaturityDate}
+                        onChange={(e) => setFormMaturityDate(e.target.value)}
+                        className="w-full bg-white dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2 text-slate-900 dark:text-[#F3F4F6] font-mono outline-none focus:border-[#EC4899]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {formType === 'FIXED_DEPOSIT' && (
                 <div className="p-3.5 bg-emerald-50/60 dark:bg-[#141824] border border-emerald-200/80 dark:border-[#2B2E35] rounded-xl space-y-3.5">

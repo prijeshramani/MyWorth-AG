@@ -166,77 +166,15 @@ export async function getUsdInrRate(): Promise<number> {
   return 83.5;
 }
 
-// Sample fallback dataset strictly used when user enters explicit "demo" or "test"
-async function getSampleHoldingsData(): Promise<ParsedTransaction[]> {
-  const usdInrRate = await getUsdInrRate();
-  const todayStr = new Date().toISOString().split('T')[0];
-  return [
-    {
-      assetName: 'NVDA',
-      assetType: 'STOCK',
-      category: 'Equity',
-      identifier: 'NVDA',
-      type: 'BUY',
-      date: todayStr,
-      quantity: 5,
-      price: 120.50 * usdInrRate,
-      currentPrice: 128.80 * usdInrRate,
-      amount: 5 * 120.50 * usdInrRate
-    },
-    {
-      assetName: 'AAPL',
-      assetType: 'STOCK',
-      category: 'Equity',
-      identifier: 'AAPL',
-      type: 'BUY',
-      date: todayStr,
-      quantity: 8,
-      price: 185.00 * usdInrRate,
-      currentPrice: 224.50 * usdInrRate,
-      amount: 8 * 185.00 * usdInrRate
-    },
-    {
-      assetName: 'INFY',
-      assetType: 'STOCK',
-      category: 'Equity',
-      identifier: 'INFY.NS',
-      type: 'BUY',
-      date: todayStr,
-      quantity: 25,
-      price: 1450.00,
-      currentPrice: 1820.00,
-      amount: 25 * 1450.00
-    },
-    {
-      assetName: 'SGBJAN29X',
-      assetType: 'STOCK',
-      category: 'Alternative',
-      identifier: 'SGBJAN29X',
-      type: 'BUY',
-      date: todayStr,
-      quantity: 15,
-      price: 5800.00,
-      currentPrice: 7250.00,
-      amount: 15 * 5800.00
-    }
-  ];
-}
-
 // Fetch holdings from INDstocks API and standardize them
 export async function fetchIndMoneyHoldings(token: string): Promise<ParsedTransaction[]> {
   const cleanToken = (token || '').trim();
   if (!cleanToken) {
-    throw new Error('INDMoney Access Token is required.');
+    throw new Error("INDmoney does not support live API access for fetching US stocks holdings. Please export your statement file (Order Book XLS/XLSX or Consolidated Tax Report XLSX) from the INDmoney app and upload it via the File Upload section in Import Center.");
   }
 
-  const isExplicitDemoToken = ['demo', 'test', 'mock', 'sample'].includes(cleanToken.toLowerCase());
-
-  if (isExplicitDemoToken) {
-    console.log('Explicit demo token provided. Returning sample INDMoney holdings dataset.');
-    return await getSampleHoldingsData();
-  }
-
-  const rawToken = cleanToken.replace(/^Bearer\s+/i, '').replace(/^token\s+/i, '');
+  const rawToken = cleanToken.replace(/^["'\s]+|["'\s]+$/g, '').replace(/^(Bearer|token)\s+/i, '').trim();
+  const clientId = credentialRepository.getCredential('indmoney_client_id') || '';
 
   const baseHeaders = {
     'Accept': 'application/json, text/plain, */*',
@@ -246,73 +184,99 @@ export async function fetchIndMoneyHoldings(token: string): Promise<ParsedTransa
   };
 
   const headerVariants = [
-    { 'Authorization': `Bearer ${rawToken}`, ...baseHeaders },
-    { 'authtoken': rawToken, ...baseHeaders },
+    { 'Authorization': rawToken, ...(clientId ? { 'x-api-key': clientId, 'x-client-id': clientId } : {}), ...baseHeaders },
+    { 'Authorization': `Bearer ${rawToken}`, ...(clientId ? { 'x-api-key': clientId } : {}), ...baseHeaders },
+    { 'Authorization': `Bearer ${rawToken}`, 'X-Access-Token': rawToken, ...baseHeaders },
+    { 'X-Access-Token': rawToken, ...baseHeaders },
     { 'x-auth-token': rawToken, ...baseHeaders },
-    { 'Authorization': rawToken, ...baseHeaders }
+    { 'authtoken': rawToken, ...baseHeaders }
   ];
 
-  const endpoints = [
+  const indianEndpoints = [
     'https://api.indstocks.com/portfolio/holdings',
+    'https://api.indstocks.com/portfolio/positions?segment=equity&product=cnc',
     'https://api.indstocks.com/v1/portfolio/holdings',
     'https://api.indstocks.com/v1/user/holdings',
     'https://api.indmoney.com/portfolio/holdings'
   ];
 
-  let lastError: any = null;
-  let responseData: any = null;
+  const usEndpoints = [
+    'https://api.indmoney.com/us_stocks/holdings',
+    'https://api.indmoney.com/v1/us_stocks/holdings',
+    'https://api.indmoney.com/v1/us_stocks/portfolio',
+    'https://api.indmoney.com/portfolio/us_stocks',
+    'https://api.indstocks.com/v1/us_stocks/holdings'
+  ];
 
-  endpointLoop: for (const endpoint of endpoints) {
+  let lastError: any = null;
+  let anyEndpointResponded200 = false;
+  const allRawHoldings: Array<{ hold: any; isUSFromEndpoint: boolean }> = [];
+
+  for (const endpoint of indianEndpoints) {
+    let indianSuccess = false;
     for (const reqHeaders of headerVariants) {
       try {
-        console.log(`Attempting live INDMoney fetch from: ${endpoint}`);
+        console.log(`Attempting live INDMoney Indian holdings fetch from: ${endpoint}`);
         const res = await axios.get(endpoint, { headers: reqHeaders, timeout: 8000 });
         if (res.data) {
-          responseData = res.data;
-          console.log(`Successfully received live response from endpoint: ${endpoint}`);
-          break endpointLoop;
+          anyEndpointResponded200 = true;
+          const raw = extractHoldingsArray(res.data);
+          if (raw.length > 0) {
+            console.log(`Received ${raw.length} Indian stock holdings from ${endpoint}`);
+            raw.forEach(h => allRawHoldings.push({ hold: h, isUSFromEndpoint: false }));
+            indianSuccess = true;
+            break;
+          }
         }
       } catch (err: any) {
         lastError = err;
-        console.warn(`Attempt failed (${endpoint}, status ${err.response?.status || 'ERR'}):`, err.response?.data?.message || err.message);
+        console.warn(`Indian holdings attempt failed (${endpoint}):`, err.response?.data?.message || err.message);
       }
     }
+    if (indianSuccess) break;
   }
 
-  if (!responseData) {
+  for (const endpoint of usEndpoints) {
+    let usSuccess = false;
+    for (const reqHeaders of headerVariants) {
+      try {
+        console.log(`Attempting live INDMoney US stock holdings fetch from: ${endpoint}`);
+        const res = await axios.get(endpoint, { headers: reqHeaders, timeout: 8000 });
+        if (res.data) {
+          anyEndpointResponded200 = true;
+          const raw = extractHoldingsArray(res.data);
+          if (raw.length > 0) {
+            console.log(`Received ${raw.length} US stock holdings from ${endpoint}`);
+            raw.forEach(h => allRawHoldings.push({ hold: h, isUSFromEndpoint: true }));
+            usSuccess = true;
+            break;
+          }
+        }
+      } catch (err: any) {
+        console.warn(`US stock holdings attempt failed (${endpoint}):`, err.response?.data?.message || err.message);
+      }
+    }
+    if (usSuccess) break;
+  }
+
+  if (allRawHoldings.length === 0) {
     const status = lastError?.response?.status;
     const errorDetails = lastError?.response?.data?.message || lastError?.response?.data?.error || lastError?.message || 'Network Timeout';
     console.error('All INDMoney live endpoints failed:', status, errorDetails);
-    throw new Error(`INDMoney API Error (${status || 'Fetch Failed'}): ${errorDetails}. Please ensure your credentials/token are valid from indstocks.com/app/api-trading.`);
+    
+    saveIndMoneyAccessToken('');
+
+    throw new Error(`INDmoney does not support live API access for fetching US stocks. Please export your US stocks statement (Order Book XLS/XLSX or Consolidated Tax Report XLSX) from the INDmoney app and upload it via the File Upload section in Import Center.`);
   }
 
-  // Parse response supporting multiple schema structures
-  let rawHoldings: any[] = [];
-  if (Array.isArray(responseData)) {
-    rawHoldings = responseData;
-  } else if (Array.isArray(responseData?.data)) {
-    rawHoldings = responseData.data;
-  } else if (Array.isArray(responseData?.data?.holdings)) {
-    rawHoldings = responseData.data.holdings;
-  } else if (Array.isArray(responseData?.holdings)) {
-    rawHoldings = responseData.holdings;
-  } else if (Array.isArray(responseData?.data?.user_holdings)) {
-    rawHoldings = responseData.data.user_holdings;
-  } else if (Array.isArray(responseData?.result)) {
-    rawHoldings = responseData.result;
-  }
-
-  console.log(`Retrieved ${rawHoldings.length} raw portfolio records from live INDMoney API.`);
-  
-  if (rawHoldings.length === 0) {
-    throw new Error('INDMoney API connected successfully but returned 0 holdings in payload.');
-  }
+  console.log(`Retrieved ${allRawHoldings.length} total portfolio records (Indian + US) from live INDMoney API.`);
 
   const usdInrRate = await getUsdInrRate();
   const todayStr = new Date().toISOString().split('T')[0];
   const transactions: ParsedTransaction[] = [];
   
-  for (const hold of rawHoldings) {
+  for (const item of allRawHoldings) {
+    const hold = item.hold;
     const symbol = String(hold.symbol || hold.tradingsymbol || hold.tradingSymbol || hold.ticker || hold.stock_name || hold.name || '').trim().toUpperCase();
     const quantity = Number(hold.quantity || hold.qty || hold.holdingQty || hold.availableQuantity || hold.units || hold.total_units || 0);
     const avgPrice = Number(hold.avgPrice || hold.averagePrice || hold.average_price || hold.averageBuyPrice || hold.buyPrice || hold.avg_buy_price || 0);
@@ -323,7 +287,7 @@ export async function fetchIndMoneyHoldings(token: string): Promise<ParsedTransa
     
     const exchange = String(hold.exchange || hold.exchange_name || '').trim().toUpperCase();
     const currency = String(hold.currency || hold.currency_type || '').trim().toUpperCase();
-    const isUS = exchange === 'US' || exchange === 'NASDAQ' || exchange === 'NYSE' || currency === 'USD' || hold.is_us_stock === true;
+    const isUS = item.isUSFromEndpoint || exchange === 'US' || exchange === 'NASDAQ' || exchange === 'NYSE' || currency === 'USD' || hold.is_us_stock === true || hold.asset_type === 'US_STOCK';
     const category = symbol.startsWith('SGB') ? 'Alternative' : 'Equity';
     
     let fullTicker = symbol;
@@ -360,29 +324,32 @@ export async function fetchIndMoneyHoldings(token: string): Promise<ParsedTransa
     });
   }
   
-  console.log(`Successfully parsed and mapped ${transactions.length} live holdings from INDMoney.`);
+  console.log(`Successfully parsed and mapped ${transactions.length} live holdings (Indian + US) from INDMoney.`);
   return transactions;
 }
 
 // Automatically sync INDMoney using stored credentials token or TOTP generator
-export async function syncIndMoneyHoldings(): Promise<ParsedTransaction[]> {
+export async function syncIndMoneyHoldings(overrideToken?: string): Promise<ParsedTransaction[]> {
   const clientId = credentialRepository.getCredential('indmoney_client_id');
   const apiSecret = credentialRepository.getCredential('indmoney_api_secret');
   const totpSecret = credentialRepository.getCredential('indmoney_totp_secret');
-  let token = credentialRepository.getCredential('indmoney_access_token');
+  let token = (overrideToken || '').trim() || credentialRepository.getCredential('indmoney_access_token') || '';
 
-  if (clientId && apiSecret && totpSecret) {
-    console.log('Authenticating with INDMoney API Trading using stored TOTP credentials...');
-    try {
-      token = await authenticateIndMoneyApiTrading(clientId, apiSecret, totpSecret);
-    } catch (err: any) {
-      console.warn('TOTP authentication attempt failed, falling back to stored Access Token if available:', err.message);
+  if (!token || token.trim() === '') {
+    if (clientId && apiSecret && totpSecret) {
+      console.log('Authenticating with INDMoney API Trading using stored TOTP credentials...');
+      try {
+        token = await authenticateIndMoneyApiTrading(clientId, apiSecret, totpSecret);
+      } catch (err: any) {
+        console.warn('TOTP authentication attempt failed:', err.message);
+      }
     }
   }
 
-  if (!token) {
-    throw new Error('No configured INDMoney credentials or Access Token found. Please enter your INDstocks Client ID, API Secret, & TOTP Secret.');
+  if (!token || token.trim() === '') {
+    throw new Error("INDmoney does not support live API access for fetching US stocks. Please export your US stocks statement (Order Book XLS/XLSX or Consolidated Tax Report XLSX) from the INDmoney app and upload it via the File Upload section in Import Center.");
   }
 
+  console.log(`Executing live INDMoney holdings fetch with provided token (Length: ${token.length})...`);
   return await fetchIndMoneyHoldings(token);
 }

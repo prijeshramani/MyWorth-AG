@@ -72,7 +72,7 @@ app.use(['/api/insurance', '/api/v1/insurance', '/api/v1/v1/insurance'], insuran
 app.use(['/api/v1', '/api/v1/v1', '/api'], domainRoutes);
 
 // Sync Market Data Trigger Route
-app.post('/api/sync', async (req, res, next) => {
+app.post(['/api/sync', '/api/v1/sync'], async (req, res, next) => {
   logger.info('Manual sync triggered via REST API...');
   try {
     const results = await syncAllAssets();

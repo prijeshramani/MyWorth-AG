@@ -220,7 +220,7 @@ export default function Transactions() {
     setNewAssetType(type);
     if (type === 'BANK_ACCOUNT') setNewAssetCat('Cash');
     else if (type === 'STOCK' || type === 'MUTUAL_FUND') setNewAssetCat('Equity');
-    else if (type === 'BOND' || type === 'EPF' || type === 'FIXED_DEPOSIT') setNewAssetCat('Debt');
+    else if (type === 'BOND' || type === 'EPF' || type === 'FIXED_DEPOSIT' || type === 'SSY') setNewAssetCat('Debt');
     else if (type === 'NPS') setNewAssetCat('Hybrid');
     else setNewAssetCat('Alternative');
   };
@@ -244,6 +244,7 @@ export default function Transactions() {
     NPS: 'NPS Pension',
     EPF: 'EPF (Provident Fund)',
     FIXED_DEPOSIT: 'Fixed Deposit (FD)',
+    SSY: 'Sukanya Samriddhi (SSY)',
     GOLD: 'Gold Metal',
     BOND: 'Bond',
     PROPERTY: 'Real Estate',

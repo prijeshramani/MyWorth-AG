@@ -33,6 +33,7 @@ export const AccountTypeEnum = z.enum([
   'PPF',
   'NPS',
   'FD',
+  'SSY',
   'MUTUAL_FUND_FOLIO',
   'CREDIT_CARD',
   'OTHER'

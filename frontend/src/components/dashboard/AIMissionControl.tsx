@@ -52,6 +52,7 @@ export const AIMissionControl: React.FC<AIMissionControlProps> = ({ onNavigate }
   const { activeFamilyId } = useUiStore();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [syncing, setSyncing] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
 
   const fetchDashboardData = async () => {
@@ -67,6 +68,18 @@ export const AIMissionControl: React.FC<AIMissionControlProps> = ({ onNavigate }
     }
   };
 
+  const handleRefreshData = async () => {
+    try {
+      setSyncing(true);
+      await apiClient.post('/sync');
+    } catch (syncErr) {
+      console.error('Market price sync notice:', syncErr);
+    } finally {
+      setSyncing(false);
+    }
+    await fetchDashboardData();
+  };
+
   useEffect(() => {
     fetchDashboardData();
   }, [activeFamilyId]);
@@ -80,7 +93,7 @@ export const AIMissionControl: React.FC<AIMissionControlProps> = ({ onNavigate }
   const monthlySavings = data?.formattedMonthlySavings || '₹0.00';
   const healthScore = data?.healthScore ?? 0;
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <PageShell title="AI Mission Control" subtitle="Loading your financial operating system...">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -101,10 +114,11 @@ export const AIMissionControl: React.FC<AIMissionControlProps> = ({ onNavigate }
         <Button
           variant="secondary"
           size="sm"
-          leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
-          onClick={fetchDashboardData}
+          leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />}
+          onClick={handleRefreshData}
+          disabled={syncing || loading}
         >
-          Refresh Data
+          {syncing ? 'Syncing Live Prices...' : 'Refresh Data'}
         </Button>
       }
     >

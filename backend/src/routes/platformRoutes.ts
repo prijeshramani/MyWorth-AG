@@ -9,8 +9,12 @@ import { securityHardeningService } from '../services/platform/SecurityHardening
 import { docQualityValidator } from '../services/platform/DocQualityValidator';
 import { aiSkillRegistry } from '../services/ai/AISkillRegistry';
 import { aiActionRegistry } from '../services/ai/AIActionRegistry';
+import { backupRouter } from './backupRoutes';
 
 export const platformRouter = Router();
+
+// Mount Backup & Data Restore endpoints
+platformRouter.use('/backup', backupRouter);
 
 // 1. Unified Platform Registry & Dependency Graph
 platformRouter.get('/registry', (req: Request, res: Response) => {

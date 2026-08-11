@@ -1,9 +1,9 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { parsePdfStatement } from '../services/pdfParser';
-import { parseNpsCsvStatement } from '../services/csvParser';
+import { parseCsvStatement } from '../services/csvParser';
 import { parseZerodhaXmlStatement } from '../services/xmlParser';
-import { parseZerodhaHoldingsStatement } from '../services/excelParser';
+import { parseExcelStatement } from '../services/excelParser';
 import { 
   getKiteCredentials, 
   saveKiteCredentials, 
@@ -41,7 +41,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-// POST /api/import/parse - Ingest PDF/CSV/XML, decrypt, extract raw text & transactions
+// POST /api/import/parse - Ingest PDF/CSV/XML/Excel, decrypt, extract raw text & transactions
 router.post('/parse', upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
@@ -49,19 +49,22 @@ router.post('/parse', upload.single('file'), async (req: Request, res: Response)
     }
 
     const password = req.body.password as string | undefined;
-    const isCsv = req.file.originalname.toLowerCase().endsWith('.csv') || req.file.mimetype === 'text/csv';
-    const isXml = req.file.originalname.toLowerCase().endsWith('.xml') || req.file.mimetype === 'text/xml' || req.file.mimetype === 'application/xml';
-    const isXlsx = req.file.originalname.toLowerCase().endsWith('.xlsx') || req.file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    const fileNameLower = req.file.originalname.toLowerCase();
+    const mimeLower = req.file.mimetype.toLowerCase();
 
-    console.log(`Parsing uploaded statement: name=${req.file.originalname}, size=${req.file.size} bytes, format=${isCsv ? 'CSV' : isXml ? 'XML' : isXlsx ? 'XLSX' : 'PDF'}, hasPassword=${!!password}`);
+    const isCsv = fileNameLower.endsWith('.csv') || mimeLower === 'text/csv';
+    const isXml = fileNameLower.endsWith('.xml') || mimeLower === 'text/xml' || mimeLower === 'application/xml';
+    const isXlsx = fileNameLower.endsWith('.xlsx') || fileNameLower.endsWith('.xls') || mimeLower.includes('spreadsheet') || mimeLower.includes('excel') || mimeLower.includes('ms-excel');
+
+    console.log(`Parsing uploaded statement: name=${req.file.originalname}, size=${req.file.size} bytes, format=${isCsv ? 'CSV' : isXml ? 'XML' : isXlsx ? 'XLS/XLSX' : 'PDF'}, hasPassword=${!!password}`);
 
     let result;
     if (isCsv) {
-      result = parseNpsCsvStatement(req.file.buffer);
+      result = parseCsvStatement(req.file.buffer);
     } else if (isXml) {
       result = parseZerodhaXmlStatement(req.file.buffer);
     } else if (isXlsx) {
-      result = parseZerodhaHoldingsStatement(req.file.buffer);
+      result = await parseExcelStatement(req.file.buffer);
     } else {
       result = await parsePdfStatement(req.file.buffer, password);
     }
@@ -164,22 +167,48 @@ router.post('/confirm', (req: Request, res: Response) => {
           VALUES (?, ?, ?)
         `).run(assetId, tx.date, marketPriceToSave);
 
-        // 3. Check for duplicate transaction
-        const duplicate = db.prepare(`
-          SELECT id FROM transactions 
-          WHERE asset_id = ? AND type = ? AND date = ? AND quantity = ? AND price = ? AND amount = ?
-        `).get(assetId, tx.type, tx.date, tx.quantity, tx.price, tx.amount);
+        // 3. Check for duplicate transaction (exact date match or holdings position match)
+        const duplicate = transactionRepository.findDuplicate(
+          assetId,
+          tx.type || 'BUY',
+          tx.date,
+          tx.quantity,
+          tx.price,
+          tx.amount
+        );
 
         if (duplicate) {
           duplicatesSkipped++;
           continue; // Skip double importing transaction
         }
 
+        // Check if there is an existing baseline holdings transaction for this asset whose position/price was updated by broker sync
+        const existingHoldingsTx = db.prepare(`
+          SELECT id, source FROM transactions 
+          WHERE asset_id = ? AND type = 'BUY'
+          ORDER BY id DESC LIMIT 1
+        `).get(assetId) as { id: number; source: string } | undefined;
+
+        const sourceTag = tx.source || (tx.statementType ? tx.statementType.replace('_HOLDINGS', '') : 'API_IMPORT');
+        const isHoldingsType = (tx.statementType || tx.source || '').includes('HOLDINGS') || 
+                               ['ANGELONE', 'ZERODHA', 'UPSTOX', 'INDMONEY', 'KITE'].some(b => (tx.source || tx.statementType || '').includes(b));
+
+        if (existingHoldingsTx && isHoldingsType) {
+          // Update existing holdings baseline transaction to reflect latest position quantity & average buy price
+          db.prepare(`
+            UPDATE transactions 
+            SET date = ?, quantity = ?, price = ?, amount = ?, source = ?
+            WHERE id = ?
+          `).run(tx.date, tx.quantity, tx.price, tx.amount, sourceTag, existingHoldingsTx.id);
+          transactionsImported++;
+          continue;
+        }
+
         // 4. Insert transaction
         db.prepare(`
           INSERT INTO transactions (asset_id, type, date, quantity, price, amount, source)
-          VALUES (?, ?, ?, ?, ?, ?, 'PDF_IMPORT')
-        `).run(assetId, tx.type, tx.date, tx.quantity, tx.price, tx.amount);
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(assetId, tx.type || 'BUY', tx.date, tx.quantity, tx.price, tx.amount, sourceTag);
 
         transactionsImported++;
       }
@@ -234,30 +263,27 @@ router.get('/kite/login-url', (req: Request, res: Response) => {
 });
 
 // Helper for checking duplicates
-function enrichAndMapTransactions(rawTxs: any[]) {
+function enrichAndMapTransactions(rawTxs: any[], statementType?: string) {
   return rawTxs.map(tx => {
     let existingAsset = null;
     if (tx.identifier) {
       existingAsset = db.prepare(`
         SELECT id, name, category FROM assets 
-        WHERE name = ? AND identifier = ? AND type = ?
-      `).get(tx.assetName, tx.identifier, tx.assetType) as { id: number; name: string; category: string } | undefined;
+        WHERE identifier = ? AND type = ?
+      `).get(tx.identifier, tx.assetType || 'STOCK') as { id: number; name: string; category: string } | undefined;
     }
     if (!existingAsset) {
       existingAsset = db.prepare(`
         SELECT id, name, category FROM assets 
-        WHERE name = ? AND type = ?
-      `).get(tx.assetName, tx.assetType) as { id: number; name: string; category: string } | undefined;
+        WHERE LOWER(name) = LOWER(?) AND type = ?
+      `).get(tx.assetName, tx.assetType || 'STOCK') as { id: number; name: string; category: string } | undefined;
     }
 
     let isDuplicate = false;
     if (existingAsset) {
-      const txDuplicate = db.prepare(`
-        SELECT id FROM transactions 
-        WHERE asset_id = ? AND type = ? AND date = ? AND quantity = ? AND price = ? AND amount = ?
-      `).get(
+      const txDuplicate = transactionRepository.findDuplicate(
         existingAsset.id,
-        tx.type,
+        tx.type || 'BUY',
         tx.date,
         tx.quantity,
         tx.price,
@@ -268,6 +294,7 @@ function enrichAndMapTransactions(rawTxs: any[]) {
 
     return {
       ...tx,
+      statementType: statementType || tx.statementType,
       exists: !!existingAsset,
       assetId: existingAsset ? existingAsset.id : null,
       isDuplicate
@@ -422,18 +449,20 @@ router.post('/indmoney/config', (req: Request, res: Response) => {
 // POST /api/import/indmoney/sync - Sync holdings from INDstocks API using stored TOTP credentials or token
 router.post('/indmoney/sync', async (req: Request, res: Response) => {
   try {
-    const transactions = await syncIndMoneyHoldings();
+    const { token, accessToken } = req.body || {};
+    const transactions = await syncIndMoneyHoldings(accessToken || token);
     const enriched = enrichAndMapTransactions(transactions);
     
     res.json({
       success: true,
       statementType: 'INDMONEY_HOLDINGS',
       transactions: enriched,
-      rawText: `INDMoney programmatic TOTP sync - Success\nTotal Holdings: ${transactions.length}`
+      rawText: `INDMoney sync - Success\nTotal Holdings: ${transactions.length}`
     });
   } catch (error: any) {
     console.error('INDMoney Sync Ingestion Error:', error);
-    res.status(500).json({ error: error.message || 'Failed to sync with INDMoney API.' });
+    const statusCode = error.message?.includes('Token Expired') || error.message?.includes('Invalid') || error.message?.includes('Failed') ? 400 : 500;
+    res.status(statusCode).json({ error: error.message || 'Failed to sync with INDMoney API.' });
   }
 });
 

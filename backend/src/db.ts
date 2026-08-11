@@ -24,7 +24,7 @@ const migration012 = {
 
 // Resolve database path
 const dbDir = path.resolve(__dirname, '../../data');
-const dbPath = path.join(dbDir, 'myworth.db');
+export const dbPath = path.join(dbDir, 'myworth.db');
 
 // Ensure database directory exists
 if (!fs.existsSync(dbDir)) {
@@ -128,45 +128,40 @@ export function initDb() {
   const assetsTableCheck = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='assets'").get() as { sql: string } | undefined;
   
   if (assetsTableCheck) {
-    if (!assetsTableCheck.sql.includes("'FIXED_DEPOSIT'")) {
-      console.log('Running database schema migration for assets table to support FIXED_DEPOSIT...');
+    if (!assetsTableCheck.sql.includes("'SSY'")) {
+      console.log('Running database schema migration for assets table to support SSY...');
       db.pragma('foreign_keys = OFF');
       db.transaction(() => {
-        // Rename table
         db.prepare('ALTER TABLE assets RENAME TO assets_old').run();
         
-        // Create new table with expanded check constraints
         db.prepare(`
           CREATE TABLE assets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             family_member_id INTEGER,
             name TEXT NOT NULL,
-            type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'FIXED_DEPOSIT', 'OTHER')),
+            type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'FIXED_DEPOSIT', 'SSY', 'OTHER')),
             category TEXT NOT NULL CHECK(category IN ('Equity', 'Debt', 'Cash', 'Hybrid', 'Alternative', 'Other')),
             identifier TEXT,
+            metadata TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (family_member_id) REFERENCES family_members(id)
           )
         `).run();
         
-        // Check if family_member_id exists in assets_old
-        const hasFamilyMemberCol = (db.prepare("PRAGMA table_info(assets_old)").all() as any[]).some(c => c.name === 'family_member_id');
-        const selectColStr = hasFamilyMemberCol 
-          ? 'id, family_member_id, name, type, category, identifier, created_at, updated_at'
-          : 'id, NULL as family_member_id, name, type, category, identifier, created_at, updated_at';
+        const oldCols = (db.prepare("PRAGMA table_info(assets_old)").all() as any[]).map(c => c.name);
+        const familyMemberStr = oldCols.includes('family_member_id') ? 'family_member_id' : 'NULL as family_member_id';
+        const metaStr = oldCols.includes('metadata') ? 'metadata' : 'NULL as metadata';
 
-        // Copy old data
         db.prepare(`
-          INSERT INTO assets (id, family_member_id, name, type, category, identifier, created_at, updated_at)
-          SELECT ${selectColStr} FROM assets_old
+          INSERT INTO assets (id, family_member_id, name, type, category, identifier, metadata, created_at, updated_at)
+          SELECT id, ${familyMemberStr}, name, type, category, identifier, ${metaStr}, created_at, updated_at FROM assets_old
         `).run();
         
-        // Drop old table
         db.prepare('DROP TABLE assets_old').run();
       })();
       db.pragma('foreign_keys = ON');
-      console.log('Database assets schema migration for FIXED_DEPOSIT successfully completed.');
+      console.log('Database assets schema migration for SSY successfully completed.');
     }
   } else {
     // Create new table directly
@@ -175,9 +170,10 @@ export function initDb() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         family_member_id INTEGER,
         name TEXT NOT NULL,
-        type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'FIXED_DEPOSIT', 'OTHER')),
+        type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'FIXED_DEPOSIT', 'SSY', 'OTHER')),
         category TEXT NOT NULL CHECK(category IN ('Equity', 'Debt', 'Cash', 'Hybrid', 'Alternative', 'Other')),
         identifier TEXT,
+        metadata TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (family_member_id) REFERENCES family_members(id)

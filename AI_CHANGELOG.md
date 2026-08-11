@@ -12,7 +12,38 @@
   - Interest Rate (% p.a.)
   - Deposit Start Date & Maturity Date
 
+### Added
+- [backend/src/routes/backupRoutes.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/backupRoutes.ts): Created comprehensive Backup & Restore API router supporting:
+  - `GET /api/v1/platform/backup/export/json`: Exports complete database as a downloadable `.json` archive file.
+  - `GET /api/v1/platform/backup/export/sqlite`: Exports live SQLite database as a downloadable `.sqlite` file using clean `better-sqlite3` online backups.
+  - `POST /api/v1/platform/backup/restore/json`: Restores database tables and records from a JSON backup file upload or body payload inside an atomic transaction.
+  - `POST /api/v1/platform/backup/restore/sqlite`: Restores database tables and records from an uploaded `.sqlite` or `.db` file inside an atomic transaction.
+- [frontend/src/components/settings/SettingsView.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/settings/SettingsView.tsx): Replaced non-functional buttons with a full-fledged **Backup & Database Management** center. Added handlers and hidden file inputs for:
+  - **Export JSON Archive** button
+  - **Export SQLite (.sqlite)** button
+  - **Restore from JSON** file upload button with confirmation prompt & record counts
+  - **Restore from SQLite** file upload button with confirmation prompt & record counts
+- [backend/src/services/indmoneyService.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/services/indmoneyService.ts): Integrated **US Stock Holdings Synchronization** into INDMoney API service:
+  - **Dual Endpoint Aggregation**: Restructured `fetchIndMoneyHoldings` to fetch from both Indian Demat stock endpoints (`api.indstocks.com/portfolio/holdings`) AND US Stock microservice endpoints (`api.indmoney.com/us_stocks/holdings`, `api.indmoney.com/v1/us_stocks/portfolio`, `api.indstocks.com/v1/us_stocks/holdings`).
+  - **USD to INR Currency Conversion**: Automated live `USDINR=X` exchange rate fetching from Yahoo Finance to convert US Stock average buy prices and market prices into INR (`avgPrice * usdInrRate`).
+  - **US Ticker Standardisation**: Mapped US Stock symbols (e.g. `NVDA`, `AAPL`, `MSFT`, `TSLA`, `GOOGL`, `AMZN`, `META`) as clean stock identifiers without appending `.NS` suffixes.
+  - **Cross-Date Position Deduplication**: Enhanced `findDuplicate` to detect identical holding positions (matching quantity & average buy price) regardless of sync date (`2026-08-10` vs `2026-08-11`). Re-syncing APIs on different days no longer creates duplicate transaction rows.
+  - **Holdings Position Update**: When a holding position quantity or price updates (e.g. buying additional shares), `/api/import/confirm` updates the existing holdings baseline transaction instead of stacking duplicate transactions on top.
+  - **Valuation & Price Growth Chart**: Fixed bottom date text clipping by separating SVG chart height (`h-32`) from the date footer label container (`pt-2 border-t`). Added responsive light and dark theme text colors (`text-slate-600 dark:text-[#9CA3AF]`) and clear contrast borders for pristine visibility in both Light and Dark themes.
+  - **4 KPI Metric Cards**: Displayed Invested Amount (Cost Basis), Current Market Value, Net Unrealized Gain/Loss (`+₹X` / `+Y%`), and Position Size / NAV (`units @ price/unit`).
+  - **Transaction History Ledger**: Integrated a transaction log displaying recent `BUY`, `SELL`, and `REINVEST` transactions for the selected asset directly inside the side drawer.
+  - Added sortable **Invested Value** column to the Holdings table for direct side-by-side comparison with Market Value.
+  - Added monetary gain/loss amount (`+₹X`) below unrealized gain percentage (`+Y%`).
+  - Added top portfolio summary metric cards for **Total Invested Cost**, **Current Market Value**, and **Total Unrealized Gain/Loss** with overall return badge.
+
 ### Fixed
+- [frontend/src/components/accounts/AccountsManager.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/accounts/AccountsManager.tsx) & [backend/src/routes/v1/accounts.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/routes/v1/accounts.ts): Fixed **Bank & Demat Accounts** page data fetching and deletion functionality:
+  - **Live Family Data Connection**: Connected account fetching to active family (`GET /api/v1/accounts?familyId=X`), returning the family's actual bank accounts, savings deposits, EPF, and Demat holdings instead of static demo defaults.
+  - **Persistent Delete Functionality**: Updated `handleDelete` to execute `DELETE /api/v1/accounts/:id` and `DELETE /api/assets/:id`, soft-deleting/removing the record permanently from the database.
+  - **Add Account Persistence**: Connected **Add Account / Broker** form to `POST /api/assets` to save newly linked accounts into the database under the active family.
+- [frontend/src/components/Portfolio.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/Portfolio.tsx): Fixed `Rendered more hooks than during the previous render` React error by moving `const [syncingPrices, setSyncingPrices] = useState(false)` to the top of the component before any early conditional `if (loading)` return statements. Added **Sync Market Prices** action button with spinning indicator.
+- [backend/src/index.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/index.ts): Registered `/api/v1/sync` route alias alongside `/api/sync` to ensure live price synchronization works seamlessly regardless of API path prefix.
+- [frontend/src/components/ImportCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ImportCenter.tsx): Fixed low-contrast BankInsights sync success message banner and SQLite database path container in Light Theme. Updated status banner (`bg-emerald-50 text-emerald-800 border-emerald-200` in Light vs `bg-emerald-950/40 text-emerald-300` in Dark), titles, labels, inputs, and error/import summary alert banners.
 - [frontend/src/components/ui/CommandPalette.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ui/CommandPalette.tsx): Fixed Light Theme color mismatch in the Search / Command Palette modal. Applied theme-responsive styling for shortcut badges (`bg-slate-100 text-slate-600` in Light vs `bg-[#2B2E35] text-[#9CA3AF]` in Dark), command list items, search input, and footer `kbd` keys.
 - [frontend/src/store/useUiStore.ts](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/store/useUiStore.ts), [frontend/src/components/holdings/HoldingsView.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/holdings/HoldingsView.tsx), [frontend/src/components/ImportCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/ImportCenter.tsx), & [frontend/src/components/tax/ITRFilingCenter.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/tax/ITRFilingCenter.tsx): Restored active Ramani family office data (Family ID 6: Prijesh Hiralal Ramani [SELF], Dhvani Prijesh Ramani [SPOUSE], 38 assets, 8,005 transactions) and dynamically routed API requests using `activeFamilyId` from `useUiStore` instead of hardcoded `familyId=1`.
 - [frontend/src/components/CashFlowDashboard.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/CashFlowDashboard.tsx): Resolved `Cannot read properties of null (reading 'toLowerCase')` application crash by adding null fallbacks `(tx.narration || '').toLowerCase()` and `(tx.tx_category || 'Uncategorized').toLowerCase()`. Filtered null values when rendering category dropdown filters.

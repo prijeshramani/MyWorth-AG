@@ -3,15 +3,56 @@ import { accountService } from '../../services/AccountService';
 import { ownershipService } from '../../services/OwnershipService';
 import { CreateAccountSchema, UpdateAccountSchema } from '../../schema/domainSchemas';
 import { ValidationError } from '../../errors/AppError';
+import { db } from '../../db';
 
 const router = Router();
 
-// GET /api/v1/accounts - List all financial accounts (optionally filtered by entityId)
+// GET /api/v1/accounts - List all financial accounts (optionally filtered by entityId or familyId)
 router.get('/', (req: Request, res: Response, next) => {
   try {
     const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : undefined;
-    if (req.query.entityId && isNaN(entityId!)) {
-      throw new ValidationError('Invalid entityId query parameter');
+    const familyId = req.query.familyId ? parseInt(req.query.familyId as string) : undefined;
+
+    if (familyId && !isNaN(familyId)) {
+      // Query accounts from 3-tier accounts table for this family
+      const accs = db.prepare(`
+        SELECT acc.*, fm.name as holderName 
+        FROM accounts acc 
+        LEFT JOIN entities e ON acc.entity_id = e.id 
+        LEFT JOIN family_members fm ON e.family_member_id = fm.id 
+        WHERE fm.family_id = ? AND acc.deleted_at IS NULL
+      `).all(familyId) as any[];
+
+      // Query bank & demat assets from assets table for this family
+      const bankAssets = db.prepare(`
+        SELECT a.id, a.name as institutionName, a.identifier as accountNumber, a.type as accountType, a.cost_basis as balance, a.current_value as currentValue, fm.name as holderName
+        FROM assets a
+        LEFT JOIN family_members fm ON a.family_member_id = fm.id
+        WHERE (fm.family_id = ? OR a.family_member_id IS NULL)
+        AND a.type IN ('BANK_ACCOUNT', 'DEMAT', 'EPF', 'FIXED_DEPOSIT')
+      `).all(familyId) as any[];
+
+      const formattedAccs = [
+        ...accs.map(a => ({
+          id: a.id,
+          institutionName: a.institution_name || a.account_name || 'Bank/Broker',
+          accountNumber: a.account_number || a.masked_account_number || 'N/A',
+          accountType: (a.account_type === 'BANK' ? 'SAVINGS' : a.account_type) || 'SAVINGS',
+          holderName: a.holderName || 'Primary Member',
+          balance: a.balance || 0,
+          syncStatus: 'CONNECTED'
+        })),
+        ...bankAssets.map(a => ({
+          id: a.id,
+          institutionName: a.institutionName,
+          accountNumber: a.accountNumber || 'N/A',
+          accountType: a.accountType === 'BANK_ACCOUNT' ? 'SAVINGS' : a.accountType,
+          holderName: a.holderName || 'Primary Member',
+          balance: a.currentValue || a.balance || 0,
+          syncStatus: 'CONNECTED'
+        }))
+      ];
+      return res.json(formattedAccs);
     }
 
     const accounts = accountService.getAllAccounts(entityId);
@@ -80,14 +121,21 @@ router.put('/:id', (req: Request, res: Response, next) => {
   }
 });
 
-// DELETE /api/v1/accounts/:id - Soft-delete account
+// DELETE /api/v1/accounts/:id - Delete account (from accounts or assets table)
 router.delete('/:id', (req: Request, res: Response, next) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) throw new ValidationError('Invalid Account ID');
 
-    accountService.softDeleteAccount(id);
-    res.json({ success: true, message: `Account ${id} successfully soft-deleted.` });
+    // 1. Delete from 3-tier accounts table
+    try { accountService.softDeleteAccount(id); } catch (e) {}
+
+    // 2. Delete from assets table if it exists as asset ID
+    db.prepare('DELETE FROM transactions WHERE asset_id = ?').run(id);
+    db.prepare('DELETE FROM asset_prices WHERE asset_id = ?').run(id);
+    db.prepare('DELETE FROM assets WHERE id = ?').run(id);
+
+    res.json({ success: true, message: `Account ${id} successfully deleted.` });
   } catch (error) {
     next(error);
   }

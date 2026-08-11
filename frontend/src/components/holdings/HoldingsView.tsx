@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Briefcase, Plus, FileUp, Users, User, Table as TableIcon } from 'lucide-react';
+import { Briefcase, Plus, FileUp, Users, User, Table as TableIcon, TrendingUp, TrendingDown, DollarSign, Wallet } from 'lucide-react';
 import { useUiStore } from '../../store/useUiStore';
 import { apiClient } from '../../services/apiClient';
 import { HoldingTable, type HoldingRow } from '../ui/HoldingTable';
@@ -9,11 +9,11 @@ import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 
 const DEMO_HOLDINGS: HoldingRow[] = [
-  { holdingId: 1, assetName: 'Reliance Industries Ltd', symbol: 'RELIANCE', assetType: 'STOCK', quantity: 150, unitPrice: 2850, formattedMarketValue: '₹4,27,500.00', unrealizedGainPercent: 18.5, familyMemberId: 1, familyMemberName: 'Rajesh Sharma', familyMemberRelationship: 'SELF' },
-  { holdingId: 2, assetName: 'HDFC Bank Ltd', symbol: 'HDFCBANK', assetType: 'STOCK', quantity: 200, unitPrice: 1620, formattedMarketValue: '₹3,24,000.00', unrealizedGainPercent: 8.2, familyMemberId: 1, familyMemberName: 'Rajesh Sharma', familyMemberRelationship: 'SELF' },
-  { holdingId: 3, assetName: 'Parag Parikh Flexi Cap Fund', symbol: 'PPFCF-GR', assetType: 'MUTUAL_FUND', quantity: 500, unitPrice: 75.4, formattedMarketValue: '₹3,77,000.00', unrealizedGainPercent: 24.6, familyMemberId: 1, familyMemberName: 'Rajesh Sharma', familyMemberRelationship: 'SELF' },
-  { holdingId: 4, assetName: 'SBI Bluechip Mutual Fund', symbol: 'SBIBLUE-GR', assetType: 'MUTUAL_FUND', quantity: 800, unitPrice: 82.1, formattedMarketValue: '₹6,56,800.00', unrealizedGainPercent: 12.4, familyMemberId: 1, familyMemberName: 'Rajesh Sharma', familyMemberRelationship: 'SELF' },
-  { holdingId: 5, assetName: 'Employee Provident Fund (EPF)', symbol: 'EPF-ACC', assetType: 'EPF', quantity: 1, unitPrice: 850000, formattedMarketValue: '₹8,50,000.00', unrealizedGainPercent: 8.25, familyMemberId: 1, familyMemberName: 'Rajesh Sharma', familyMemberRelationship: 'SELF' }
+  { holdingId: 1, assetName: 'Reliance Industries Ltd', symbol: 'RELIANCE', assetType: 'STOCK', quantity: 150, unitPrice: 2850, investedValue: 360000, formattedInvestedValue: '₹3,60,000.00', marketValue: 427500, formattedMarketValue: '₹4,27,500.00', unrealizedGainAmount: 67500, formattedUnrealizedGainAmount: '+₹67,500.00', unrealizedGainPercent: 18.75, familyMemberId: 1, familyMemberName: 'Rajesh Sharma', familyMemberRelationship: 'SELF' },
+  { holdingId: 2, assetName: 'HDFC Bank Ltd', symbol: 'HDFCBANK', assetType: 'STOCK', quantity: 200, unitPrice: 1620, investedValue: 299445, formattedInvestedValue: '₹2,99,445.00', marketValue: 324000, formattedMarketValue: '₹3,24,000.00', unrealizedGainAmount: 24555, formattedUnrealizedGainAmount: '+₹24,555.00', unrealizedGainPercent: 8.20, familyMemberId: 1, familyMemberName: 'Rajesh Sharma', familyMemberRelationship: 'SELF' },
+  { holdingId: 3, assetName: 'Parag Parikh Flexi Cap Fund', symbol: 'PPFCF-GR', assetType: 'MUTUAL_FUND', quantity: 500, unitPrice: 75.4, investedValue: 302568, formattedInvestedValue: '₹3,02,568.00', marketValue: 377000, formattedMarketValue: '₹3,77,000.00', unrealizedGainAmount: 74432, formattedUnrealizedGainAmount: '+₹74,432.00', unrealizedGainPercent: 24.60, familyMemberId: 1, familyMemberName: 'Rajesh Sharma', familyMemberRelationship: 'SELF' },
+  { holdingId: 4, assetName: 'SBI Bluechip Mutual Fund', symbol: 'SBIBLUE-GR', assetType: 'MUTUAL_FUND', quantity: 800, unitPrice: 82.1, investedValue: 584341, formattedInvestedValue: '₹5,84,341.00', marketValue: 656800, formattedMarketValue: '₹6,56,800.00', unrealizedGainAmount: 72459, formattedUnrealizedGainAmount: '+₹72,459.00', unrealizedGainPercent: 12.40, familyMemberId: 1, familyMemberName: 'Rajesh Sharma', familyMemberRelationship: 'SELF' },
+  { holdingId: 5, assetName: 'Employee Provident Fund (EPF)', symbol: 'EPF-ACC', assetType: 'EPF', quantity: 1, unitPrice: 850000, investedValue: 785219, formattedInvestedValue: '₹7,85,219.00', marketValue: 850000, formattedMarketValue: '₹8,50,000.00', unrealizedGainAmount: 64781, formattedUnrealizedGainAmount: '+₹64,781.00', unrealizedGainPercent: 8.25, familyMemberId: 1, familyMemberName: 'Rajesh Sharma', familyMemberRelationship: 'SELF' }
 ];
 
 export const HoldingsView: React.FC = () => {
@@ -35,19 +35,32 @@ export const HoldingsView: React.FC = () => {
       apiClient.get<any[]>('/assets')
         .then((res) => {
           const raw = Array.isArray(res.data) ? res.data : [];
-          const mapped: HoldingRow[] = raw.map((a: any) => ({
-            holdingId: a.id,
-            assetName: a.name,
-            symbol: a.identifier || undefined,
-            assetType: a.type || 'OTHER',
-            quantity: a.currentUnits || 0,
-            unitPrice: a.currentPrice || 0,
-            formattedMarketValue: `₹${(a.currentValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
-            unrealizedGainPercent: a.absoluteReturnPercent || 0,
-            familyMemberId: a.familyMemberId,
-            familyMemberName: a.familyMemberName,
-            familyMemberRelationship: a.familyMemberRelationship
-          }));
+          const mapped: HoldingRow[] = raw.map((a: any) => {
+            const investedVal = a.totalCost || 0;
+            const mktVal = a.currentValue || 0;
+            const gainAmt = a.absoluteReturn !== undefined ? a.absoluteReturn : (mktVal - investedVal);
+            const gainSign = gainAmt >= 0 ? '+' : '-';
+            const absGain = Math.abs(gainAmt);
+
+            return {
+              holdingId: a.id,
+              assetName: a.name,
+              symbol: a.identifier || undefined,
+              assetType: a.type || 'OTHER',
+              quantity: a.currentUnits || 0,
+              unitPrice: a.currentPrice || 0,
+              investedValue: investedVal,
+              formattedInvestedValue: `₹${investedVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              marketValue: mktVal,
+              formattedMarketValue: `₹${mktVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              unrealizedGainAmount: gainAmt,
+              formattedUnrealizedGainAmount: `${gainSign}₹${absGain.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              unrealizedGainPercent: a.absoluteReturnPercent || 0,
+              familyMemberId: a.familyMemberId,
+              familyMemberName: a.familyMemberName,
+              familyMemberRelationship: a.familyMemberRelationship
+            };
+          });
           setHoldings(mapped);
         })
         .catch((err) => setError(err))
@@ -95,6 +108,16 @@ export const HoldingsView: React.FC = () => {
     ? holdings
     : holdings.filter(h => h.familyMemberId === selectedMemberFilter);
 
+  // Compute portfolio aggregate metrics
+  const totalInvested = filteredHoldings.reduce((sum, h) => sum + (h.investedValue || 0), 0);
+  const totalMarket = filteredHoldings.reduce((sum, h) => {
+    if (h.marketValue !== undefined) return sum + h.marketValue;
+    return sum + (h.quantity * h.unitPrice);
+  }, 0);
+  const totalGain = totalMarket - totalInvested;
+  const totalGainPercent = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
+  const isOverallGain = totalGain >= 0;
+
   return (
     <PageShell
       title="Holdings & Asset Inventory"
@@ -111,6 +134,36 @@ export const HoldingsView: React.FC = () => {
         </Button>
       }
     >
+      {/* Portfolio Summary Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card variant="glass" padding="md" className="border-l-4 border-l-sky-500">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Invested Cost</span>
+          <div className="text-2xl font-black text-slate-100 font-mono mt-1">
+            ₹{totalInvested.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <span className="text-[10px] text-slate-500 mt-1 block">Cost basis of current holdings</span>
+        </Card>
+
+        <Card variant="glass" padding="md" className="border-l-4 border-l-indigo-500">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Current Market Value</span>
+          <div className="text-2xl font-black text-slate-100 font-mono mt-1">
+            ₹{totalMarket.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <span className="text-[10px] text-slate-500 mt-1 block">Live valuation of current holdings</span>
+        </Card>
+
+        <Card variant="glass" padding="md" className={`border-l-4 ${isOverallGain ? 'border-l-emerald-500' : 'border-l-rose-500'}`}>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Unrealized Gain / Loss</span>
+          <div className={`text-2xl font-black font-mono mt-1 flex items-center gap-2 ${isOverallGain ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {isOverallGain ? <TrendingUp className="w-5 h-5 shrink-0" /> : <TrendingDown className="w-5 h-5 shrink-0" />}
+            <span>{isOverallGain ? '+' : ''}₹{Math.abs(totalGain).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+          <span className={`text-[11px] font-bold font-mono mt-1 inline-block px-2 py-0.5 rounded-full ${isOverallGain ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-300 border border-rose-500/20'}`}>
+            {isOverallGain ? '+' : ''}{totalGainPercent.toFixed(2)}% Overall Return
+          </span>
+        </Card>
+      </div>
+
       {/* Family Member Filter Chips */}
       {familyMembers.length > 0 && (
         <Card variant="glass" padding="sm" className="flex items-center gap-2 overflow-x-auto scrollbar-none">

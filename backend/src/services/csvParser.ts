@@ -376,3 +376,87 @@ export function parseNpsCsvStatement(csvBuffer: Buffer): { statementType: string
     rawText
   };
 }
+
+// Parse INDmoney US Stocks CSV statement
+export function parseIndMoneyUsStocksCsvStatement(csvBuffer: Buffer): { statementType: string; transactions: ParsedTransaction[]; rawText: string } {
+  const rawText = csvBuffer.toString('utf8');
+  const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) {
+    throw new Error('INDmoney US Stocks CSV statement is empty.');
+  }
+
+  const headerIdx = lines.findIndex(l => {
+    const lower = l.toLowerCase();
+    return (lower.includes('stock symbol') || lower.includes('symbol')) && (lower.includes('quantity') || lower.includes('qty')) && (lower.includes('price') || lower.includes('rate'));
+  });
+
+  if (headerIdx === -1) {
+    throw new Error('Could not identify US stocks CSV headers.');
+  }
+
+  const headers = splitCsvLine(lines[headerIdx]).map(h => h.toLowerCase().trim());
+  const nameCol = headers.findIndex(h => h.includes('stock name') || h.includes('name'));
+  const symbolCol = headers.findIndex(h => h.includes('stock symbol') || h.includes('symbol') || h.includes('ticker'));
+  const typeCol = headers.findIndex(h => h.includes('type'));
+  const qtyCol = headers.findIndex(h => h.includes('quantity') || h.includes('qty'));
+  const priceCol = headers.findIndex(h => h.includes('price') || h.includes('rate'));
+  const dateCol = headers.findIndex(h => h.includes('time') || h.includes('date'));
+
+  const transactions: ParsedTransaction[] = [];
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const parts = splitCsvLine(lines[i]);
+    if (parts.length <= Math.max(symbolCol !== -1 ? symbolCol : nameCol, qtyCol, priceCol)) continue;
+
+    const rawSymbol = (symbolCol !== -1 ? parts[symbolCol] : parts[nameCol]) || '';
+    if (!rawSymbol) continue;
+
+    let symbol = rawSymbol.toUpperCase();
+    if (symbol.includes(' ')) {
+      const match = rawSymbol.match(/\b([A-Z]{1,5})\b/);
+      if (match) symbol = match[1];
+    }
+
+    const rawType = (typeCol !== -1 ? parts[typeCol] : 'BUY').toUpperCase();
+    const type: 'BUY' | 'SELL' = rawType.includes('SELL') ? 'SELL' : 'BUY';
+    const quantity = parseFloat(parts[qtyCol]?.replace(/,/g, '') || '');
+    const priceUsd = parseFloat(parts[priceCol]?.replace(/,/g, '') || '');
+    const date = dateCol !== -1 ? parseCsvDate(parts[dateCol]) : todayStr;
+
+    if (isNaN(quantity) || quantity <= 0 || isNaN(priceUsd) || priceUsd <= 0) continue;
+
+    const priceInr = priceUsd * 83.5;
+
+    transactions.push({
+      assetName: parts[nameCol] || symbol,
+      assetType: 'STOCK',
+      category: 'Equity',
+      identifier: symbol,
+      type,
+      date,
+      quantity,
+      price: priceInr,
+      currentPrice: priceInr,
+      amount: quantity * priceInr
+    });
+  }
+
+  console.log(`Parsed ${transactions.length} transactions from INDmoney US Stocks CSV statement.`);
+
+  return {
+    statementType: 'INDMONEY_US_STOCKS_HOLDINGS',
+    transactions,
+    rawText
+  };
+}
+
+// Unified CSV Statement Dispatcher
+export function parseCsvStatement(csvBuffer: Buffer): { statementType: string; transactions: ParsedTransaction[]; rawText: string } {
+  const rawText = csvBuffer.toString('utf8');
+  if (rawText.toLowerCase().includes('stock symbol') || (rawText.toLowerCase().includes('stock name') && rawText.toLowerCase().includes('quantity'))) {
+    return parseIndMoneyUsStocksCsvStatement(csvBuffer);
+  }
+  return parseNpsCsvStatement(csvBuffer);
+}
+

@@ -150,9 +150,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     NPS: '#f59e0b',         // Amber
     EPF: '#8b5cf6',         // Violet/Indigo
     FIXED_DEPOSIT: '#10b981',// Emerald
+    SSY: '#ec4899',          // Rose/Pink
     GOLD: '#eab308',        // Yellow
     BOND: '#3b82f6',        // Blue
-    PROPERTY: '#ec4899',    // Pink
+    PROPERTY: '#f43f5e',    // Rose
     BANK_ACCOUNT: '#06b6d4',// Cyan
     OTHER: '#64748b'        // Slate
   };
@@ -172,6 +173,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     NPS: 'National Pension Scheme',
     EPF: "Employees' Provident Fund (EPF)",
     FIXED_DEPOSIT: 'Fixed Deposit (FD)',
+    SSY: 'Sukanya Samriddhi Yojana (SSY)',
     GOLD: 'Gold',
     BOND: 'Bonds',
     PROPERTY: 'Real Estate',

@@ -109,12 +109,25 @@ export class SQLiteTransactionRepository implements ITransactionRepository {
     price: number, 
     amount: number
   ): Transaction | null {
-    const row = db.prepare(`
-      SELECT id FROM transactions 
+    // 1. Exact match (same date)
+    const exactMatch = db.prepare(`
+      SELECT * FROM transactions 
       WHERE asset_id = ? AND type = ? AND date = ? AND quantity = ? AND price = ? AND amount = ?
     `).get(assetId, type, date, quantity, price, amount) as Transaction | undefined;
     
-    return row || null;
+    if (exactMatch) return exactMatch;
+
+    // 2. Holdings snapshot duplicate match: same asset, type BUY, identical quantity & price regardless of sync date
+    if (type === 'BUY') {
+      const holdingsMatch = db.prepare(`
+        SELECT * FROM transactions 
+        WHERE asset_id = ? AND type = 'BUY' AND quantity = ? AND price = ?
+      `).get(assetId, quantity, price) as Transaction | undefined;
+      
+      if (holdingsMatch) return holdingsMatch;
+    }
+
+    return null;
   }
 
   public create(input: CreateTransactionInput): Transaction {

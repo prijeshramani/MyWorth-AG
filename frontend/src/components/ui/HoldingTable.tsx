@@ -8,7 +8,12 @@ export interface HoldingRow {
   assetType: string;
   quantity: number;
   unitPrice: number;
+  investedValue?: number;
+  formattedInvestedValue?: string;
+  marketValue?: number;
   formattedMarketValue: string;
+  unrealizedGainAmount?: number;
+  formattedUnrealizedGainAmount?: string;
   unrealizedGainPercent: number;
   familyMemberId?: number;
   familyMemberName?: string;
@@ -24,6 +29,22 @@ export interface HoldingTableProps {
   onRowClick?: (holdingId: number) => void;
 }
 
+const formatQuantity = (val: number) => {
+  if (val === undefined || val === null || isNaN(val)) return '0.00';
+  return Number(val.toFixed(2)).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+};
+
+const formatUnitPrice = (val: number) => {
+  if (val === undefined || val === null || isNaN(val)) return '₹0.00';
+  return `₹${Number(val.toFixed(2)).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+};
+
 export const HoldingTable: React.FC<HoldingTableProps> = ({
   data,
   loading = false,
@@ -33,8 +54,8 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
   onRowClick
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortField, setSortField] = useState<'assetName' | 'unrealizedGainPercent'>('assetName');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortField, setSortField] = useState<'assetName' | 'investedValue' | 'marketValue' | 'unrealizedGainPercent'>('marketValue');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Loading State
   if (loading) {
@@ -74,20 +95,25 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
   );
 
   const sortedData = [...filteredData].sort((a, b) => {
-    const valA = a[sortField];
-    const valB = b[sortField];
+    let valA: any = a[sortField];
+    let valB: any = b[sortField];
+    if (sortField === 'marketValue' && valA === undefined) valA = a.quantity * a.unitPrice;
+    if (sortField === 'marketValue' && valB === undefined) valB = b.quantity * b.unitPrice;
+    if (sortField === 'investedValue' && valA === undefined) valA = 0;
+    if (sortField === 'investedValue' && valB === undefined) valB = 0;
+
     if (typeof valA === 'string' && typeof valB === 'string') {
       return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
     }
-    return sortOrder === 'asc' ? (valA as number) - (valB as number) : (valB as number) - (valA as number);
+    return sortOrder === 'asc' ? ((valA || 0) as number) - ((valB || 0) as number) : ((valB || 0) as number) - ((valA || 0) as number);
   });
 
-  const toggleSort = (field: 'assetName' | 'unrealizedGainPercent') => {
+  const toggleSort = (field: 'assetName' | 'investedValue' | 'marketValue' | 'unrealizedGainPercent') => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortOrder('asc');
+      setSortOrder('desc');
     }
   };
 
@@ -137,7 +163,24 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
                   <th className="py-3 px-4">Investment Holder</th>
                   <th className="py-3 px-4 text-right">Quantity</th>
                   <th className="py-3 px-4 text-right">Unit Price</th>
-                  <th className="py-3 px-4 text-right">Market Value</th>
+                  <th
+                    className="py-3 px-4 text-right cursor-pointer hover:text-slate-200 transition-colors"
+                    onClick={() => toggleSort('investedValue')}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Invested Value
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th
+                    className="py-3 px-4 text-right cursor-pointer hover:text-slate-200 transition-colors"
+                    onClick={() => toggleSort('marketValue')}
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Market Value
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
                   <th
                     className="py-3 px-4 text-right cursor-pointer hover:text-slate-200 transition-colors"
                     onClick={() => toggleSort('unrealizedGainPercent')}
@@ -191,20 +234,30 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
                           </span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono">{row.quantity}</td>
-                      <td className="py-3.5 px-4 text-right font-mono">{row.unitPrice}</td>
+                      <td className="py-3.5 px-4 text-right font-mono">{formatQuantity(row.quantity)}</td>
+                      <td className="py-3.5 px-4 text-right font-mono">{formatUnitPrice(row.unitPrice)}</td>
+                      <td className="py-3.5 px-4 text-right font-mono text-slate-300 font-medium">
+                        {row.formattedInvestedValue || '—'}
+                      </td>
                       <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
                         {row.formattedMarketValue}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold">
-                        <span
-                          className={`inline-flex items-center gap-1 ${
-                            isGain ? 'text-emerald-400' : 'text-rose-400'
-                          }`}
-                        >
-                          {isGain ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                          {isGain ? '+' : ''}{row.unrealizedGainPercent.toFixed(2)}%
-                        </span>
+                      <td className="py-3.5 px-4 text-right font-mono">
+                        <div className="flex flex-col items-end">
+                          <span
+                            className={`inline-flex items-center gap-1 font-bold ${
+                              isGain ? 'text-emerald-400' : 'text-rose-400'
+                            }`}
+                          >
+                            {isGain ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {isGain ? '+' : ''}{row.unrealizedGainPercent.toFixed(2)}%
+                          </span>
+                          {row.formattedUnrealizedGainAmount && (
+                            <span className={`text-[10px] font-medium ${isGain ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>
+                              {row.formattedUnrealizedGainAmount}
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -226,8 +279,13 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
                   <div>
                     <h5 className="text-xs font-bold text-slate-100">{row.assetName}</h5>
                     <span className="text-[10px] text-slate-400 uppercase font-mono">
-                      {row.assetType} • Qty: {row.quantity}
+                      {row.assetType} • Qty: {formatQuantity(row.quantity)}
                     </span>
+                    {row.formattedInvestedValue && (
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        Cost: {row.formattedInvestedValue}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="text-xs font-bold font-mono text-slate-100">

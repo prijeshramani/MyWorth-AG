@@ -150,6 +150,7 @@ export const OnboardingWizard: React.FC = () => {
         family_id: activeFamilyId,
         name: newMemberName.trim(),
         relationship: newMemberRelationship === 'Head' ? 'SELF' : newMemberRelationship.toUpperCase(),
+        pan: newMemberPan.trim().toUpperCase() || undefined,
         dateOfBirth: '1990-01-01',
         date_of_birth: '1990-01-01'
       });

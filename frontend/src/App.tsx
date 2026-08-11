@@ -64,12 +64,10 @@ function AppContent() {
       console.log('Zerodha Kite OAuth redirect token detected:', token);
       setKiteRequestToken(token);
       setActiveTab('import');
-      window.history.replaceState({}, document.title, window.location.pathname);
     } else if (code) {
       console.log('Upstox OAuth redirect code detected:', code);
       setUpstoxCode(code);
       setActiveTab('import');
-      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 

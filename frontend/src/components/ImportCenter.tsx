@@ -208,19 +208,25 @@ export default function ImportCenter({
   }, []);
 
   useEffect(() => {
-    if (initialKiteRequestToken) {
-      console.log('Automated Zerodha redirect exchange active. request_token found.');
-      handleKiteTokenExchange(initialKiteRequestToken);
-    } else if (initialUpstoxCode) {
-      console.log('Automated Upstox redirect exchange active. code found:', initialUpstoxCode);
-      handleUpstoxCodeExchange(initialUpstoxCode);
-    } else {
-      const urlParams = new URLSearchParams(window.location.search);
-      const upstoxCode = urlParams.get('code');
-      if (upstoxCode) {
-        console.log('Upstox OAuth redirect code detected in URL.');
-        handleUpstoxCodeExchange(upstoxCode);
-      }
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlKiteToken = urlParams.get('request_token');
+    const urlUpstoxCode = urlParams.get('code');
+
+    const effectiveKiteToken = initialKiteRequestToken || urlKiteToken;
+    const effectiveUpstoxCode = initialUpstoxCode || urlUpstoxCode;
+
+    if (effectiveKiteToken) {
+      console.log('Automated Zerodha redirect exchange active. request_token found:', effectiveKiteToken);
+      setImportMethod('kite');
+      handleKiteTokenExchange(effectiveKiteToken);
+      if (clearKiteRequestToken) clearKiteRequestToken();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (effectiveUpstoxCode) {
+      console.log('Automated Upstox redirect exchange active. code found:', effectiveUpstoxCode);
+      setImportMethod('upstox');
+      handleUpstoxCodeExchange(effectiveUpstoxCode);
+      if (clearUpstoxCode) clearUpstoxCode();
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [initialKiteRequestToken, initialUpstoxCode]);
 
@@ -1869,27 +1875,27 @@ export default function ImportCenter({
 
       {/* RAW TEXT DIAGNOSTIC CONSOLE (ANTI-ASSUMPTION BLOCK) */}
       {rawText && (
-        <div className="card-glass rounded-2xl overflow-hidden max-w-5xl mx-auto border border-slate-800/80">
+        <div className="card-glass rounded-2xl overflow-hidden max-w-5xl mx-auto border border-slate-200 dark:border-slate-800/80">
           <button
             onClick={() => setShowDiagnostics(!showDiagnostics)}
-            className="w-full flex items-center justify-between px-6 py-4 bg-[#0a0f1d] hover:bg-[#0e1529]/80 transition-colors text-xs font-bold text-slate-300"
+            className="w-full flex items-center justify-between px-6 py-4 bg-slate-100 dark:bg-[#0a0f1d] hover:bg-slate-200/80 dark:hover:bg-[#0e1529]/80 transition-colors text-xs font-bold text-slate-800 dark:text-slate-300"
           >
             <span className="flex items-center gap-2">
-              <Terminal className="w-4 h-4 text-indigo-400" /> 
+              <Terminal className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> 
               PDF Extracted Text Diagnostic Sandbox (Strict Ingestion Integrity)
             </span>
-            <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded">
+            <span className="text-[10px] text-slate-700 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-2.5 py-1 rounded font-semibold border border-slate-300/60 dark:border-slate-700/50">
               {showDiagnostics ? 'Hide Raw Logs' : 'Show Raw Logs'}
             </span>
           </button>
 
           {showDiagnostics && (
-            <div className="p-6 bg-[#04060c] space-y-4">
+            <div className="p-6 bg-slate-50 dark:bg-[#04060c] space-y-4">
               {/* Context helper */}
-              <div className="p-3.5 bg-indigo-950/20 border border-indigo-900/40 rounded-xl text-slate-400 text-[10px] leading-relaxed flex gap-2.5">
-                <AlertCircle className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+              <div className="p-3.5 bg-indigo-50/90 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900/40 rounded-xl text-slate-700 dark:text-slate-400 text-[10px] leading-relaxed flex gap-2.5">
+                <AlertCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold text-slate-300">Layout Transparency:</span> This console prints the exact structured characters extracted from your statement. Because broker statement columns can fluctuate (due to specific transaction codes or formatting differences), checking this output allows you to inspect what text patterns the backend parsed. If a fund's transactions were skipped, you can copy this text (redacting personal details) to help us refine the regex decoders instantly!
+                  <span className="font-bold text-indigo-950 dark:text-slate-300">Layout Transparency:</span> This console prints the exact structured characters extracted from your statement. Because broker statement columns can fluctuate (due to specific transaction codes or formatting differences), checking this output allows you to inspect what text patterns the backend parsed. If a fund's transactions were skipped, you can copy this text (redacting personal details) to help us refine the regex decoders instantly!
                 </div>
               </div>
 
@@ -1897,13 +1903,13 @@ export default function ImportCenter({
               <div className="relative">
                 <button
                   onClick={handleCopyDiagnostics}
-                  className="absolute right-3 top-3 p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-all flex items-center gap-1 text-[10px] font-bold"
+                  className="absolute right-3 top-3 p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-all flex items-center gap-1 text-[10px] font-bold shadow-md z-10"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   {copied ? 'Copied!' : 'Copy Raw Text'}
                 </button>
                 
-                <pre className="w-full h-80 overflow-y-auto bg-black/40 text-emerald-500 font-mono text-[9px] p-5 rounded-xl border border-slate-900 focus:outline-none select-text whitespace-pre-wrap leading-normal scrollbar-thin">
+                <pre className="w-full h-80 overflow-y-auto bg-slate-950 text-emerald-400 font-mono text-[9px] p-5 rounded-xl border border-slate-800 focus:outline-none select-text whitespace-pre-wrap leading-normal scrollbar-thin">
                   {rawText}
                 </pre>
               </div>

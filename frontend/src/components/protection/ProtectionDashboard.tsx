@@ -98,14 +98,20 @@ export const ProtectionDashboard: React.FC = () => {
 
   // Fetch Family Members
   useEffect(() => {
+    let isMounted = true;
     apiClient.get<any>(`/v1/family-members?familyId=${activeFamilyId}`)
       .then(res => {
+        if (!isMounted) return;
         const body: any = res.data;
         const raw = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : []);
-        setRawMembers(raw.map((m: any) => ({ id: m.id, name: m.name, relationship: m.relationship })));
-        setForm(prev => ({ ...prev, policyHolderId: raw[0]?.id || 0, coveredMemberIds: raw.map((m: any) => m.id) }));
+        const mapped = raw.map((m: any) => ({ id: m.id, name: m.name, relationship: m.relationship }));
+        setRawMembers(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(mapped)) return prev;
+          return mapped;
+        });
       })
       .catch(() => {});
+    return () => { isMounted = false; };
   }, [activeFamilyId]);
 
   // Compute Family Protection Matrix — floater policies contribute to each covered member

@@ -25,7 +25,7 @@ export interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  activeFamilyId: 6,
+  activeFamilyId: 1,
   reportingCurrency: 'INR',
   isDrawerOpen: true,
   activeTab: 'dashboard',

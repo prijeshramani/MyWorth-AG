@@ -60,7 +60,11 @@ export const CreateFamilyMemberSchema = z.object({
   name: z.string().min(1, 'Member name is required').max(100),
   relationship: z.string().or(RelationshipEnum),
   date_of_birth: z.string().optional().nullable(),
-  dateOfBirth: z.string().optional().nullable()
+  dateOfBirth: z.string().optional().nullable(),
+  pan: z.string().optional().nullable(),
+  pan_number: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  phone: z.string().optional().nullable()
 }).transform((data) => {
   const rawRel = (data.relationship || 'OTHER').toUpperCase();
   const rel = rawRel === 'HEAD' ? 'SELF' : ['SELF', 'SPOUSE', 'CHILD', 'PARENT', 'SIBLING', 'GRANDPARENT', 'GRANDCHILD', 'IN_LAW', 'OTHER'].includes(rawRel) ? rawRel : 'OTHER';
@@ -68,14 +72,32 @@ export const CreateFamilyMemberSchema = z.object({
     family_id: data.family_id || data.familyId || 1,
     name: data.name,
     relationship: rel as any,
-    date_of_birth: data.date_of_birth || data.dateOfBirth || '1990-01-01'
+    date_of_birth: data.date_of_birth || data.dateOfBirth || '1990-01-01',
+    pan: (data.pan || data.pan_number || '').trim().toUpperCase() || null,
+    email: data.email?.trim() || null,
+    phone: data.phone?.trim() || null
   };
 });
 
 export const UpdateFamilyMemberSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  relationship: RelationshipEnum.optional(),
-  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable()
+  relationship: z.string().or(RelationshipEnum).optional(),
+  date_of_birth: z.string().optional().nullable(),
+  pan: z.string().optional().nullable(),
+  pan_number: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  phone: z.string().optional().nullable()
+}).transform((data) => {
+  const rawRel = data.relationship ? data.relationship.toUpperCase() : undefined;
+  const rel = rawRel ? (rawRel === 'HEAD' ? 'SELF' : ['SELF', 'SPOUSE', 'CHILD', 'PARENT', 'SIBLING', 'GRANDPARENT', 'GRANDCHILD', 'IN_LAW', 'OTHER'].includes(rawRel) ? rawRel : 'OTHER') : undefined;
+  return {
+    name: data.name,
+    relationship: rel as any,
+    date_of_birth: data.date_of_birth || undefined,
+    pan: data.pan || data.pan_number ? (data.pan || data.pan_number || '').trim().toUpperCase() : undefined,
+    email: data.email !== undefined ? (data.email?.trim() || null) : undefined,
+    phone: data.phone !== undefined ? (data.phone?.trim() || null) : undefined
+  };
 });
 
 // Entity Schemas

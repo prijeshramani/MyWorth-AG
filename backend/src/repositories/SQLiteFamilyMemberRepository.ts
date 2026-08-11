@@ -21,11 +21,28 @@ export class SQLiteFamilyMemberRepository implements IFamilyMemberRepository {
 
   public create(input: CreateFamilyMemberInput): FamilyMember {
     const result = db.prepare(`
-      INSERT INTO family_members (family_id, name, relationship, date_of_birth)
-      VALUES (?, ?, ?, ?)
-    `).run(input.family_id, input.name, input.relationship, input.date_of_birth || null);
+      INSERT INTO family_members (family_id, name, relationship, date_of_birth, pan, email, phone)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      input.family_id,
+      input.name,
+      input.relationship,
+      input.date_of_birth || null,
+      input.pan || null,
+      input.email || null,
+      input.phone || null
+    );
 
     const createdId = Number(result.lastInsertRowid);
+
+    // Auto-create individual entity for 4-tier system with PAN if provided
+    try {
+      db.prepare(`
+        INSERT INTO entities (family_member_id, name, entity_type, pan_number)
+        VALUES (?, ?, 'INDIVIDUAL', ?)
+      `).run(createdId, input.name, input.pan || null);
+    } catch (e) {}
+
     return this.findById(createdId)!;
   }
 
@@ -36,12 +53,26 @@ export class SQLiteFamilyMemberRepository implements IFamilyMemberRepository {
     const name = input.name !== undefined ? input.name : existing.name;
     const relationship = input.relationship !== undefined ? input.relationship : existing.relationship;
     const dateOfBirth = input.date_of_birth !== undefined ? input.date_of_birth : existing.date_of_birth;
+    const pan = input.pan !== undefined ? input.pan : existing.pan;
+    const email = input.email !== undefined ? input.email : existing.email;
+    const phone = input.phone !== undefined ? input.phone : existing.phone;
 
     db.prepare(`
       UPDATE family_members 
-      SET name = ?, relationship = ?, date_of_birth = ?, updated_at = CURRENT_TIMESTAMP
+      SET name = ?, relationship = ?, date_of_birth = ?, pan = ?, email = ?, phone = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND deleted_at IS NULL
-    `).run(name, relationship, dateOfBirth || null, id);
+    `).run(name, relationship, dateOfBirth || null, pan || null, email || null, phone || null, id);
+
+    // Sync updated PAN number to primary individual entity if present
+    if (pan !== undefined) {
+      try {
+        db.prepare(`
+          UPDATE entities 
+          SET pan_number = ?, name = ?
+          WHERE family_member_id = ? AND entity_type = 'INDIVIDUAL' AND deleted_at IS NULL
+        `).run(pan || null, name, id);
+      } catch (e) {}
+    }
 
     return this.findById(id);
   }

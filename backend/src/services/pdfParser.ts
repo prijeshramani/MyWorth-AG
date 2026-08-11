@@ -490,7 +490,7 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
       });
     }
 
-    // 5. Parse Monthly Contributions
+    // 5. Detect Statement Closing Date
     const monthsMap: Record<string, string> = {
       JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12'
     };
@@ -498,8 +498,21 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
       '01': '31', '02': '28', '03': '31', '04': '30', '05': '31', '06': '30', '07': '31', '08': '31', '09': '30', '10': '31', '11': '30', '12': '31'
     };
 
+    const closingDateMatch = rawText.match(/Closing\s+Balance\s+as\s+on\s*(\d{1,2})[-/\s]+([A-Z]{3}|\d{1,2})[-/\s]+(\d{4})/i) ||
+                             rawText.match(/as\s+on\s*(\d{1,2})[-/\s]+([A-Z]{3}|\d{1,2})[-/\s]+(\d{4})/i);
+    let statementClosingDate = '';
+    if (closingDateMatch) {
+      const day = closingDateMatch[1].padStart(2, '0');
+      const mStr = closingDateMatch[2].toUpperCase();
+      const monthNum = monthsMap[mStr] || mStr.padStart(2, '0');
+      const year = closingDateMatch[3];
+      statementClosingDate = `${year}-${monthNum}-${day}`;
+    }
+
+    // 6. Parse Monthly Contributions
     const monthlyLinesRegex = /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*-\s*(\d{4})\s+([\d,\s]+?)(?=(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|Total|Member|$))/gi;
     let match;
+    let lastMonthlyDate = '';
 
     while ((match = monthlyLinesRegex.exec(rawText)) !== null) {
       const monthWord = match[1].toUpperCase();
@@ -507,9 +520,14 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
       const monthNum = monthsMap[monthWord];
       const day = monthEnds[monthNum] || '30';
       const txDate = `${year}-${monthNum}-${day}`;
+      lastMonthlyDate = txDate;
 
       const numbersInRow = match[3].match(/[\d,]+/g) || [];
-      const monthSum = numbersInRow.reduce((acc, curr) => acc + parseVal(curr), 0);
+      // In TCS EPF tables, if there are 7 numbers in the row:
+      // Member Taxable, Member Non-Taxable, Voluntary Taxable, Voluntary Non-Taxable, Company Taxable, Company Non-Taxable, Pension*
+      // The 7th column is Pension contribution remitted to RPFC (EPS), which is NOT part of Provident Fund Balance.
+      const validNumbers = (numbersInRow.length >= 7) ? numbersInRow.slice(0, 6) : numbersInRow;
+      const monthSum = validNumbers.reduce((acc, curr) => acc + parseVal(curr), 0);
 
       if (monthSum > 0) {
         transactions.push({
@@ -526,7 +544,7 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
       }
     }
 
-    // 6. Parse Credited Interest
+    // 7. Parse Credited Interest
     let interestVal = 0;
     const interestMatch6 = rawText.match(/Member\s+Voluntary\s+Company\s+Taxable\s+Non\s*Taxable\s+Taxable\s+Non\s*Taxable\s+Taxable\s+Non\s*Taxable\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)/i);
     if (interestMatch6) {
@@ -538,6 +556,8 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
       if (interestMatch1) interestVal = parseVal(interestMatch1[1]);
     }
 
+    const interestDate = statementClosingDate || lastMonthlyDate || `${startYear + 1}-03-31`;
+
     if (interestVal > 0) {
       transactions.push({
         assetName: trustName,
@@ -545,21 +565,23 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
         category: 'Debt',
         identifier: uan,
         type: 'BUY',
-        date: `${startYear + 1}-03-31`,
+        date: interestDate,
         quantity: interestVal,
         price: 1.0,
         amount: interestVal
       });
     }
 
-    // 7. Parse Net Closing Balance & attach current live valuation
+    // 8. Parse Net Closing Balance & attach current live valuation
     const closingMatch = rawText.match(/Net\s+Closing\s+Balance\s*(?:\{[^\}]+\})?\s*([\d,]+(?:\.\d{2})?)/i) ||
                          rawText.match(/Total\s+PF\s+balance\s*(?:\([^\)]+\))?\s*:?\s*([\d,]+(?:\.\d{2})?)/i) ||
                          rawText.match(/Closing\s+Balance\b.*?([\d,]+(?:\.\d{2})?)/i);
     if (closingMatch) {
       const netClosingVal = parseVal(closingMatch[1]);
       if (netClosingVal > 0 && transactions.length > 0) {
-        transactions[transactions.length - 1].currentPrice = netClosingVal;
+        for (const tx of transactions) {
+          tx.currentPrice = netClosingVal;
+        }
       }
     }
   }

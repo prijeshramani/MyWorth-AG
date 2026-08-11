@@ -15,6 +15,9 @@ export interface FamilyMember {
   name: string;
   relationship: RelationshipType;
   date_of_birth?: string | null;
+  pan?: string | null;
+  email?: string | null;
+  phone?: string | null;
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
@@ -25,12 +28,18 @@ export interface CreateFamilyMemberInput {
   name: string;
   relationship: RelationshipType;
   date_of_birth?: string | null;
+  pan?: string | null;
+  email?: string | null;
+  phone?: string | null;
 }
 
 export interface UpdateFamilyMemberInput {
   name?: string;
   relationship?: RelationshipType;
   date_of_birth?: string | null;
+  pan?: string | null;
+  email?: string | null;
+  phone?: string | null;
 }
 
 export interface IFamilyMemberRepository {

@@ -211,6 +211,14 @@ export async function fetchIndMoneyHoldings(token: string): Promise<ParsedTransa
   let lastError: any = null;
   let anyEndpointResponded200 = false;
   const allRawHoldings: Array<{ hold: any; isUSFromEndpoint: boolean }> = [];
+  function extractHoldingsArray(data: any): any[] {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.data?.holdings)) return data.data.holdings;
+    if (Array.isArray(data?.holdings)) return data.holdings;
+    if (Array.isArray(data?.result)) return data.result;
+    return [];
+  }
 
   for (const endpoint of indianEndpoints) {
     let indianSuccess = false;

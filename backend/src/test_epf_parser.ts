@@ -22,7 +22,20 @@ function parseEPFStatement(rawText: string) {
     openingBalance = parseVal(opnBalBlockMatch[1]) + parseVal(opnBalBlockMatch[2]) + parseVal(opnBalBlockMatch[3]) + parseVal(opnBalBlockMatch[4]) + parseVal(opnBalBlockMatch[5]) + parseVal(opnBalBlockMatch[6]);
   }
 
-  // 4. Monthly Contributions
+  // 4. Parse Financial Year
+  const fyMatch = rawText.match(/Financial\s+year\s*(\d{4})\s*(\d{4})/i) ||
+                  rawText.match(/Financial\s+year\s*(\d{8})/i) ||
+                  rawText.match(/FY\s*(\d{4})\s*-\s*(\d{2,4})/i);
+  let startYear = 2026;
+  if (fyMatch) {
+    if (fyMatch[1].length === 8) {
+      startYear = parseInt(fyMatch[1].slice(0, 4));
+    } else {
+      startYear = parseInt(fyMatch[1]);
+    }
+  }
+
+  // 5. Detect Statement Closing Date
   const monthsMap: Record<string, string> = {
     JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06', JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12'
   };
@@ -30,8 +43,21 @@ function parseEPFStatement(rawText: string) {
     '01': '31', '02': '28', '03': '31', '04': '30', '05': '31', '06': '30', '07': '31', '08': '31', '09': '30', '10': '31', '11': '30', '12': '31'
   };
 
+  const closingDateMatch = rawText.match(/Closing\s+Balance\s+as\s+on\s*(\d{1,2})[-/\s]+([A-Z]{3}|\d{1,2})[-/\s]+(\d{4})/i) ||
+                           rawText.match(/as\s+on\s*(\d{1,2})[-/\s]+([A-Z]{3}|\d{1,2})[-/\s]+(\d{4})/i);
+  let statementClosingDate = '';
+  if (closingDateMatch) {
+    const day = closingDateMatch[1].padStart(2, '0');
+    const mStr = closingDateMatch[2].toUpperCase();
+    const monthNum = monthsMap[mStr] || mStr.padStart(2, '0');
+    const year = closingDateMatch[3];
+    statementClosingDate = `${year}-${monthNum}-${day}`;
+  }
+
+  // 6. Parse Monthly Contributions
   const monthlyLinesRegex = /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*-\s*(\d{4})\s+([\d,\s]+?)(?=(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|Total|Member|$))/gi;
   const monthlyTxs: any[] = [];
+  let lastMonthlyDate = '';
 
   let match;
   while ((match = monthlyLinesRegex.exec(rawText)) !== null) {
@@ -40,10 +66,13 @@ function parseEPFStatement(rawText: string) {
     const monthNum = monthsMap[monthWord];
     const day = monthEnds[monthNum] || '30';
     const txDate = `${year}-${monthNum}-${day}`;
+    lastMonthlyDate = txDate;
 
-    // Extract all numbers in the row
+    // Extract numbers in row
     const numbersInRow = match[3].match(/[\d,]+/g) || [];
-    const monthSum = numbersInRow.reduce((acc, curr) => acc + parseVal(curr), 0);
+    // If 7 numbers, the 7th is Pension (EPS) which goes to RPFC, not PF balance
+    const validNumbers = (numbersInRow.length >= 7) ? numbersInRow.slice(0, 6) : numbersInRow;
+    const monthSum = validNumbers.reduce((acc, curr) => acc + parseVal(curr), 0);
 
     if (monthSum > 0) {
       monthlyTxs.push({
@@ -55,14 +84,15 @@ function parseEPFStatement(rawText: string) {
     }
   }
 
-  // 5. Interest
+  // 7. Interest
   let interestVal = 0;
   const interestMatch = rawText.match(/Interest\s*(?:\([^\)]+\))?\s*:?\s*([\d,]+(?:\.\d{2})?)/i);
   if (interestMatch) {
     interestVal = parseVal(interestMatch[1]);
   }
+  const interestDate = statementClosingDate || lastMonthlyDate || `${startYear + 1}-03-31`;
 
-  // 6. Net Closing Balance
+  // 8. Net Closing Balance
   let closingBalance = 0;
   const closingMatch = rawText.match(/Net\s+Closing\s+Balance\s*(?:\{[^\}]+\})?\s*([\d,]+(?:\.\d{2})?)/i) ||
                        rawText.match(/Total\s+PF\s+balance\s*(?:\([^\)]+\))?\s*:?\s*([\d,]+(?:\.\d{2})?)/i);
@@ -70,13 +100,19 @@ function parseEPFStatement(rawText: string) {
     closingBalance = parseVal(closingMatch[1]);
   }
 
+  const cumulativeCalculated = openingBalance + monthlyTxs.reduce((sum, m) => sum + m.amount, 0) + interestVal;
+
   return {
     trustName,
     uan,
+    statementClosingDate,
     openingBalance,
     monthlyTxs,
     interestVal,
-    closingBalance
+    interestDate,
+    closingBalance,
+    cumulativeCalculated,
+    isMatch: cumulativeCalculated === closingBalance
   };
 }
 

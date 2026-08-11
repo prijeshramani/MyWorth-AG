@@ -25,11 +25,12 @@ router.get('/', (req: Request, res: Response, next) => {
 
       // Query bank & demat assets from assets table for this family
       const bankAssets = db.prepare(`
-        SELECT a.id, a.name as institutionName, a.identifier as accountNumber, a.type as accountType, a.cost_basis as balance, a.current_value as currentValue, fm.name as holderName
+        SELECT a.id, a.name as institutionName, a.identifier as accountNumber, a.type as accountType, fm.name as holderName,
+               COALESCE((SELECT price FROM asset_prices WHERE asset_id = a.id ORDER BY date DESC LIMIT 1), 0) as balance
         FROM assets a
         LEFT JOIN family_members fm ON a.family_member_id = fm.id
         WHERE (fm.family_id = ? OR a.family_member_id IS NULL)
-        AND a.type IN ('BANK_ACCOUNT', 'DEMAT', 'EPF', 'FIXED_DEPOSIT')
+        AND a.type IN ('BANK_ACCOUNT', 'DEMAT', 'EPF', 'FIXED_DEPOSIT', 'BANK')
       `).all(familyId) as any[];
 
       const formattedAccs = [
@@ -48,7 +49,7 @@ router.get('/', (req: Request, res: Response, next) => {
           accountNumber: a.accountNumber || 'N/A',
           accountType: a.accountType === 'BANK_ACCOUNT' ? 'SAVINGS' : a.accountType,
           holderName: a.holderName || 'Primary Member',
-          balance: a.currentValue || a.balance || 0,
+          balance: a.balance || 0,
           syncStatus: 'CONNECTED'
         }))
       ];

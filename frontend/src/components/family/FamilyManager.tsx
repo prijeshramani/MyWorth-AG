@@ -25,6 +25,9 @@ export const FamilyManager: React.FC = () => {
   const [members, setMembers] = React.useState<FamilyMemberItem[]>([]);
   const [loading, setLoading] = React.useState<boolean>(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingMember, setEditingMember] = useState<FamilyMemberItem | null>(null);
+
   const [newMember, setNewMember] = useState<Partial<FamilyMemberItem>>({
     name: '',
     relationship: 'Child',
@@ -35,31 +38,37 @@ export const FamilyManager: React.FC = () => {
     status: 'ACTIVE'
   });
 
-  React.useEffect(() => {
+  const fetchMembers = React.useCallback(async () => {
     if (datasetMode === 'DEMO') {
       setMembers(INITIAL_MEMBERS);
       setLoading(false);
     } else {
       setLoading(true);
-      apiClient.get<any[]>(`/family-members?familyId=${activeFamilyId}`)
-        .then(res => {
-          const raw = Array.isArray(res.data) ? res.data : [];
-          const mapped: FamilyMemberItem[] = raw.map((m: any) => ({
-            id: m.id,
-            name: m.name,
-            relationship: m.relationship || 'Member',
-            pan: m.pan || m.pan_number || 'N/A',
-            aadhaarLinked: m.aadhaarLinked ?? true,
-            email: m.email || '',
-            phone: m.phone || '',
-            status: 'ACTIVE'
-          }));
-          setMembers(mapped);
-        })
-        .catch(() => setMembers([]))
-        .finally(() => setLoading(false));
+      try {
+        const res = await apiClient.get<any[]>(`/family-members?familyId=${activeFamilyId}`);
+        const raw = Array.isArray(res.data) ? res.data : [];
+        const mapped: FamilyMemberItem[] = raw.map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          relationship: m.relationship || 'Member',
+          pan: m.pan || m.pan_number || 'N/A',
+          aadhaarLinked: m.aadhaarLinked ?? true,
+          email: m.email || '',
+          phone: m.phone || '',
+          status: 'ACTIVE'
+        }));
+        setMembers(mapped);
+      } catch {
+        setMembers([]);
+      } finally {
+        setLoading(false);
+      }
     }
   }, [datasetMode, activeFamilyId]);
+
+  React.useEffect(() => {
+    fetchMembers();
+  }, [fetchMembers]);
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,25 +91,15 @@ export const FamilyManager: React.FC = () => {
         await apiClient.post('/family-members', {
           familyId: activeFamilyId,
           family_id: activeFamilyId,
-          name: newMember.name,
+          name: newMember.name.trim(),
           relationship: (newMember.relationship === 'Head' ? 'SELF' : newMember.relationship?.toUpperCase()) || 'OTHER',
+          pan: newMember.pan?.trim().toUpperCase() || undefined,
+          email: newMember.email?.trim() || undefined,
+          phone: newMember.phone?.trim() || undefined,
           dateOfBirth: '1990-01-01',
           date_of_birth: '1990-01-01'
         });
-        const res = await apiClient.get<any[]>(`/family-members?familyId=${activeFamilyId}`);
-        const raw = Array.isArray(res.data) ? res.data : [];
-        setMembers(raw.map((m: any) => ({
-          id: m.id,
-          name: m.name,
-          relationship: m.relationship || 'Member',
-          pan: m.pan || 'N/A',
-          aadhaarLinked: true,
-          email: m.email || '',
-          phone: m.phone || '',
-          status: 'ACTIVE'
-        })));
-        setShowAddModal(false);
-        setNewMember({ name: '', relationship: 'Head', pan: '', email: '', phone: '' });
+        await fetchMembers();
       } catch (err: any) {
         console.error('Failed to add member to database', err);
         alert(err.response?.data?.error?.message || err.message || 'Failed to add family member');
@@ -108,6 +107,36 @@ export const FamilyManager: React.FC = () => {
     }
     setShowAddModal(false);
     setNewMember({ name: '', relationship: 'Child', pan: '', aadhaarLinked: true, email: '', phone: '' });
+  };
+
+  const handleOpenEditModal = (member: FamilyMemberItem) => {
+    setEditingMember({ ...member });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMember || !editingMember.name.trim()) return;
+
+    if (datasetMode === 'DEMO') {
+      setMembers(members.map(m => m.id === editingMember.id ? editingMember : m));
+    } else {
+      try {
+        await apiClient.put(`/v1/family-members/${editingMember.id}`, {
+          name: editingMember.name.trim(),
+          relationship: (editingMember.relationship === 'Head' ? 'SELF' : editingMember.relationship.toUpperCase()),
+          pan: editingMember.pan && editingMember.pan !== 'N/A' ? editingMember.pan.trim().toUpperCase() : undefined,
+          email: editingMember.email?.trim() || undefined,
+          phone: editingMember.phone?.trim() || undefined
+        });
+        await fetchMembers();
+      } catch (err: any) {
+        console.error('Failed to update family member', err);
+        alert(err.response?.data?.error?.message || err.message || 'Failed to update family member');
+      }
+    }
+    setShowEditModal(false);
+    setEditingMember(null);
   };
 
   const handleDeleteMember = async (id: number) => {
@@ -191,7 +220,10 @@ export const FamilyManager: React.FC = () => {
               <span className="text-emerald-400 flex items-center gap-1 font-semibold">
                 <Check className="w-3 h-3" /> {m.status}
               </span>
-              <button className="text-sky-400 hover:underline flex items-center gap-1">
+              <button 
+                onClick={() => handleOpenEditModal(m)}
+                className="text-sky-400 hover:text-sky-300 hover:underline flex items-center gap-1 font-semibold transition-colors"
+              >
                 <Edit2 className="w-3 h-3" /> Edit Details
               </button>
             </div>
@@ -229,6 +261,7 @@ export const FamilyManager: React.FC = () => {
                   <option value="Spouse">Spouse</option>
                   <option value="Child">Child</option>
                   <option value="Parent">Parent</option>
+                  <option value="Sibling">Sibling</option>
                 </select>
               </div>
               <div>
@@ -251,6 +284,7 @@ export const FamilyManager: React.FC = () => {
                   value={newMember.email}
                   onChange={e => setNewMember({ ...newMember, email: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  placeholder="ananya@example.com"
                 />
               </div>
               <div>
@@ -260,6 +294,7 @@ export const FamilyManager: React.FC = () => {
                   value={newMember.phone}
                   onChange={e => setNewMember({ ...newMember, phone: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  placeholder="+91 9876543210"
                 />
               </div>
             </div>
@@ -277,6 +312,94 @@ export const FamilyManager: React.FC = () => {
                 className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg"
               >
                 Save Member
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Member Modal */}
+      {showEditModal && editingMember && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleUpdateMember} className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 w-full max-w-md space-y-4">
+            <h3 className="text-sm font-bold text-slate-100">Edit Family Member Details</h3>
+
+            <div>
+              <label className="text-xs font-medium text-slate-400 block mb-1">Full Name</label>
+              <input
+                type="text"
+                required
+                value={editingMember.name}
+                onChange={e => setEditingMember({ ...editingMember, name: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-slate-400 block mb-1">Relationship</label>
+                <select
+                  value={editingMember.relationship}
+                  onChange={e => setEditingMember({ ...editingMember, relationship: e.target.value as any })}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                >
+                  <option value="Head">Head</option>
+                  <option value="SELF">SELF</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Child">Child</option>
+                  <option value="Parent">Parent</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="OTHER">OTHER</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-400 block mb-1">PAN Number</label>
+                <input
+                  type="text"
+                  value={editingMember.pan === 'N/A' ? '' : editingMember.pan}
+                  onChange={e => setEditingMember({ ...editingMember, pan: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  placeholder="ABCDE1234F"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-slate-400 block mb-1">Email</label>
+                <input
+                  type="email"
+                  value={editingMember.email}
+                  onChange={e => setEditingMember({ ...editingMember, email: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  placeholder="member@example.com"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-400 block mb-1">Phone</label>
+                <input
+                  type="text"
+                  value={editingMember.phone}
+                  onChange={e => setEditingMember({ ...editingMember, phone: e.target.value })}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  placeholder="+91 9876543210"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => { setShowEditModal(false); setEditingMember(null); }}
+                className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg"
+              >
+                Update Member
               </button>
             </div>
           </form>

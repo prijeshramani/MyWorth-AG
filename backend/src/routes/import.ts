@@ -189,7 +189,8 @@ router.post('/confirm', (req: Request, res: Response) => {
           ORDER BY id DESC LIMIT 1
         `).get(assetId) as { id: number; source: string } | undefined;
 
-        const sourceTag = tx.source || (tx.statementType ? tx.statementType.replace('_HOLDINGS', '') : 'API_IMPORT');
+        const allowedSources = ['PDF_IMPORT', 'MANUAL', 'BANK_INSIGHTS'];
+        const sourceTag = (tx.source && allowedSources.includes(tx.source)) ? tx.source : 'PDF_IMPORT';
         const isHoldingsType = (tx.statementType || tx.source || '').includes('HOLDINGS') || 
                                ['ANGELONE', 'ZERODHA', 'UPSTOX', 'INDMONEY', 'KITE'].some(b => (tx.source || tx.statementType || '').includes(b));
 

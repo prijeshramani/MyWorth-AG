@@ -49,6 +49,9 @@ export interface ParsedTransaction {
   price: number; // Buy price / cost basis per unit
   currentPrice?: number; // Current live market price (LTP) per unit
   amount: number;
+  statementType?: string;
+  source?: string;
+  isHoldings?: boolean;
 }
 
 export interface ParseResult {

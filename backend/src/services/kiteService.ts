@@ -131,7 +131,8 @@ export async function fetchKiteHoldings(apiKey: string, accessToken: string): Pr
         quantity: qty,
         price: avgPrice,
         currentPrice: isNaN(lastPrice) || lastPrice <= 0 ? avgPrice : lastPrice,
-        amount: qty * avgPrice
+        amount: qty * avgPrice,
+        statementType: 'ZERODHA_HOLDINGS'
       });
     }
     

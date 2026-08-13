@@ -98,6 +98,7 @@ router.post('/parse', upload.single('file'), async (req: Request, res: Response)
 
       return {
         ...tx,
+        statementType: result.statementType,
         exists: !!existingAsset,
         assetId: existingAsset ? existingAsset.id : null,
         isDuplicate
@@ -126,6 +127,7 @@ router.post('/confirm', (req: Request, res: Response) => {
     const memberId = familyMemberId ? Number(familyMemberId) : null;
     let assetsCreated = 0;
     let transactionsImported = 0;
+    let positionsUpdated = 0;
     let duplicatesSkipped = 0;
 
     // Execute import in a strict SQLite transaction
@@ -191,8 +193,9 @@ router.post('/confirm', (req: Request, res: Response) => {
 
         const allowedSources = ['PDF_IMPORT', 'MANUAL', 'BANK_INSIGHTS'];
         const sourceTag = (tx.source && allowedSources.includes(tx.source)) ? tx.source : 'PDF_IMPORT';
-        const isHoldingsType = (tx.statementType || tx.source || '').includes('HOLDINGS') || 
-                               ['ANGELONE', 'ZERODHA', 'UPSTOX', 'INDMONEY', 'KITE'].some(b => (tx.source || tx.statementType || '').includes(b));
+        const stType = (tx.statementType || tx.source || '').toUpperCase();
+        const isHoldingsType = stType.includes('HOLDINGS') || 
+                               ['ANGELONE', 'ZERODHA', 'UPSTOX', 'INDMONEY', 'KITE'].some(b => stType.includes(b));
 
         if (existingHoldingsTx && isHoldingsType) {
           // Update existing holdings baseline transaction to reflect latest position quantity & average buy price
@@ -201,7 +204,7 @@ router.post('/confirm', (req: Request, res: Response) => {
             SET date = ?, quantity = ?, price = ?, amount = ?, source = ?
             WHERE id = ?
           `).run(tx.date, tx.quantity, tx.price, tx.amount, sourceTag, existingHoldingsTx.id);
-          transactionsImported++;
+          positionsUpdated++;
           continue;
         }
 
@@ -221,7 +224,9 @@ router.post('/confirm', (req: Request, res: Response) => {
       success: true,
       assetsCreated,
       transactionsImported,
-      duplicatesSkipped
+      positionsUpdated,
+      duplicatesSkipped,
+      totalProcessed: transactions.length
     });
   } catch (error: any) {
     console.error('Import confirm error:', error);
@@ -312,7 +317,7 @@ router.post('/kite/session', async (req: Request, res: Response) => {
     }
     
     const transactions = await exchangeKiteToken(requestToken);
-    const enriched = enrichAndMapTransactions(transactions);
+    const enriched = enrichAndMapTransactions(transactions, 'ZERODHA_HOLDINGS');
     
     res.json({
       statementType: 'ZERODHA_HOLDINGS',
@@ -333,7 +338,7 @@ router.post('/kite/sync', async (req: Request, res: Response) => {
       return res.json({ success: false, reason: 'EXPIRED_OR_MISSING', message: 'No valid stored access token found for today.' });
     }
     
-    const enriched = enrichAndMapTransactions(transactions);
+    const enriched = enrichAndMapTransactions(transactions, 'ZERODHA_HOLDINGS');
     res.json({
       success: true,
       statementType: 'ZERODHA_HOLDINGS',
@@ -374,7 +379,7 @@ router.post('/angelone/config', (req: Request, res: Response) => {
 router.post('/angelone/sync', async (req: Request, res: Response) => {
   try {
     const transactions = await syncAngelOneHoldings();
-    const enriched = enrichAndMapTransactions(transactions);
+    const enriched = enrichAndMapTransactions(transactions, 'ANGELONE_HOLDINGS');
     
     res.json({
       success: true,
@@ -415,7 +420,8 @@ router.post('/bankinsights/config', (req: Request, res: Response) => {
 // POST /api/import/bankinsights/sync - Trigger high-speed local database sync
 router.post('/bankinsights/sync', async (req: Request, res: Response) => {
   try {
-    const stats = await syncBankInsightsTransactions();
+    const { familyMemberId } = req.body || {};
+    const stats = await syncBankInsightsTransactions(familyMemberId ? Number(familyMemberId) : undefined);
     res.json(stats);
   } catch (error: any) {
     console.error('BankInsights Sync Error:', error);
@@ -452,7 +458,7 @@ router.post('/indmoney/sync', async (req: Request, res: Response) => {
   try {
     const { token, accessToken } = req.body || {};
     const transactions = await syncIndMoneyHoldings(accessToken || token);
-    const enriched = enrichAndMapTransactions(transactions);
+    const enriched = enrichAndMapTransactions(transactions, 'INDMONEY_HOLDINGS');
     
     res.json({
       success: true,
@@ -510,7 +516,7 @@ router.post('/upstox/session', async (req: Request, res: Response) => {
     }
 
     const transactions = await exchangeUpstoxCode(code);
-    const enriched = enrichAndMapTransactions(transactions);
+    const enriched = enrichAndMapTransactions(transactions, 'UPSTOX_HOLDINGS');
 
     res.json({
       statementType: 'UPSTOX_HOLDINGS',
@@ -527,7 +533,7 @@ router.post('/upstox/session', async (req: Request, res: Response) => {
 router.post('/upstox/sync', async (req: Request, res: Response) => {
   try {
     const transactions = await syncUpstoxHoldingsWithStoredToken();
-    const enriched = enrichAndMapTransactions(transactions);
+    const enriched = enrichAndMapTransactions(transactions, 'UPSTOX_HOLDINGS');
 
     res.json({
       success: true,

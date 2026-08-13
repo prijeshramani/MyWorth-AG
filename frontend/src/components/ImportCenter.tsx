@@ -161,7 +161,11 @@ export default function ImportCenter({
     setError('');
     try {
       const res = await fetch('/api/import/bankinsights/sync', {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          familyMemberId: selectedFamilyMemberId
+        })
       });
       const json = await res.json();
       if (res.ok && json.success) {
@@ -736,7 +740,10 @@ export default function ImportCenter({
           const confirmRes = await fetch('/api/import/confirm', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transactions: data.transactions })
+            body: JSON.stringify({ 
+              transactions: data.transactions,
+              familyMemberId: selectedFamilyMemberId
+            })
           });
           if (confirmRes.ok) {
             const summary = await confirmRes.json();
@@ -1751,9 +1758,24 @@ export default function ImportCenter({
             <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-400 text-xs rounded-xl flex items-start gap-2.5 shadow-sm">
               <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold">Import Complete!</span> Registered{' '}
-                <code className="bg-emerald-200/60 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded text-emerald-900 dark:text-white font-bold">{importSummary.assetsCreated}</code> new asset portfolios and imported{' '}
-                <code className="bg-emerald-200/60 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded text-emerald-900 dark:text-white font-bold">{importSummary.transactionsImported}</code> transactions ({importSummary.duplicatesSkipped} duplicates safely skipped).
+                {importSummary.transactionsImported === 0 && (importSummary.positionsUpdated || 0) === 0 && importSummary.duplicatesSkipped > 0 ? (
+                  <span>
+                    <span className="font-bold">Portfolio Up-to-Date!</span> All{' '}
+                    <code className="bg-emerald-200/60 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded text-emerald-900 dark:text-white font-bold">{importSummary.duplicatesSkipped}</code> item(s) are already logged in your database (0 new entries required).
+                  </span>
+                ) : (
+                  <span>
+                    <span className="font-bold">Import Complete!</span> Registered{' '}
+                    <code className="bg-emerald-200/60 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded text-emerald-900 dark:text-white font-bold">{importSummary.assetsCreated}</code> new asset portfolios, added{' '}
+                    <code className="bg-emerald-200/60 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded text-emerald-900 dark:text-white font-bold">{importSummary.transactionsImported}</code> new transactions
+                    {(importSummary.positionsUpdated || 0) > 0 ? (
+                      <>, updated <code className="bg-emerald-200/60 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded text-emerald-900 dark:text-white font-bold">{importSummary.positionsUpdated}</code> holdings position(s)</>
+                    ) : null}
+                    {importSummary.duplicatesSkipped > 0 ? (
+                      <>, and safely skipped <code className="bg-emerald-200/60 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded text-emerald-900 dark:text-white font-bold">{importSummary.duplicatesSkipped}</code> duplicate(s)</>
+                    ) : null}.
+                  </span>
+                )}
               </div>
             </div>
           )}

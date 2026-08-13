@@ -17,7 +17,7 @@ export function getBankInsightsPath(): string {
 }
 
 // Execute synchronization
-export async function syncBankInsightsTransactions(): Promise<{
+export async function syncBankInsightsTransactions(familyMemberId?: number): Promise<{
   success: boolean;
   importedCount: number;
   duplicatesSkipped: number;
@@ -72,13 +72,16 @@ export async function syncBankInsightsTransactions(): Promise<{
     let assetId: number;
     if (assetRow) {
       assetId = assetRow.id;
+      if (familyMemberId) {
+        db.prepare('UPDATE assets SET family_member_id = ? WHERE id = ?').run(familyMemberId, assetId);
+      }
     } else {
       const insAsset = db.prepare(`
-        INSERT INTO assets (name, type, category, identifier)
-        VALUES ('BankInsights Account', 'BANK_ACCOUNT', 'Cash', 'BANK_INSIGHTS')
-      `).run();
+        INSERT INTO assets (name, type, category, identifier, family_member_id)
+        VALUES ('BankInsights Account', 'BANK_ACCOUNT', 'Cash', 'BANK_INSIGHTS', ?)
+      `).run(familyMemberId || null);
       assetId = Number(insAsset.lastInsertRowid);
-      console.log(`Created new BankInsights Account asset with ID: ${assetId}`);
+      console.log(`Created new BankInsights Account asset with ID: ${assetId} for familyMemberId: ${familyMemberId}`);
     }
 
     let importedCount = 0;

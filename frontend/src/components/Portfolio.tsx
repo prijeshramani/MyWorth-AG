@@ -342,12 +342,14 @@ export default function Portfolio() {
     }).format(val);
   };
 
-  const assetTypes = ['MUTUAL_FUND', 'STOCK', 'NPS', 'EPF', 'FIXED_DEPOSIT', 'SSY', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'OTHER'];
+  const assetTypes = ['MUTUAL_FUND', 'STOCK', 'US_STOCK', 'NPS', 'EPF', 'PPF', 'FIXED_DEPOSIT', 'SSY', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'OTHER'];
   const assetLabels: Record<string, string> = {
     MUTUAL_FUND: 'Mutual Funds',
-    STOCK: 'Stocks',
+    STOCK: 'Indian Stocks',
+    US_STOCK: 'US Stocks',
     NPS: 'National Pension Scheme',
-    EPF: "Employees' Provident Fund",
+    EPF: "Employees' Provident Fund (EPF)",
+    PPF: 'Public Provident Fund (PPF)',
     FIXED_DEPOSIT: 'Fixed Deposit (FD)',
     SSY: 'Sukanya Samriddhi Yojana (SSY)',
     GOLD: 'Gold & Metals',
@@ -360,8 +362,10 @@ export default function Portfolio() {
   const assetTypeColors: Record<string, string> = {
     MUTUAL_FUND: '#4F7FFF',
     STOCK: '#32D583',
+    US_STOCK: '#6366F1',
     NPS: '#F79009',
     EPF: '#A855F7',
+    PPF: '#8B5CF6',
     FIXED_DEPOSIT: '#10B981',
     SSY: '#EC4899',
     GOLD: '#EAB308',
@@ -1024,16 +1028,18 @@ export default function Portfolio() {
                     onChange={(e) => {
                       const t = e.target.value;
                       setFormType(t);
-                      if (t === 'FIXED_DEPOSIT' || t === 'EPF' || t === 'BOND') setFormCategory('Debt');
-                      else if (t === 'STOCK' || t === 'MUTUAL_FUND') setFormCategory('Equity');
+                      if (t === 'FIXED_DEPOSIT' || t === 'EPF' || t === 'PPF' || t === 'SSY' || t === 'BOND') setFormCategory('Debt');
+                      else if (t === 'STOCK' || t === 'US_STOCK' || t === 'MUTUAL_FUND') setFormCategory('Equity');
                       else if (t === 'BANK_ACCOUNT') setFormCategory('Cash');
                     }}
                     className="w-full bg-slate-50 dark:bg-[#0B0B0C] border border-slate-200 dark:border-[#2B2E35] rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-[#F3F4F6] outline-none focus:border-[#4F7FFF]"
                   >
                     <option value="FIXED_DEPOSIT">Fixed Deposit (FD)</option>
+                    <option value="PPF">Public Provident Fund (PPF)</option>
                     <option value="SSY">Sukanya Samriddhi Yojana (SSY)</option>
                     <option value="MUTUAL_FUND">Mutual Fund</option>
-                    <option value="STOCK">Stock / Equity</option>
+                    <option value="STOCK">Indian Stock / Equity</option>
+                    <option value="US_STOCK">US Stock</option>
                     <option value="BOND">Bond / Fixed Income</option>
                     <option value="BANK_ACCOUNT">Bank Account / Savings</option>
                     <option value="EPF">EPF (Provident Fund)</option>

@@ -40,7 +40,7 @@ function normalizeDate(rawDate: string): string {
 
 export interface ParsedTransaction {
   assetName: string;
-  assetType: 'MUTUAL_FUND' | 'STOCK' | 'NPS' | 'EPF';
+  assetType: 'MUTUAL_FUND' | 'STOCK' | 'US_STOCK' | 'NPS' | 'EPF' | 'GOLD' | 'BOND' | 'PROPERTY' | 'BANK_ACCOUNT' | 'FIXED_DEPOSIT' | 'SSY' | 'PPF' | 'OTHER';
   category: 'Equity' | 'Debt' | 'Cash' | 'Hybrid' | 'Alternative';
   identifier: string; // ISIN, PRAN, Ticker
   type: 'BUY' | 'SELL' | 'REINVEST' | 'DIVIDEND' | 'INTEREST';
@@ -52,6 +52,7 @@ export interface ParsedTransaction {
   statementType?: string;
   source?: string;
   isHoldings?: boolean;
+  narration?: string;
 }
 
 export interface ParseResult {
@@ -209,6 +210,27 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
       const endIdx = s + 1 < schemes.length ? schemes[s + 1].index : rawText.length;
       
       const schemeSection = rawText.slice(startIdx, endIdx);
+
+      // Extract footer summary metadata for this scheme block
+      const navMatch = schemeSection.match(/NAV\s+on\s+[\d\-A-Za-z]+:\s*INR\s*([\d,\.]+)/i);
+      const mvalMatch = schemeSection.match(/Market\s+Value\s+on\s+[\d\-A-Za-z]+:\s*INR\s*([\d,\.]+)/i);
+      const qtyMatch = schemeSection.match(/Closing\s+Unit\s+Balance:\s*([\d,\.]+)/i);
+      const costMatch = schemeSection.match(/Total\s+Cost\s+Value:\s*([\d,\.]+)/i);
+
+      const footerNav = navMatch ? parseFloat(navMatch[1].replace(/,/g, '')) : 0;
+      const footerMval = mvalMatch ? parseFloat(mvalMatch[1].replace(/,/g, '')) : 0;
+      const footerQty = qtyMatch ? parseFloat(qtyMatch[1].replace(/,/g, '')) : 0;
+      const footerCost = costMatch ? parseFloat(costMatch[1].replace(/,/g, '')) : 0;
+
+      let category: ParsedTransaction['category'] = 'Equity';
+      const nameLower = currentScheme.name.toLowerCase();
+      if (nameLower.includes('debt') || nameLower.includes('liquid') || nameLower.includes('gilt') || nameLower.includes('fixed')) {
+        category = 'Debt';
+      } else if (nameLower.includes('hybrid') || nameLower.includes('balanced') || nameLower.includes('retirement')) {
+        category = 'Hybrid';
+      }
+
+      const schemeTxs: ParsedTransaction[] = [];
       
       // Strategy 1: Standard 6-Column CAMS CAS Table Layout Regex
       // Date | Amount (INR) | Price Unit (INR) | Units | Transaction Description | Unit Balance
@@ -242,15 +264,7 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
           txType = 'DIVIDEND';
         }
 
-        let category: ParsedTransaction['category'] = 'Equity';
-        const nameLower = currentScheme.name.toLowerCase();
-        if (nameLower.includes('debt') || nameLower.includes('liquid') || nameLower.includes('gilt') || nameLower.includes('fixed')) {
-          category = 'Debt';
-        } else if (nameLower.includes('hybrid') || nameLower.includes('balanced') || nameLower.includes('retirement')) {
-          category = 'Hybrid';
-        }
-
-        transactions.push({
+        schemeTxs.push({
           assetName: currentScheme.name,
           assetType: 'MUTUAL_FUND',
           category,
@@ -259,7 +273,8 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
           date: normalizeDate(dateRaw),
           quantity: parseFloat(Math.abs(quantity).toFixed(4)),
           price: parseFloat(Math.abs(price).toFixed(4)),
-          amount: parseFloat(Math.abs(amount).toFixed(2))
+          amount: parseFloat(Math.abs(amount).toFixed(2)),
+          currentPrice: footerNav || undefined
         });
       }
 
@@ -314,15 +329,7 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
 
           if (aligned.amount === 0 || aligned.quantity === 0) continue;
 
-          let category: ParsedTransaction['category'] = 'Equity';
-          const nameLower = currentScheme.name.toLowerCase();
-          if (nameLower.includes('debt') || nameLower.includes('liquid') || nameLower.includes('gilt') || nameLower.includes('fixed')) {
-            category = 'Debt';
-          } else if (nameLower.includes('hybrid') || nameLower.includes('balanced') || nameLower.includes('retirement')) {
-            category = 'Hybrid';
-          }
-
-          transactions.push({
+          schemeTxs.push({
             assetName: currentScheme.name,
             assetType: 'MUTUAL_FUND',
             category,
@@ -331,10 +338,64 @@ function alignCamsNumbers(n1: number, n2: number, n3: number): { amount: number;
             date: normalizeDate(dateMatch[1]),
             quantity: parseFloat(aligned.quantity.toFixed(4)),
             price: parseFloat(aligned.price.toFixed(4)),
-            amount: parseFloat(aligned.amount.toFixed(2))
+            amount: parseFloat(aligned.amount.toFixed(2)),
+            currentPrice: footerNav || undefined
           });
         }
       }
+
+      // Check if parsed transactions match scheme footer totals
+      let parsedQty = 0;
+      let parsedCost = 0;
+      schemeTxs.forEach(tx => {
+        if (tx.type === 'BUY' || tx.type === 'REINVEST') {
+          parsedQty += tx.quantity;
+          parsedCost += tx.amount;
+        } else if (tx.type === 'SELL') {
+          parsedQty -= tx.quantity;
+          parsedCost -= tx.amount;
+        }
+      });
+
+      const diffQty = footerQty - parsedQty;
+      const diffCost = footerCost - parsedCost;
+
+      // If statement window missed pre-statement opening balance / cost basis or has net unit diff, add baseline adjustment
+      if (footerQty > 0 && (Math.abs(diffQty) > 0.001 || Math.abs(diffCost) > 0.50)) {
+        const earliestDate = schemeTxs.length > 0 ? schemeTxs[0].date : '2019-01-01';
+        
+        if (diffQty >= 0) {
+          const calcPrice = Math.abs(diffQty) > 0.0001 ? Math.abs(diffCost / diffQty) : footerNav;
+          schemeTxs.unshift({
+            assetName: currentScheme.name,
+            assetType: 'MUTUAL_FUND',
+            category,
+            identifier: currentScheme.isin,
+            type: 'BUY',
+            date: earliestDate,
+            quantity: parseFloat(Math.abs(diffQty).toFixed(4)),
+            price: parseFloat(calcPrice.toFixed(4)),
+            amount: parseFloat(Math.abs(diffCost).toFixed(2)),
+            currentPrice: footerNav || undefined
+          });
+        } else {
+          // If parsed transactions exceeded footerQty (due to pre-statement redemptions/transfers), add adjustment
+          schemeTxs.push({
+            assetName: currentScheme.name,
+            assetType: 'MUTUAL_FUND',
+            category,
+            identifier: currentScheme.isin,
+            type: 'SELL',
+            date: schemeTxs.length > 0 ? schemeTxs[schemeTxs.length - 1].date : '2026-08-01',
+            quantity: parseFloat(Math.abs(diffQty).toFixed(4)),
+            price: parseFloat(footerNav.toFixed(4)),
+            amount: parseFloat((-diffCost).toFixed(2)),
+            currentPrice: footerNav || undefined
+          });
+        }
+      }
+
+      transactions.push(...schemeTxs);
     }
   }
 

@@ -7,7 +7,7 @@ interface AccountItem {
   id: number;
   institutionName: string;
   accountNumber: string;
-  accountType: 'SAVINGS' | 'DEMAT' | 'NPS' | 'EPF';
+  accountType: 'SAVINGS' | 'DEMAT' | 'NPS' | 'EPF' | 'PPF';
   holderName: string;
   balance: number;
   syncStatus: 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
@@ -207,6 +207,7 @@ export const AccountsManager: React.FC = () => {
                   <option value="DEMAT">Demat / Broker</option>
                   <option value="NPS">NPS Account</option>
                   <option value="EPF">EPF Account</option>
+                  <option value="PPF">PPF Account</option>
                 </select>
               </div>
               <div>

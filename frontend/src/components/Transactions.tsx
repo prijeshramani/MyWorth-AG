@@ -220,7 +220,7 @@ export default function Transactions() {
     setNewAssetType(type);
     if (type === 'BANK_ACCOUNT') setNewAssetCat('Cash');
     else if (type === 'STOCK' || type === 'MUTUAL_FUND') setNewAssetCat('Equity');
-    else if (type === 'BOND' || type === 'EPF' || type === 'FIXED_DEPOSIT' || type === 'SSY') setNewAssetCat('Debt');
+    else if (type === 'BOND' || type === 'EPF' || type === 'PPF' || type === 'FIXED_DEPOSIT' || type === 'SSY') setNewAssetCat('Debt');
     else if (type === 'NPS') setNewAssetCat('Hybrid');
     else setNewAssetCat('Alternative');
   };
@@ -241,8 +241,10 @@ export default function Transactions() {
   const assetLabels: Record<string, string> = {
     MUTUAL_FUND: 'Mutual Fund',
     STOCK: 'Stock',
+    US_STOCK: 'US Stock',
     NPS: 'NPS Pension',
     EPF: 'EPF (Provident Fund)',
+    PPF: 'Public Provident Fund (PPF)',
     FIXED_DEPOSIT: 'Fixed Deposit (FD)',
     SSY: 'Sukanya Samriddhi (SSY)',
     GOLD: 'Gold Metal',

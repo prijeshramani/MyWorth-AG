@@ -45,6 +45,75 @@ const formatUnitPrice = (val: number) => {
   })}`;
 };
 
+export const ASSET_TYPE_BADGES: Record<string, { label: string; bgClass: string }> = {
+  US_STOCK: {
+    label: 'US Stock',
+    bgClass: 'bg-indigo-500/15 text-indigo-600 border-indigo-500/30 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30'
+  },
+  STOCK: {
+    label: 'Indian Stock',
+    bgClass: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30'
+  },
+  MUTUAL_FUND: {
+    label: 'Mutual Fund',
+    bgClass: 'bg-sky-500/15 text-sky-600 border-sky-500/30 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30'
+  },
+  NPS: {
+    label: 'NPS',
+    bgClass: 'bg-amber-500/15 text-amber-600 border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30'
+  },
+  EPF: {
+    label: 'EPF',
+    bgClass: 'bg-purple-500/15 text-purple-600 border-purple-500/30 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30'
+  },
+  FIXED_DEPOSIT: {
+    label: 'Fixed Deposit',
+    bgClass: 'bg-teal-500/15 text-teal-600 border-teal-500/30 dark:bg-teal-500/20 dark:text-teal-300 dark:border-teal-500/30'
+  },
+  SSY: {
+    label: 'SSY',
+    bgClass: 'bg-pink-500/15 text-pink-600 border-pink-500/30 dark:bg-pink-500/20 dark:text-pink-300 dark:border-pink-500/30'
+  },
+  PPF: {
+    label: 'PPF',
+    bgClass: 'bg-violet-500/15 text-violet-600 border-violet-500/30 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30'
+  },
+  GOLD: {
+    label: 'Gold & Metals',
+    bgClass: 'bg-yellow-500/15 text-yellow-600 border-yellow-500/30 dark:bg-yellow-500/20 dark:text-yellow-300 dark:border-yellow-500/30'
+  },
+  BOND: {
+    label: 'Bond',
+    bgClass: 'bg-blue-500/15 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30'
+  },
+  PROPERTY: {
+    label: 'Real Estate',
+    bgClass: 'bg-rose-500/15 text-rose-600 border-rose-500/30 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30'
+  },
+  BANK_ACCOUNT: {
+    label: 'Bank Account',
+    bgClass: 'bg-cyan-500/15 text-cyan-600 border-cyan-500/30 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/30'
+  },
+  OTHER: {
+    label: 'Other',
+    bgClass: 'bg-slate-500/15 text-slate-600 border-slate-500/30 dark:bg-slate-500/20 dark:text-slate-300 dark:border-slate-500/30'
+  }
+};
+
+export const renderAssetTypeBadge = (rawType: string) => {
+  const typeKey = (rawType || 'OTHER').toUpperCase();
+  const badgeConfig = ASSET_TYPE_BADGES[typeKey] || {
+    label: typeKey.replace('_', ' '),
+    bgClass: 'bg-slate-500/15 text-slate-600 border-slate-500/30 dark:bg-slate-500/20 dark:text-slate-300 dark:border-slate-500/30'
+  };
+
+  return (
+    <span className={`inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${badgeConfig.bgClass}`}>
+      {badgeConfig.label}
+    </span>
+  );
+};
+
 export const HoldingTable: React.FC<HoldingTableProps> = ({
   data,
   loading = false,
@@ -210,9 +279,7 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
                         )}
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="bg-slate-800 text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">
-                          {row.assetType}
-                        </span>
+                        {renderAssetTypeBadge(row.assetType)}
                       </td>
                       <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
                         {familyMembers.length > 0 && onReassignOwner ? (

@@ -297,6 +297,7 @@ export async function fetchIndMoneyHoldings(token: string): Promise<ParsedTransa
     const currency = String(hold.currency || hold.currency_type || '').trim().toUpperCase();
     const isUS = item.isUSFromEndpoint || exchange === 'US' || exchange === 'NASDAQ' || exchange === 'NYSE' || currency === 'USD' || hold.is_us_stock === true || hold.asset_type === 'US_STOCK';
     const category = symbol.startsWith('SGB') ? 'Alternative' : 'Equity';
+    const assetType = isUS ? 'US_STOCK' : 'STOCK';
     
     let fullTicker = symbol;
     if (isUS || symbol.startsWith('SGB')) {
@@ -320,7 +321,7 @@ export async function fetchIndMoneyHoldings(token: string): Promise<ParsedTransa
     
     transactions.push({
       assetName: symbol,
-      assetType: 'STOCK',
+      assetType,
       category,
       identifier: fullTicker,
       type: 'BUY',

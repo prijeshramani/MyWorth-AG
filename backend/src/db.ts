@@ -15,6 +15,9 @@ import { migration010 } from './db/migrations/010_recommendation_engine';
 import { migration011 } from './db/migrations/011_ai_context';
 import { up as migration012Up, down as migration012Down } from './db/migrations/012_ai_actions';
 
+import { migration013 } from './db/migrations/013_us_stock_type';
+import { migration014 } from './db/migrations/014_ppf_type';
+
 const migration012 = {
   version: 12,
   name: '012_ai_actions',
@@ -47,7 +50,7 @@ export function initDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       family_member_id INTEGER,
       name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'FIXED_DEPOSIT', 'SSY', 'OTHER')),
+      type TEXT NOT NULL CHECK(type IN ('MUTUAL_FUND', 'STOCK', 'US_STOCK', 'NPS', 'GOLD', 'BOND', 'PROPERTY', 'BANK_ACCOUNT', 'EPF', 'FIXED_DEPOSIT', 'SSY', 'PPF', 'OTHER')),
       category TEXT NOT NULL CHECK(category IN ('Equity', 'Debt', 'Cash', 'Hybrid', 'Alternative', 'Other')),
       identifier TEXT,
       metadata TEXT,
@@ -109,7 +112,7 @@ export function initDb() {
   `).run();
 
   // Execute Versioned Database Migrations
-  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012], dbPath);
+  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012, migration013, migration014], dbPath);
 
   // Ensure family_members has pan, email, phone columns (idempotent)
   const memberCols = db.prepare("PRAGMA table_info(family_members)").all() as any[];
@@ -125,8 +128,54 @@ export function initDb() {
     }
   }
 
-  // Ensure default Family (id = 1) exists to satisfy Foreign Keys
-  db.prepare("INSERT OR IGNORE INTO families (id, name, currency) VALUES (1, 'My Family', 'INR')").run();
+  // Idempotent repair for transactions foreign key constraint if pointing to assets_old
+  const txSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='transactions'").get() as { sql: string } | undefined;
+  if (txSql && txSql.sql && txSql.sql.includes('assets_old')) {
+    db.prepare('PRAGMA foreign_keys = OFF').run();
+    db.prepare('DROP TABLE IF EXISTS transactions_new').run();
+    db.prepare(`
+      CREATE TABLE transactions_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        holding_id INTEGER,
+        asset_id INTEGER NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('BUY', 'SELL', 'REINVEST', 'DIVIDEND', 'INTEREST', 'BONUS', 'DEBIT', 'CREDIT')),
+        date TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        price REAL NOT NULL,
+        amount REAL NOT NULL,
+        source TEXT NOT NULL CHECK(source IN ('PDF_IMPORT', 'MANUAL', 'BANK_INSIGHTS')),
+        narration TEXT,
+        tx_category TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+      )
+    `).run();
+    db.prepare('INSERT INTO transactions_new SELECT * FROM transactions').run();
+    db.prepare('DROP TABLE transactions').run();
+    db.prepare('ALTER TABLE transactions_new RENAME TO transactions').run();
+    db.prepare('PRAGMA foreign_keys = ON').run();
+  }
+
+  // Idempotent repair for asset_prices foreign key constraint if pointing to assets_old
+  const priceSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='asset_prices'").get() as { sql: string } | undefined;
+  if (priceSql && priceSql.sql && priceSql.sql.includes('assets_old')) {
+    db.prepare('PRAGMA foreign_keys = OFF').run();
+    db.prepare('DROP TABLE IF EXISTS asset_prices_new').run();
+    db.prepare(`
+      CREATE TABLE asset_prices_new (
+        asset_id INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        price REAL NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (asset_id, date),
+        FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+      )
+    `).run();
+    db.prepare('INSERT INTO asset_prices_new SELECT * FROM asset_prices').run();
+    db.prepare('DROP TABLE asset_prices').run();
+    db.prepare('ALTER TABLE asset_prices_new RENAME TO asset_prices').run();
+    db.prepare('PRAGMA foreign_keys = ON').run();
+  }
 
   console.log('Database tables successfully verified/created.');
 }

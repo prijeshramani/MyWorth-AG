@@ -318,38 +318,38 @@ export const OnboardingWizard: React.FC = () => {
 
             {/* Inline Add Member Modal */}
             {showMemberForm && (
-              <form onSubmit={handleAddMemberSubmit} className="p-4 bg-slate-900 border border-slate-800 rounded-lg space-y-3">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-                  <h4 className="text-xs font-bold text-slate-100">Add New Family Member</h4>
-                  <button type="button" onClick={() => setShowMemberForm(false)} className="text-slate-400 hover:text-slate-200">
+              <form onSubmit={handleAddMemberSubmit} className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-3 shadow-md">
+                <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">Add New Family Member</h4>
+                  <button type="button" onClick={() => setShowMemberForm(false)} className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
                 {memberError && (
-                  <div className="p-2 text-[11px] bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded">
+                  <div className="p-2 text-[11px] bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 rounded-lg">
                     {memberError}
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">Full Name</label>
+                    <label className="text-[11px] text-slate-600 dark:text-slate-400 block mb-1 font-medium">Full Name</label>
                     <input
                       type="text"
                       required
                       value={newMemberName}
                       onChange={e => setNewMemberName(e.target.value)}
                       placeholder="e.g. Rajesh Sharma"
-                      className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs text-slate-100"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-sky-500"
                     />
                   </div>
                   <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">Relationship</label>
+                    <label className="text-[11px] text-slate-600 dark:text-slate-400 block mb-1 font-medium">Relationship</label>
                     <select
                       value={newMemberRelationship}
                       onChange={e => setNewMemberRelationship(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs text-slate-100"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
                     >
                       <option value="Head">Head (Primary Owner)</option>
                       <option value="Spouse">Spouse</option>
@@ -359,23 +359,23 @@ export const OnboardingWizard: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[11px] text-slate-400 block mb-1">PAN Number (Optional)</label>
+                    <label className="text-[11px] text-slate-600 dark:text-slate-400 block mb-1 font-medium">PAN Number (Optional)</label>
                     <input
                       type="text"
                       value={newMemberPan}
                       onChange={e => setNewMemberPan(e.target.value)}
                       placeholder="ABCDE1234F"
-                      className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs text-slate-100 font-mono uppercase"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2 text-xs text-slate-900 dark:text-slate-100 font-mono uppercase focus:outline-none"
                     />
                   </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-1">
-                  <button type="button" onClick={() => setShowMemberForm(false)} className="px-3 py-1 text-xs text-slate-400">Cancel</button>
+                  <button type="button" onClick={() => setShowMemberForm(false)} className="px-3 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200">Cancel</button>
                   <button
                     type="submit"
                     disabled={addingMember}
-                    className="px-3.5 py-1 bg-sky-600 text-white rounded text-xs font-semibold flex items-center gap-1"
+                    className="px-3.5 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm"
                   >
                     {addingMember && <Loader2 className="w-3 h-3 animate-spin" />}
                     {addingMember ? 'Saving...' : 'Save Member'}

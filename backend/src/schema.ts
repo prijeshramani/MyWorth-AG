@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const AssetTypeSchema = z.enum([
   'MUTUAL_FUND',
   'STOCK',
+  'US_STOCK',
   'NPS',
   'GOLD',
   'BOND',
@@ -11,6 +12,7 @@ export const AssetTypeSchema = z.enum([
   'EPF',
   'FIXED_DEPOSIT',
   'SSY',
+  'PPF',
   'OTHER'
 ]);
 

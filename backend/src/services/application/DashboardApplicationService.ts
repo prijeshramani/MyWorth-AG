@@ -21,10 +21,10 @@ export class DashboardApplicationService {
 
     try {
       const assets = db.prepare(`
-        SELECT a.*, fm.family_id 
+        SELECT DISTINCT a.* 
         FROM assets a 
         LEFT JOIN family_members fm ON a.family_member_id = fm.id
-        WHERE fm.family_id = ? OR a.family_member_id IS NULL
+        WHERE (fm.family_id = ? OR a.family_member_id IS NULL)
       `).all(familyId) as any[];
 
       for (const asset of assets) {
@@ -67,28 +67,38 @@ export class DashboardApplicationService {
             if (tx.type === 'BUY' || tx.type === 'REINVEST') txSum += tx.amount;
             else if (tx.type === 'SELL') txSum -= tx.amount;
           }
-          bankEpfBalance = latestPriceRow ? latestPriceRow.price : txSum;
+          bankEpfBalance = latestPriceRow ? latestPriceRow.price : (txSum || Number(asset.current_value) || Number(asset.cost_basis) || 0);
           currentUnits = bankEpfBalance > 0 ? 1.0 : 0;
           totalCost = txSum > 0 ? txSum : bankEpfBalance;
-        } else if (asset.type === 'EPF' || asset.type === 'SSY') {
+        } else if (asset.type === 'EPF' || asset.type === 'SSY' || asset.type === 'PPF') {
           const latestPriceRow = priceRepository.findLatestPriceAbove(asset.id, 1.0);
           let txSum = 0;
           let lastTxDate = '';
           for (const tx of transactions) {
-            if (tx.type === 'BUY' || tx.type === 'REINVEST') txSum += tx.amount;
+            if (tx.type === 'BUY' || tx.type === 'REINVEST' || tx.type === 'INTEREST') txSum += tx.amount;
             else if (tx.type === 'SELL') txSum -= tx.amount;
             if (tx.date > lastTxDate) lastTxDate = tx.date;
           }
           if (latestPriceRow && (!lastTxDate || latestPriceRow.date >= lastTxDate)) {
             bankEpfBalance = latestPriceRow.price;
           } else {
-            bankEpfBalance = txSum || Number(asset.cost_basis) || 0;
+            bankEpfBalance = txSum || Number(asset.current_value) || Number(asset.cost_basis) || 0;
           }
           currentUnits = bankEpfBalance > 0 ? 1.0 : 0;
-          totalCost = asset.type === 'SSY' ? (txSum || Number(asset.cost_basis) || bankEpfBalance) : 0;
+          totalCost = asset.type === 'SSY' || asset.type === 'PPF' ? (txSum || Number(asset.cost_basis) || bankEpfBalance) : 0;
+        } else if (asset.type === 'PROPERTY' || asset.type === 'GOLD' || asset.type === 'OTHER') {
+          const latestPriceRow = priceRepository.findLatestPrice(asset.id);
+          let txSum = 0;
+          for (const tx of transactions) {
+            if (tx.type === 'BUY' || tx.type === 'REINVEST') txSum += tx.amount;
+            else if (tx.type === 'SELL') txSum -= tx.amount;
+          }
+          bankEpfBalance = latestPriceRow ? latestPriceRow.price : (txSum || Number(asset.current_value) || Number(asset.cost_basis) || 0);
+          currentUnits = bankEpfBalance > 0 ? 1.0 : 0;
+          totalCost = txSum > 0 ? txSum : (Number(asset.cost_basis) || bankEpfBalance);
         } else {
           for (const tx of transactions) {
-            if (tx.type === 'BUY' || tx.type === 'REINVEST') {
+            if (tx.type === 'BUY' || tx.type === 'REINVEST' || tx.type === 'INTEREST') {
               currentUnits += tx.quantity;
               totalCost += tx.amount;
               totalUnitsBought += tx.quantity;
@@ -107,18 +117,35 @@ export class DashboardApplicationService {
         totalCost = Math.round(Math.max(0, totalCost) * 100) / 100;
 
         let currentPrice = 0;
-        if (asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF' || asset.type === 'FIXED_DEPOSIT') {
+        if (asset.type === 'BANK_ACCOUNT' || asset.type === 'EPF' || asset.type === 'FIXED_DEPOSIT' || asset.type === 'SSY' || asset.type === 'PPF' || asset.type === 'PROPERTY' || asset.type === 'GOLD' || asset.type === 'OTHER') {
           currentPrice = bankEpfBalance;
         } else {
+          const lastTx = transactions.length > 0 ? transactions[transactions.length - 1] : null;
           const latestPriceRow = priceRepository.findLatestPrice(asset.id);
-          if (latestPriceRow) {
+          
+          if (lastTx && lastTx.price > 0) {
+            currentPrice = lastTx.price;
+            if (latestPriceRow && latestPriceRow.price > 0 && latestPriceRow.price <= lastTx.price * 10) {
+              currentPrice = latestPriceRow.price;
+            }
+          } else if (latestPriceRow && latestPriceRow.price > 0 && latestPriceRow.price < 200000) {
             currentPrice = latestPriceRow.price;
-          } else if (transactions.length > 0) {
-            currentPrice = transactions[transactions.length - 1].price;
+          } else if (Number(asset.current_value) > 0) {
+            currentPrice = Number(asset.current_value);
+            currentUnits = 1.0;
           }
         }
 
-        const currentValue = currentUnits * currentPrice;
+        let currentValue = currentUnits * currentPrice;
+
+        // Fallback: If asset in DB has current_value but computed to 0, use asset.current_value
+        if (currentValue === 0 && (Number(asset.current_value) > 0 || Number(asset.cost_basis) > 0)) {
+          currentValue = Number(asset.current_value) || Number(asset.cost_basis) || 0;
+          if (totalCost === 0) {
+            totalCost = Number(asset.cost_basis) || currentValue;
+          }
+        }
+
         totalMarketValue += currentValue;
         totalCostBasis += totalCost;
 
@@ -154,20 +181,24 @@ export class DashboardApplicationService {
   }
 
   public async getDashboardOverview(
-    requestedFamilyId: number = 1,
+    requestedFamilyId?: number,
     asOfDate?: string
   ): Promise<DashboardOverviewResponseDTO> {
-    const rawFamilyId = isNaN(requestedFamilyId) || requestedFamilyId <= 0 ? 1 : requestedFamilyId;
-    
-    // Find family that actually has assets if requested familyId has 0 assets
-    let family = familyRepository.findById(rawFamilyId);
+    const allFamilies = familyRepository.findAll();
+    let family: any = null;
 
-    if (!family || rawFamilyId === 1) {
+    if (requestedFamilyId && !isNaN(requestedFamilyId) && requestedFamilyId > 0) {
+      family = familyRepository.findById(requestedFamilyId);
+    }
+
+    // If requested family is missing or has 0 total assets, fall back to family with assets
+    if (!family || this.computeRealDatabaseNetWorth(family.id).totalMarketValue === 0) {
       try {
         const famWithAssets = db.prepare(`
           SELECT DISTINCT fm.family_id 
           FROM assets a 
           JOIN family_members fm ON a.family_member_id = fm.id
+          ORDER BY a.id DESC
         `).get() as { family_id: number } | undefined;
 
         if (famWithAssets && famWithAssets.family_id) {
@@ -180,7 +211,7 @@ export class DashboardApplicationService {
     }
 
     if (!family) {
-      family = familyRepository.findAll()[0] || { id: 1, name: 'My Household', currency: 'INR' };
+      family = allFamilies[0] || { id: 1, name: 'My Family', currency: 'INR' };
     }
     
     const familyId = family.id;

@@ -155,7 +155,7 @@ export async function syncStocks(): Promise<{ success: boolean; updated: number;
     // Get all stocks from DB with an identifier (e.g. RELIANCE.NS, TCS.NS, AAPL)
     const stocks = db.prepare(`
       SELECT id, identifier, name FROM assets 
-      WHERE type = 'STOCK' AND identifier IS NOT NULL AND identifier != ''
+      WHERE type IN ('STOCK', 'US_STOCK') AND identifier IS NOT NULL AND identifier != ''
     `).all() as Array<{ id: number; identifier: string; name: string }>;
 
     if (stocks.length === 0) {

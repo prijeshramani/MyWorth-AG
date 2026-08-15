@@ -147,8 +147,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   const assetColors: Record<string, string> = {
     MUTUAL_FUND: '#6366f1', // Indigo
     STOCK: '#10b981',       // Emerald
+    US_STOCK: '#6366f1',    // Indigo
     NPS: '#f59e0b',         // Amber
-    EPF: '#8b5cf6',         // Violet/Indigo
+    EPF: '#8b5cf6',         // Violet
+    PPF: '#a855f7',         // Purple
     FIXED_DEPOSIT: '#10b981',// Emerald
     SSY: '#ec4899',          // Rose/Pink
     GOLD: '#eab308',        // Yellow
@@ -169,9 +171,11 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   const assetLabels: Record<string, string> = {
     MUTUAL_FUND: 'Mutual Funds',
-    STOCK: 'Stocks',
+    STOCK: 'Indian Stocks',
+    US_STOCK: 'US Stocks',
     NPS: 'National Pension Scheme',
     EPF: "Employees' Provident Fund (EPF)",
+    PPF: 'Public Provident Fund (PPF)',
     FIXED_DEPOSIT: 'Fixed Deposit (FD)',
     SSY: 'Sukanya Samriddhi Yojana (SSY)',
     GOLD: 'Gold',

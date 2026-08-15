@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const MasterAssetTypeEnum = z.enum([
   'STOCK',
+  'US_STOCK',
   'MUTUAL_FUND',
   'ETF',
   'BOND',

@@ -134,12 +134,15 @@ export async function parseIndMoneyOrderBookStatement(excelBuffer: Buffer): Prom
   }
 
   const headers = sheetData[headerIdx].map(h => String(h).trim().toLowerCase());
-  const nameCol = headers.findIndex(h => h.includes('stock name') || h.includes('name'));
+  const nameCol = headers.findIndex(h => h.includes('stock name') || h.includes('name') || h.includes('security'));
   const symbolCol = headers.findIndex(h => h.includes('stock symbol') || h.includes('symbol') || h.includes('ticker'));
-  const typeCol = headers.findIndex(h => h.includes('transaction type') || h.includes('type'));
-  const qtyCol = headers.findIndex(h => h.includes('quantity') || h.includes('qty'));
-  const priceCol = headers.findIndex(h => h.includes('price') || h.includes('rate'));
-  const dateCol = headers.findIndex(h => h.includes('order execution time') || h.includes('order placed time') || h.includes('time') || h.includes('date'));
+  const typeCol = headers.findIndex(h => 
+    h.includes('transaction type') || h.includes('order type') || h.includes('trade type') || 
+    h.includes('buy/sell') || h.includes('side') || h.includes('action') || h.includes('type')
+  );
+  const qtyCol = headers.findIndex(h => h.includes('quantity') || h.includes('qty') || h.includes('units') || h.includes('shares'));
+  const priceCol = headers.findIndex(h => h.includes('execution price') || h.includes('price') || h.includes('rate') || h.includes('unit price') || h.includes('avg price'));
+  const dateCol = headers.findIndex(h => h.includes('order execution time') || h.includes('order placed time') || h.includes('execution date') || h.includes('time') || h.includes('date'));
 
   const usdInrRate = await getUsdInrRate();
   const transactions: ParsedTransaction[] = [];
@@ -148,7 +151,7 @@ export async function parseIndMoneyOrderBookStatement(excelBuffer: Buffer): Prom
     const row = sheetData[i];
     if (row.length <= Math.max(symbolCol !== -1 ? symbolCol : nameCol, qtyCol, priceCol)) continue;
 
-    const rawSymbol = String((symbolCol !== -1 ? row[symbolCol] : '') || row[nameCol] || '').trim().toUpperCase();
+    const rawSymbol = String((symbolCol !== -1 ? row[symbolCol] : '') || (nameCol !== -1 ? row[nameCol] : '') || '').trim().toUpperCase();
     if (!rawSymbol) continue;
 
     let symbol = rawSymbol;
@@ -157,19 +160,20 @@ export async function parseIndMoneyOrderBookStatement(excelBuffer: Buffer): Prom
       if (match) symbol = match[1];
     }
 
-    const rawType = String(row[typeCol] || 'BUY').trim().toUpperCase();
-    const type: 'BUY' | 'SELL' = rawType.includes('SELL') ? 'SELL' : 'BUY';
+    const rawType = String((typeCol !== -1 ? row[typeCol] : '') || 'BUY').trim().toUpperCase();
+    const isSell = rawType.includes('SELL') || rawType.includes('SOLD') || rawType.includes('S-EQ') || rawType.startsWith('S') || rawType.includes('DISPOSAL') || rawType.includes('REDEMPTION');
+    const type: 'BUY' | 'SELL' = isSell ? 'SELL' : 'BUY';
     const quantity = parseFloat(String(row[qtyCol]).replace(/,/g, ''));
     const priceUsd = parseFloat(String(row[priceCol]).replace(/,/g, ''));
-    const date = parseDateStr(row[dateCol]);
+    const date = parseDateStr(dateCol !== -1 ? row[dateCol] : null);
 
     if (isNaN(quantity) || quantity <= 0 || isNaN(priceUsd) || priceUsd <= 0) continue;
 
     const priceInr = priceUsd * usdInrRate;
 
     transactions.push({
-      assetName: String(row[nameCol] || symbol).trim(),
-      assetType: 'STOCK',
+      assetName: String((nameCol !== -1 ? row[nameCol] : '') || symbol).trim(),
+      assetType: 'US_STOCK',
       category: 'Equity',
       identifier: symbol,
       type,
@@ -184,7 +188,7 @@ export async function parseIndMoneyOrderBookStatement(excelBuffer: Buffer): Prom
   console.log(`Parsed ${transactions.length} transactions from INDmoney Order Book statement.`);
 
   return {
-    statementType: 'INDMONEY_US_STOCKS_HOLDINGS',
+    statementType: 'INDMONEY_US_STOCKS_ORDER_BOOK',
     transactions,
     rawText: `INDmoney US Stocks Order Book - Total Transactions: ${transactions.length}`
   };
@@ -256,7 +260,7 @@ export async function parseIndMoneyTaxReportStatement(excelBuffer: Buffer): Prom
           const priceInr = (!isNaN(priceUsd) && priceUsd > 0) ? priceUsd * rate : 100 * rate;
           transactions.push({
             assetName: stockName,
-            assetType: 'STOCK',
+            assetType: 'US_STOCK',
             category: 'Equity',
             identifier: symbol,
             type: 'SELL',
@@ -306,7 +310,7 @@ export async function parseIndMoneyTaxReportStatement(excelBuffer: Buffer): Prom
         if (!isNaN(amountUsd) && amountUsd > 0) {
           transactions.push({
             assetName: entityName,
-            assetType: 'STOCK',
+            assetType: 'US_STOCK',
             category: 'Equity',
             identifier: symbol,
             type: 'BUY',
@@ -324,16 +328,158 @@ export async function parseIndMoneyTaxReportStatement(excelBuffer: Buffer): Prom
   console.log(`Parsed ${transactions.length} records from INDmoney Consolidated Tax Report.`);
 
   return {
-    statementType: 'INDMONEY_US_STOCKS_HOLDINGS',
+    statementType: 'INDMONEY_US_STOCKS_TAX_REPORT',
     transactions,
     rawText: `INDmoney Consolidated Tax Report - Total Extracted Records: ${transactions.length}`
   };
 }
 
-// 4. Main Unified Excel Statement Parser Dispatcher
-export async function parseExcelStatement(excelBuffer: Buffer): Promise<{ statementType: string; transactions: ParsedTransaction[]; rawText: string }> {
-  const workbook = XLSX.read(excelBuffer, { type: 'buffer' });
+// 4. PPF Excel Statement Parser
+export function parsePpfExcelStatement(excelBuffer: Buffer, password?: string): { statementType: string; transactions: ParsedTransaction[]; rawText: string } {
+  let workbook: XLSX.WorkBook;
+  try {
+    workbook = XLSX.read(excelBuffer, { type: 'buffer' });
+  } catch (e: any) {
+    if (password) {
+      workbook = XLSX.read(excelBuffer, { type: 'buffer', password });
+    } else {
+      throw e;
+    }
+  }
+
+  const sheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[sheetName];
+  const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' }) as any[][];
+
+  if (sheetData.length === 0) {
+    throw new Error('PPF Excel statement is empty.');
+  }
+
+  let accountNo = '';
+  let headerRowIndex = -1;
+  let dateCol = 0, descCol = 2, debitCol = 5, creditCol = 6, balCol = 7;
+
+  // Scan header & metadata
+  for (let r = 0; r < Math.min(20, sheetData.length); r++) {
+    const rowStr = sheetData[r].map(c => String(c)).join(' ');
+    
+    // Extract Account Number
+    const accMatch = rowStr.match(/Account\s*:\s*([0-9]{8,20})/i) || rowStr.match(/Account\s*No\.?\s*([0-9]{8,20})/i);
+    if (accMatch && !accountNo) {
+      accountNo = accMatch[1];
+    }
+
+    // Find table headers
+    const rowLower = sheetData[r].map(c => String(c).toLowerCase().trim());
+    if (rowLower.some(c => c.includes('txn date') || c.includes('transaction date') || c === 'date')) {
+      headerRowIndex = r;
+      rowLower.forEach((colText, idx) => {
+        if (colText.includes('txn date') || colText.includes('transaction date') || colText === 'date') dateCol = idx;
+        else if (colText.includes('description') || colText.includes('narration') || colText.includes('particulars')) descCol = idx;
+        else if (colText.includes('debit')) debitCol = idx;
+        else if (colText.includes('credit')) creditCol = idx;
+        else if (colText.includes('balance')) balCol = idx;
+      });
+      break;
+    }
+  }
+
+  const assetName = accountNo ? `SBI Public Provident Fund (${accountNo})` : 'Public Provident Fund (PPF)';
+  const transactions: ParsedTransaction[] = [];
+
+  const startRow = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
+  for (let r = startRow; r < sheetData.length; r++) {
+    const row = sheetData[r];
+    if (!row || row.length === 0) continue;
+
+    const rawDate = row[dateCol];
+    if (!rawDate) continue;
+
+    const dateStr = String(rawDate).trim();
+    if (!/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(dateStr) && !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      continue;
+    }
+
+    const date = parseDateStr(rawDate);
+    const narration = String(row[descCol] || '').trim();
+    const debit = parseFloat(String(row[debitCol] || '0').replace(/,/g, '')) || 0;
+    const credit = parseFloat(String(row[creditCol] || '0').replace(/,/g, '')) || 0;
+    const balance = parseFloat(String(row[balCol] || '0').replace(/,/g, '')) || 0;
+
+    let type: 'BUY' | 'SELL' | 'INTEREST' = 'BUY';
+    let amount = 0;
+
+    if (credit > 0) {
+      amount = credit;
+      if (narration.toUpperCase().includes('INTEREST')) {
+        type = 'INTEREST';
+      } else {
+        type = 'BUY';
+      }
+    } else if (debit > 0) {
+      amount = debit;
+      type = 'SELL';
+    } else {
+      continue;
+    }
+
+    transactions.push({
+      assetName,
+      assetType: 'PPF',
+      category: 'Debt',
+      identifier: accountNo || 'PPF-ACC',
+      type,
+      date,
+      quantity: 1,
+      price: amount,
+      currentPrice: balance > 0 ? balance : amount,
+      amount,
+      statementType: 'PPF_EXCEL_STATEMENT',
+      narration
+    });
+  }
+
+  console.log(`Parsed ${transactions.length} records from PPF Excel Statement.`);
+
+  return {
+    statementType: 'PPF_EXCEL_STATEMENT',
+    transactions,
+    rawText: `PPF Account ${accountNo} Statement - ${transactions.length} transactions extracted.`
+  };
+}
+
+// 5. Main Unified Excel Statement Parser Dispatcher
+export async function parseExcelStatement(excelBuffer: Buffer, password?: string): Promise<{ statementType: string; transactions: ParsedTransaction[]; rawText: string }> {
+  let workbook: XLSX.WorkBook;
+  try {
+    workbook = XLSX.read(excelBuffer, { type: 'buffer' });
+  } catch (e: any) {
+    if (password) {
+      workbook = XLSX.read(excelBuffer, { type: 'buffer', password });
+    } else {
+      throw e;
+    }
+  }
+
   const sheetNames = workbook.SheetNames.map(s => s.toUpperCase());
+
+  // Check sheet content signature for PPF / Bank Statement
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+  const firstSheetText = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' })
+    .slice(0, 15)
+    .map((r: any) => (Array.isArray(r) ? r.join(' ') : String(r)))
+    .join(' ')
+    .toUpperCase();
+
+  if (
+    firstSheetText.includes('ACCOUNT STATEMENT FOR ACCOUNT') || 
+    firstSheetText.includes('PUBLIC PROVIDENT FUND') || 
+    (firstSheetText.includes('TXN DATE') && firstSheetText.includes('CREDIT INTEREST')) ||
+    (firstSheetText.includes('STATE BANK OF INDIA') && firstSheetText.includes('TXN DATE'))
+  ) {
+    console.log('Detected PPF Excel statement.');
+    return parsePpfExcelStatement(excelBuffer, password);
+  }
 
   if (sheetNames.includes('ORDER_BOOK')) {
     console.log('Detected INDmoney US Stocks Order Book Excel statement.');

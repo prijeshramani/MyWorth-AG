@@ -19,7 +19,7 @@ import confetti from 'canvas-confetti';
 
 interface ParsedTx {
   assetName: string;
-  assetType: 'MUTUAL_FUND' | 'STOCK' | 'NPS' | 'EPF';
+  assetType: 'MUTUAL_FUND' | 'STOCK' | 'US_STOCK' | 'NPS' | 'EPF' | 'PPF' | 'GOLD' | 'BOND' | 'PROPERTY' | 'BANK_ACCOUNT' | 'FIXED_DEPOSIT' | 'SSY' | 'OTHER';
   category: 'Equity' | 'Debt' | 'Cash' | 'Hybrid' | 'Alternative';
   identifier: string;
   type: 'BUY' | 'SELL' | 'REINVEST' | 'DIVIDEND' | 'INTEREST';
@@ -1102,7 +1102,7 @@ export default function ImportCenter({
                     {file ? file.name : 'Select or drag broker PDF/CSV/XML/Excel statement'}
                   </h4>
                   <p className="text-[10px] text-slate-500 mt-1">
-                    Supports CAMS/NPS PDFs, NPS CSV, Zerodha XML, and Zerodha holdings Excel (.xlsx) files (Max 10MB)
+                    Supports CAMS/NPS PDFs, NPS CSV, Zerodha XML, PPF Account Excel statements (.xlsx), and Zerodha/INDmoney Excel files (Max 10MB)
                   </p>
                 </div>
               </div>

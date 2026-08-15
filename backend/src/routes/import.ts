@@ -64,7 +64,7 @@ router.post('/parse', upload.single('file'), async (req: Request, res: Response)
     } else if (isXml) {
       result = parseZerodhaXmlStatement(req.file.buffer);
     } else if (isXlsx) {
-      result = await parseExcelStatement(req.file.buffer);
+      result = await parseExcelStatement(req.file.buffer, password);
     } else {
       result = await parsePdfStatement(req.file.buffer, password);
     }
@@ -194,8 +194,11 @@ router.post('/confirm', (req: Request, res: Response) => {
         const allowedSources = ['PDF_IMPORT', 'MANUAL', 'BANK_INSIGHTS'];
         const sourceTag = (tx.source && allowedSources.includes(tx.source)) ? tx.source : 'PDF_IMPORT';
         const stType = (tx.statementType || tx.source || '').toUpperCase();
-        const isHoldingsType = stType.includes('HOLDINGS') || 
-                               ['ANGELONE', 'ZERODHA', 'UPSTOX', 'INDMONEY', 'KITE'].some(b => stType.includes(b));
+        const isOrderBookOrTax = stType.includes('ORDER') || stType.includes('TRADE') || stType.includes('TAX') || stType.includes('BOOK');
+        const isHoldingsType = !isOrderBookOrTax && (
+          stType.includes('HOLDINGS') || 
+          ['ANGELONE', 'ZERODHA', 'UPSTOX', 'INDMONEY', 'KITE'].some(b => stType.includes(b))
+        );
 
         if (existingHoldingsTx && isHoldingsType) {
           // Update existing holdings baseline transaction to reflect latest position quantity & average buy price

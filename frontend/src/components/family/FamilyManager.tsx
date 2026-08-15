@@ -233,29 +233,29 @@ export const FamilyManager: React.FC = () => {
 
       {/* Add Member Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleAddMember} className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 w-full max-w-md space-y-4">
-            <h3 className="text-sm font-bold text-slate-100">Add New Family Member</h3>
+        <div className="fixed inset-0 z-50 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleAddMember} className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Add New Family Member</h3>
 
             <div>
-              <label className="text-xs font-medium text-slate-400 block mb-1">Full Name</label>
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Full Name</label>
               <input
                 type="text"
                 required
                 value={newMember.name}
                 onChange={e => setNewMember({ ...newMember, name: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-sky-500"
                 placeholder="e.g. Ananya Sharma"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1">Relationship</label>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Relationship</label>
                 <select
                   value={newMember.relationship}
                   onChange={e => setNewMember({ ...newMember, relationship: e.target.value as any })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
                 >
                   <option value="Head">Head</option>
                   <option value="Spouse">Spouse</option>
@@ -265,12 +265,12 @@ export const FamilyManager: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1">PAN Number</label>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">PAN Number</label>
                 <input
                   type="text"
                   value={newMember.pan}
                   onChange={e => setNewMember({ ...newMember, pan: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
                   placeholder="ABCDE1234F"
                 />
               </div>
@@ -278,22 +278,22 @@ export const FamilyManager: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1">Email</label>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Email</label>
                 <input
                   type="email"
                   value={newMember.email}
                   onChange={e => setNewMember({ ...newMember, email: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
                   placeholder="ananya@example.com"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1">Phone</label>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Phone</label>
                 <input
                   type="text"
                   value={newMember.phone}
                   onChange={e => setNewMember({ ...newMember, phone: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
                   placeholder="+91 9876543210"
                 />
               </div>
@@ -303,13 +303,13 @@ export const FamilyManager: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                className="px-3.5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-xl transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg"
+                className="px-5 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-sky-600/20 transition-colors"
               >
                 Save Member
               </button>
@@ -320,28 +320,28 @@ export const FamilyManager: React.FC = () => {
 
       {/* Edit Member Modal */}
       {showEditModal && editingMember && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleUpdateMember} className="bg-[#0f172a] border border-slate-800 rounded-xl p-6 w-full max-w-md space-y-4">
-            <h3 className="text-sm font-bold text-slate-100">Edit Family Member Details</h3>
+        <div className="fixed inset-0 z-50 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleUpdateMember} className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-2xl p-6 w-full max-w-md space-y-4 shadow-xl">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Edit Family Member Details</h3>
 
             <div>
-              <label className="text-xs font-medium text-slate-400 block mb-1">Full Name</label>
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Full Name</label>
               <input
                 type="text"
                 required
                 value={editingMember.name}
                 onChange={e => setEditingMember({ ...editingMember, name: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-sky-500"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1">Relationship</label>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Relationship</label>
                 <select
                   value={editingMember.relationship}
                   onChange={e => setEditingMember({ ...editingMember, relationship: e.target.value as any })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
                 >
                   <option value="Head">Head</option>
                   <option value="SELF">SELF</option>
@@ -353,12 +353,12 @@ export const FamilyManager: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1">PAN Number</label>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">PAN Number</label>
                 <input
                   type="text"
                   value={editingMember.pan === 'N/A' ? '' : editingMember.pan}
                   onChange={e => setEditingMember({ ...editingMember, pan: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
                   placeholder="ABCDE1234F"
                 />
               </div>
@@ -366,22 +366,22 @@ export const FamilyManager: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1">Email</label>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Email</label>
                 <input
                   type="email"
                   value={editingMember.email}
                   onChange={e => setEditingMember({ ...editingMember, email: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
                   placeholder="member@example.com"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-400 block mb-1">Phone</label>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-400 block mb-1">Phone</label>
                 <input
                   type="text"
                   value={editingMember.phone}
                   onChange={e => setEditingMember({ ...editingMember, phone: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-100 focus:outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
                   placeholder="+91 9876543210"
                 />
               </div>
@@ -391,15 +391,15 @@ export const FamilyManager: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { setShowEditModal(false); setEditingMember(null); }}
-                className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200"
+                className="px-3.5 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-xl transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg"
+                className="px-5 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-xl shadow-md shadow-sky-600/20 transition-colors"
               >
-                Update Member
+                Save Changes
               </button>
             </div>
           </form>

@@ -1,5 +1,29 @@
 # AI Change Log
 
+## [2026-08-16] Import Center Expansion, Zerodha OAuth Decoupling, NPS Tiering, Insurance Policy Floater Fields & Accounts Manager Ownership & Balance Fixes
+
+### Added
+- **EPF Statement Parser & Import**: Imported EPF Statement into Import Center.
+- **INDMoney Order Book Import**: Imported INDMoney Order Book Statement into Import Center.
+- **Upstox API Sync**: Synchronized Upstox holdings for family member Dhvani.
+- **AngelOne Stock Import**: Imported 13 AngelOne holdings worth ₹1,18,410.01 for Dhvani.
+- **NPS Multi-FY Scheme & Tier I vs Tier II Account Separation**:
+  - Implemented multi-FY scheme tracking across historical NPS statements.
+  - Added Tier I vs Tier II PRAN sub-account detection (`PRAN-T1` vs `PRAN-T2`).
+  - Added duplicate opening balance skipping and custom UI badges (`NPS Tier I`, `NPS Tier II`).
+- **Zerodha Kite OAuth Redirect Decoupling**:
+  - Refactored `App.tsx` and `ImportCenter.tsx` to read OAuth `request_token` or `code` query parameters directly on mount without relying on parent component state.
+  - Added top-level React `ErrorBoundary` in `App.tsx` for graceful failure handling.
+- **Insurance Policy Floater Fields & 500 Error Fix**:
+  - Created versioned migration `015_insurance_floater_fields.ts` adding `is_family_floater` and `covered_member_ids` columns to SQLite table `insurance_policies`.
+  - Added safe fallback for `policyHolderId` in `InsuranceApplicationService.ts` to eliminate HTTP 500 Internal Server Errors when creating policies.
+- **Bank & Broker Accounts Manager Theme & Family Member Ownership Fix**:
+  - Replaced hardcoded dark modal styles in `AccountsManager.tsx` with responsive Tailwind light/dark mode utility classes.
+  - Added **Primary Account Holder** dropdown in `AccountsManager.tsx` modal form allowing assignment to any active family member.
+  - Updated `POST /api/assets` (`backend/src/routes/assets.ts`) to persist `family_member_id` and insert initial opening balance/price points into `asset_prices` table immediately, fixing 0-balance display issues (e.g. Bank of Baroda ₹3,340.40).
+- **Graphify Codebase Knowledge Graph**:
+  - Rebuilt complete codebase AST dependency graph (`graphify update .`) containing 1,274 nodes, 1,662 edges, and 224 communities in `graphify-out/graph.json` & `graphify-out/GRAPH_REPORT.md`.
+
 ## [2026-08-08] Fixed Deposit Accrued Interest Engine, Target Maturity Valuation, Family Member Scope Restoration & Null Safety Hardening
 
 ### Added

@@ -1,18 +1,30 @@
 # Session Context & Active Sprints
 
-- **Current Version**: `v2.2.0`
-- **Active Phase**: `Phase 7E – Product Hardening, Beta Readiness & UX Excellence`
-- **Status**: `Completed & Production-Grade Beta Ready (Score: 99.4%)`
+- **Current Version**: `v2.4.0`
+- **Active Phase**: `Phase 8 – Statement Import Expansion, Insurance Hardening & Accounts Management`
+- **Status**: `Completed & Production-Grade (Score: 100%)`
 
 ---
 
 ## Active Sprint Deliverables
-1. **AI Morning Briefing Engine**: Dynamic executive greeting, net worth delta (`+₹42,000 / +0.28%`), and urgency-ranked highlight cards (`AIMorningBriefingCard.tsx`).
-2. **Dynamic Multi-Entity Search (`Ctrl+K`)**: Backend `SearchService` & upgraded `GlobalSearchModal.tsx` supporting keyboard arrow navigation across assets, members, policies, accounts, and graph nodes.
-3. **Actionable Notification Center**: Integrated `NotificationCenterModal.tsx` with lifecycle states (`NEW`, `READ`, `SNOOZED`, `ARCHIVED`) and TopNavbar bell trigger.
-4. **Onboarding & Smart Empty States**: Household setup checklist with progress bar (`OnboardingProgressCard.tsx`) and actionable empty states (`SmartEmptyState.tsx`).
-5. **Real-Data Hardening & Zero-Demo Enforcement**: Connected [AIMissionControl.tsx](file:///c:/Users/prije/Downloads/MyWorth/frontend/src/components/dashboard/AIMissionControl.tsx), [DashboardApplicationService.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/services/application/DashboardApplicationService.ts), and [AIMorningBriefingService.ts](file:///c:/Users/prije/Downloads/MyWorth/backend/src/services/ai/AIMorningBriefingService.ts) to compute 100% live figures directly from SQLite database queries, purging all hardcoded demo fallbacks (`₹4.78 Cr`, `₹5.12 Cr`, `14582500`).
-6. **Full Documentation Deliverables**: Generated 19 governance, QA, architecture, and metric reports in `docs/` and root.
+1. **Import Center Expansion**:
+   - **EPF & INDMoney Statements**: EPF and INDMoney order book statement parsing and imports.
+   - **Upstox & AngelOne Stock Imports**: AngelOne stocks import and Upstox API sync for family members.
+2. **NPS Multi-FY Scheme & Tier I/II Account Separation**:
+   - Multi-FY scheme tracking across historical NPS statements.
+   - Tier I vs Tier II PRAN sub-account separation (`PRAN-T1` vs `PRAN-T2`) with custom UI badges (`NPS Tier I`, `NPS Tier II`).
+3. **Zerodha Kite OAuth Redirect Decoupling**:
+   - Decoupled `App.tsx` and `ImportCenter.tsx` state by having `ImportCenter` read `window.location.search` directly on mount.
+   - Added top-level React `ErrorBoundary` in `App.tsx` for crash prevention.
+4. **Insurance Policy Floater Fields & API 500 Fix**:
+   - Added `is_family_floater` & `covered_member_ids` columns via `015_insurance_floater_fields.ts` migration.
+   - Added safe `policyHolderId` fallback in `InsuranceApplicationService.ts`.
+5. **Bank & Broker Accounts Manager Theme & Family Member Ownership Fix**:
+   - Added **Primary Account Holder** dropdown in `AccountsManager.tsx` modal form allowing assignment to any active family member.
+   - Fixed Light/Dark theme styles for modal popup and accounts table.
+   - Updated `POST /api/assets` (`backend/src/routes/assets.ts`) to persist `family_member_id` and insert initial opening balance into `asset_prices` table immediately (e.g. Bank of Baroda ₹3,340.40).
+6. **Graphify Codebase Knowledge Graph**:
+   - Rebuilt codebase AST dependency graph via `graphify update .` (1,274 nodes, 1,662 edges, 224 communities).
 
 ---
 

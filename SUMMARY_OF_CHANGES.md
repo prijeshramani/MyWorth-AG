@@ -140,3 +140,17 @@ This document summarizes all systemic fixes, schema migrations, backend service 
 2. **Build Validation**: Root `npm run build` completed with **0 errors** (tsc backend build succeeded & Vite frontend bundle created).
 3. **Backend Unit Test Suite**: `npm test` in `backend` completed with **215 passing test assertions** (58/58 test files green).
 
+---
+
+## 9. Recent Import Center Expansion, OAuth Decoupling, NPS Tiering & Accounts Management
+- **EPF & INDMoney Statements Import**: Added EPF statement parser and INDMoney order book statement parsing in Import Center.
+- **Upstox API Sync & AngelOne Stocks**: Synchronized Upstox holdings for Dhvani and imported 13 AngelOne stock/ETF holdings (₹1,18,410.01).
+- **NPS Multi-FY Scheme & Tier I/II Support**: Added multi-FY scheme tracking across historical NPS statements and PRAN sub-account separation (`PRAN-T1` vs `PRAN-T2`) with custom UI badges (`NPS Tier I`, `NPS Tier II`).
+- **Zerodha Kite OAuth Redirect Decoupling**: Decoupled `App.tsx` and `ImportCenter.tsx` state by having `ImportCenter` read `window.location.search` directly on mount. Added top-level React `ErrorBoundary` in `App.tsx`.
+- **Insurance Policy Floater Fields & API 500 Fix**: Added `is_family_floater` & `covered_member_ids` columns via `015_insurance_floater_fields.ts` migration and added safe `policyHolderId` fallback in `InsuranceApplicationService.ts`.
+- **Bank & Broker Accounts Manager Theme & Family Member Ownership Fix**:
+  - Added **Primary Account Holder** dropdown in `AccountsManager.tsx` modal form allowing assignment to any active family member.
+  - Replaced hardcoded dark modal styles with responsive Tailwind light/dark mode utility classes.
+  - Updated `POST /api/assets` (`backend/src/routes/assets.ts`) to persist `family_member_id` and insert initial opening balance into `asset_prices` table immediately (e.g. Bank of Baroda ₹3,340.40).
+- **Graphify Codebase Knowledge Graph**: Rebuilt codebase AST dependency graph via `graphify update .` (1,274 nodes, 1,662 edges, 224 communities) in `graphify-out/graph.json` & `graphify-out/GRAPH_REPORT.md`.
+

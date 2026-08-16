@@ -21,6 +21,13 @@
   - Replaced hardcoded dark modal styles in `AccountsManager.tsx` with responsive Tailwind light/dark mode utility classes.
   - Added **Primary Account Holder** dropdown in `AccountsManager.tsx` modal form allowing assignment to any active family member.
   - Updated `POST /api/assets` (`backend/src/routes/assets.ts`) to persist `family_member_id` and insert initial opening balance/price points into `asset_prices` table immediately, fixing 0-balance display issues (e.g. Bank of Baroda ₹3,340.40).
+- **AI Insights & Intelligent Recommendations Engine Overhaul**:
+  - Refactored `RecommendationOrchestrator.ts` and `RecommendationEngineService.ts` to purge static hardcoded mock values (`₹1.0 Cr` cover, `₹75,000` 80C gap, `₹1.5 Cr` estate).
+  - Connected term life insurance rule (`PROTECTION_TERM_UNDERINSURED`) to execute real-time SQLite queries against `insurance_policies` (`SUM(sum_assured)`). Correctly calculates user's actual **₹3.01 Cr** term cover against HLV target (**₹2.50 Cr**) and outputs `Term Life Insurance Target Achieved` confirmation card.
+  - Connected Section 80C rule to calculate actual household 80C allocations (**₹21,58,503**) and outputs `Section 80C Limit Fully Maximized`.
+  - Connected Estate Will rule to format actual net estate valuation (**₹0.57 Cr**).
+  - **Accept/Dismiss Action Persistence**: Updated `saveRecommendation` in `SQLiteRecommendationRepository.ts` to check if a recommendation has been `ACCEPTED` or `DISMISSED` by the user, preventing accepted cards from resurrecting back as active on refetch.
+  - **Accurate Metric KPI Cards**: Replaced fallback `|| 1` and `|| 16500000` in `RecommendationsDashboard.tsx` with nullish coalescing (`?? 0`), resolving misleading "1 Critical Action Items" and fake impact totals when 0 open risks exist.
 - **Graphify Codebase Knowledge Graph**:
   - Rebuilt complete codebase AST dependency graph (`graphify update .`) containing 1,274 nodes, 1,662 edges, and 224 communities in `graphify-out/graph.json` & `graphify-out/GRAPH_REPORT.md`.
 

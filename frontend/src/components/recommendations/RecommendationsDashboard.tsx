@@ -125,7 +125,7 @@ export const RecommendationsDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <MetricCard
           title="Total Financial Impact (₹)"
-          value={`₹${(dashData?.totalOpenImpactAmount || 16500000).toLocaleString('en-IN')}`}
+          value={`₹${(dashData?.totalOpenImpactAmount ?? 0).toLocaleString('en-IN')}`}
           subtext="Potential Wealth Improvement & Tax Savings"
           changePercent={18.5}
           trend="UP"
@@ -134,7 +134,7 @@ export const RecommendationsDashboard: React.FC = () => {
 
         <MetricCard
           title="Critical Open Risks"
-          value={`${dashData?.criticalCount || 1} Critical Action Items`}
+          value={`${dashData?.criticalCount ?? 0} Critical Action Items`}
           subtext="Requires Immediate Attention"
           changePercent={-25.0}
           trend="DOWN"

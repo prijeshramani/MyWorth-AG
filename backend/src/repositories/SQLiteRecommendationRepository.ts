@@ -63,6 +63,14 @@ export class SQLiteRecommendationRepository {
   }
 
   public saveRecommendation(rec: Omit<RecommendationRecord, 'id' | 'created_at'>): RecommendationRecord {
+    const userDecision = this.db.prepare(
+      "SELECT * FROM recommendations WHERE family_id = ? AND rule_code = ? AND status IN ('ACCEPTED', 'DISMISSED', 'COMPLETED') ORDER BY id DESC LIMIT 1"
+    ).get(rec.family_id, rec.rule_code) as RecommendationRecord | undefined;
+
+    if (userDecision) {
+      return userDecision;
+    }
+
     const existing = this.db.prepare(
       "SELECT * FROM recommendations WHERE family_id = ? AND rule_code = ? AND status = 'ACTIVE' ORDER BY id DESC LIMIT 1"
     ).get(rec.family_id, rec.rule_code) as RecommendationRecord | undefined;

@@ -1,3 +1,4 @@
+import { db } from '../db';
 import { SQLiteRecommendationRepository, RecommendationRecord, RecommendationJourneyRecord } from '../repositories/SQLiteRecommendationRepository';
 import { RecommendationOrchestrator } from './RecommendationOrchestrator';
 
@@ -17,11 +18,10 @@ export class RecommendationEngineService {
   ) {}
 
   public getDashboardInsights(familyId: number): DashboardInsightsDTO {
-    let activeRecs = this.recRepo.getRecommendations(familyId, 'ACTIVE');
+    // Evaluate active rules against live data
+    this.orchestrator.evaluateAndGenerateAll(familyId);
 
-    if (activeRecs.length === 0) {
-      activeRecs = this.orchestrator.evaluateAndGenerateAll(familyId);
-    }
+    const activeRecs = this.recRepo.getRecommendations(familyId, 'ACTIVE');
 
     let journeys = this.recRepo.getJourneys(familyId);
     if (journeys.length === 0) {
@@ -62,6 +62,7 @@ export class RecommendationEngineService {
   }
 
   public refreshRecommendations(familyId: number): RecommendationRecord[] {
+    db.prepare("DELETE FROM recommendations WHERE family_id = ?").run(familyId);
     return this.orchestrator.evaluateAndGenerateAll(familyId);
   }
 

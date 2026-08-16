@@ -39,7 +39,7 @@ router.get('/', (req: Request, res: Response, next) => {
           institutionName: a.institution_name || a.account_name || 'Bank/Broker',
           accountNumber: a.account_number || a.masked_account_number || 'N/A',
           accountType: (a.account_type === 'BANK' ? 'SAVINGS' : a.account_type) || 'SAVINGS',
-          holderName: a.holderName || 'Primary Member',
+          holderName: a.holderName || 'Unassigned',
           balance: a.balance || 0,
           syncStatus: 'CONNECTED'
         })),
@@ -48,7 +48,7 @@ router.get('/', (req: Request, res: Response, next) => {
           institutionName: a.institutionName,
           accountNumber: a.accountNumber || 'N/A',
           accountType: a.accountType === 'BANK_ACCOUNT' ? 'SAVINGS' : a.accountType,
-          holderName: a.holderName || 'Primary Member',
+          holderName: a.holderName || 'Unassigned',
           balance: a.balance || 0,
           syncStatus: 'CONNECTED'
         }))

@@ -235,8 +235,19 @@ router.post('/', (req: Request, res: Response, next) => {
     }
 
     const createdAsset = assetRepository.create({ name, type, category, identifier });
-    if (metaStr && createdAsset?.id) {
-      db.prepare('UPDATE assets SET metadata = ? WHERE id = ?').run(metaStr, createdAsset.id);
+    if (createdAsset?.id) {
+      const memberId = req.body.familyMemberId || req.body.family_member_id || null;
+      if (memberId) {
+        db.prepare('UPDATE assets SET family_member_id = ? WHERE id = ?').run(memberId, createdAsset.id);
+      }
+      if (metaStr) {
+        db.prepare('UPDATE assets SET metadata = ? WHERE id = ?').run(metaStr, createdAsset.id);
+      }
+      const initialVal = req.body.currentValue !== undefined ? Number(req.body.currentValue) : (req.body.balance !== undefined ? Number(req.body.balance) : null);
+      if (initialVal !== null && !isNaN(initialVal)) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        db.prepare('INSERT OR REPLACE INTO asset_prices (asset_id, date, price) VALUES (?, ?, ?)').run(createdAsset.id, todayStr, initialVal);
+      }
     }
     res.status(201).json({ ...createdAsset, metadata: metaStr });
   } catch (error) {

@@ -24,6 +24,8 @@ export const migration004: Migration = {
         nominee_relationship TEXT,
         document_id TEXT,
         notes TEXT,
+        is_family_floater INTEGER DEFAULT 0,
+        covered_member_ids TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
         deleted_at TEXT DEFAULT NULL,

@@ -119,6 +119,7 @@ export default function ImportCenter({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const indMoneyFileInputRef = useRef<HTMLInputElement>(null);
+  const processedTokensRef = useRef<Set<string>>(new Set());
 
   const fetchBankInsightsConfig = async () => {
     try {
@@ -216,23 +217,20 @@ export default function ImportCenter({
     const urlKiteToken = urlParams.get('request_token');
     const urlUpstoxCode = urlParams.get('code');
 
-    const effectiveKiteToken = initialKiteRequestToken || urlKiteToken;
-    const effectiveUpstoxCode = initialUpstoxCode || urlUpstoxCode;
-
-    if (effectiveKiteToken) {
-      console.log('Automated Zerodha redirect exchange active. request_token found:', effectiveKiteToken);
+    if (urlKiteToken && !processedTokensRef.current.has(urlKiteToken)) {
+      processedTokensRef.current.add(urlKiteToken);
+      console.log('Automated Zerodha redirect exchange active. request_token found:', urlKiteToken);
+      window.history.replaceState({}, document.title, window.location.pathname);
       setImportMethod('kite');
-      handleKiteTokenExchange(effectiveKiteToken);
-      if (clearKiteRequestToken) clearKiteRequestToken();
+      handleKiteTokenExchange(urlKiteToken);
+    } else if (urlUpstoxCode && !processedTokensRef.current.has(urlUpstoxCode)) {
+      processedTokensRef.current.add(urlUpstoxCode);
+      console.log('Automated Upstox redirect exchange active. code found:', urlUpstoxCode);
       window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (effectiveUpstoxCode) {
-      console.log('Automated Upstox redirect exchange active. code found:', effectiveUpstoxCode);
       setImportMethod('upstox');
-      handleUpstoxCodeExchange(effectiveUpstoxCode);
-      if (clearUpstoxCode) clearUpstoxCode();
-      window.history.replaceState({}, document.title, window.location.pathname);
+      handleUpstoxCodeExchange(urlUpstoxCode);
     }
-  }, [initialKiteRequestToken, initialUpstoxCode]);
+  }, []);
 
   const fetchEpfAsset = async () => {
     try {

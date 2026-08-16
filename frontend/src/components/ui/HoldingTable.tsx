@@ -100,8 +100,26 @@ export const ASSET_TYPE_BADGES: Record<string, { label: string; bgClass: string 
   }
 };
 
-export const renderAssetTypeBadge = (rawType: string) => {
+export const renderAssetTypeBadge = (rawType: string, assetName?: string) => {
   const typeKey = (rawType || 'OTHER').toUpperCase();
+  
+  if (typeKey === 'NPS' && assetName) {
+    if (/Tier\s*II|Tier\s*2/i.test(assetName)) {
+      return (
+        <span className="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-orange-500/15 text-orange-600 border-orange-500/30 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30">
+          NPS Tier II
+        </span>
+      );
+    }
+    if (/Tier\s*I|Tier\s*1/i.test(assetName)) {
+      return (
+        <span className="inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-amber-500/15 text-amber-600 border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30">
+          NPS Tier I
+        </span>
+      );
+    }
+  }
+
   const badgeConfig = ASSET_TYPE_BADGES[typeKey] || {
     label: typeKey.replace('_', ' '),
     bgClass: 'bg-slate-500/15 text-slate-600 border-slate-500/30 dark:bg-slate-500/20 dark:text-slate-300 dark:border-slate-500/30'
@@ -279,7 +297,7 @@ export const HoldingTable: React.FC<HoldingTableProps> = ({
                         )}
                       </td>
                       <td className="py-3.5 px-4">
-                        {renderAssetTypeBadge(row.assetType)}
+                        {renderAssetTypeBadge(row.assetType, row.assetName)}
                       </td>
                       <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
                         {familyMembers.length > 0 && onReassignOwner ? (

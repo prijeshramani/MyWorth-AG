@@ -139,10 +139,10 @@ router.post('/confirm', (req: Request, res: Response) => {
         if (!assetId) {
           let existing = null;
           if (tx.identifier) {
-            existing = db.prepare('SELECT id FROM assets WHERE identifier = ?').get(tx.identifier) as { id: number } | undefined;
+            existing = db.prepare('SELECT id FROM assets WHERE identifier = ? AND LOWER(name) = LOWER(?) AND type = ?').get(tx.identifier, tx.assetName, tx.assetType || 'STOCK') as { id: number } | undefined;
           }
           if (!existing) {
-            existing = db.prepare('SELECT id FROM assets WHERE LOWER(name) = LOWER(?)').get(tx.assetName) as { id: number } | undefined;
+            existing = db.prepare('SELECT id FROM assets WHERE LOWER(name) = LOWER(?) AND type = ?').get(tx.assetName, tx.assetType || 'STOCK') as { id: number } | undefined;
           }
 
           if (existing) {
@@ -169,7 +169,22 @@ router.post('/confirm', (req: Request, res: Response) => {
           VALUES (?, ?, ?)
         `).run(assetId, tx.date, marketPriceToSave);
 
-        // 3. Check for duplicate transaction (exact date match or holdings position match)
+        // 3. Skip opening balance transactions if prior transactions already exist for this asset
+        if (tx.isOpeningBalance) {
+          const priorTx = db.prepare(`
+            SELECT id FROM transactions 
+            WHERE asset_id = ? AND date < ? 
+            LIMIT 1
+          `).get(assetId, tx.date);
+
+          if (priorTx) {
+            console.log(`Skipping opening balance transaction on ${tx.date} for asset #${assetId} (${tx.assetName}) as prior transactions exist.`);
+            duplicatesSkipped++;
+            continue;
+          }
+        }
+
+        // 4. Check for duplicate transaction (exact date match or holdings position match)
         const duplicate = transactionRepository.findDuplicate(
           assetId,
           tx.type || 'BUY',

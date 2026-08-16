@@ -59,22 +59,44 @@ function parseCsvDate(dateStr: string): string {
   return new Date().toISOString().split('T')[0];
 }
 
-function cleanNpsSchemeName(rawName: string): string {
+function cleanNpsSchemeName(rawName: string, defaultTier: string = 'Tier I'): string {
   let name = rawName.trim();
   
-  // Remove "NPS TRUST- A/C " or similar prefixes
-  name = name.replace(/^NPS TRUST-\s*A\/C\s+/i, '');
+  // Determine Tier from name or defaultTier
+  let tier = defaultTier;
+  if (/TIER\s*II\b|TIER\s*2\b/i.test(name)) {
+    tier = 'Tier II';
+  } else if (/TIER\s*I\b|TIER\s*1\b/i.test(name)) {
+    tier = 'Tier I';
+  }
   
-  // Remove " PENSION FUND MANAGEMENT LIMITED" or similar long suffixes
-  name = name.replace(/\s+PENSION\s+FUND\s+MANAGEMENT\s+LIMITED/i, ' Pension Fund');
-  name = name.replace(/\s+PENSION\s+FUND\s+MANAGEMENT\s+CO\s+LTD/i, ' Pension Fund');
+  // Remove "NPS TRUST- A/C " or "NPS TRUST A/C - " or similar prefixes
+  name = name.replace(/^NPS\s+TRUST-?\s*(?:A\/C)?\s*-?\s*/i, '');
   
-  // Clean "SCHEME E - TIER I POP" -> "Scheme E"
-  name = name.replace(/\s+-\s+TIER\s+I\s+POP/i, '');
-  name = name.replace(/\s+TIER\s+I\s+POP/i, '');
+  // Clean PFM company suffixes
+  name = name.replace(/\s+PENSION\s+FUND\s+MANAGEMENT\s+(?:LIMITED|CO\s+LTD|COMPANY\s+LIMITED)/i, ' Pension Fund');
+  name = name.replace(/\s+PENSION\s+FUND\s+MANAGEMENT/i, ' Pension Fund');
+  
+  // Remove TIER II POP / TIER I POP / TIER II / TIER I from core name (put II before I in regex!)
+  name = name.replace(/\s+-\s+TIER\s+(?:II|I|2|1)\s*(?:POP)?/i, '');
+  name = name.replace(/\s+TIER\s+(?:II|I|2|1)\s*(?:POP)?/i, '');
   name = name.replace(/\s+SCHEME\s+([A-Z])\b/i, ' Scheme $1');
+
+  // Title case words if all caps
+  if (name === name.toUpperCase()) {
+    name = name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    name = name.replace(/\bNps\b/g, 'NPS').replace(/\bPf\b/g, 'PF').replace(/\bHdfc\b/g, 'HDFC').replace(/\bIcici\b/g, 'ICICI').replace(/\bSbi\b/g, 'SBI').replace(/\bLic\b/g, 'LIC');
+  }
+
+  // Normalize spaces
+  name = name.replace(/\s+/g, ' ').trim();
+
+  // Append Tier in parentheses if not present
+  if (!name.toLowerCase().includes('tier')) {
+    name = `${name} (${tier})`;
+  }
   
-  return name.trim();
+  return name;
 }
 
 function isSchemeHeaderLine(line: string): boolean {
@@ -91,6 +113,12 @@ export function parseNpsCsvStatement(csvBuffer: Buffer): { statementType: string
   
   if (lines.length === 0) {
     throw new Error('NPS CSV statement file is empty.');
+  }
+
+  // Determine Tier from top line header
+  let defaultTier = 'Tier I';
+  if (/Tier\s*II\b|Tier\s*2\b/i.test(lines[0])) {
+    defaultTier = 'Tier II';
   }
 
   // 1. Extract Subscriber PRAN
@@ -110,7 +138,7 @@ export function parseNpsCsvStatement(csvBuffer: Buffer): { statementType: string
       if (parts.length >= 4) {
         const rawName = parts[0]?.trim();
         if (rawName && (rawName.toUpperCase().includes('NPS TRUST') || rawName.toUpperCase().includes('SCHEME'))) {
-          const cleanName = cleanNpsSchemeName(rawName);
+          const cleanName = cleanNpsSchemeName(rawName, defaultTier);
           const nav = parseFloat(parts[3]?.replace(/,/g, '') || '');
           const units = parseFloat(parts[2]?.replace(/,/g, '') || '');
           if (cleanName && !isNaN(nav)) {
@@ -144,7 +172,7 @@ export function parseNpsCsvStatement(csvBuffer: Buffer): { statementType: string
     
     if (isSchemeHeaderLine(line)) {
       const rawName = line;
-      const cleanName = cleanNpsSchemeName(rawName);
+      const cleanName = cleanNpsSchemeName(rawName, defaultTier);
       currentBlock = {
         rawSchemeName: rawName,
         cleanSchemeName: cleanName,
@@ -353,17 +381,30 @@ export function parseNpsCsvStatement(csvBuffer: Buffer): { statementType: string
       if (descUpper.includes('REDEMPTION') || descUpper.includes('SELL') || descUpper.includes('WITHDRAWAL') || quantity < 0) {
         txType = 'SELL';
       }
+
+      // Determine category (Scheme E -> Equity, Scheme C / Scheme G / Surakshit Income -> Debt, else Hybrid)
+      let category: ParsedTransaction['category'] = 'Hybrid';
+      const nameUpper = block.cleanSchemeName.toUpperCase();
+      if (nameUpper.includes('SCHEME E')) {
+        category = 'Equity';
+      } else if (nameUpper.includes('SCHEME C') || nameUpper.includes('SCHEME G') || nameUpper.includes('SURAKSHIT')) {
+        category = 'Debt';
+      }
+      
+      const tierTag = block.cleanSchemeName.includes('Tier II') ? 'T2' : 'T1';
+      const fullIdentifier = `${pran}-${tierTag}`;
       
       transactions.push({
         assetName: block.cleanSchemeName,
         assetType: 'NPS',
-        category: 'Hybrid',
-        identifier: pran,
+        category,
+        identifier: fullIdentifier,
         type: txType,
         date,
         quantity: Math.abs(quantity),
         price,
-        amount: Math.abs(amount)
+        amount: Math.abs(amount),
+        isOpeningBalance: isOpening
       });
     }
   }

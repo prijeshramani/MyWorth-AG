@@ -141,13 +141,15 @@ export class InsuranceApplicationService {
 
   public createPolicy(policyData: any) {
     const isFamilyFloater = policyData.isFamilyFloater === true || policyData.policyType === 'FAMILY_HEALTH_INSURANCE';
+    const rawHolderId = Number(policyData.policyHolderId);
+    const policyHolderId = (!isNaN(rawHolderId) && rawHolderId > 0) ? rawHolderId : 1;
 
     return this.insuranceRepo.create({
       family_id: policyData.familyId || 1,
       policy_number: policyData.policyNumber,
       insurer_name: policyData.insurerName,
       policy_type: policyData.policyType,
-      policy_holder_id: policyData.policyHolderId || 1,
+      policy_holder_id: policyHolderId,
       sum_assured: Number(policyData.sumAssured || 0),
       premium_amount: Number(policyData.premiumAmount || 0),
       premium_frequency: policyData.premiumFrequency || 'ANNUAL',

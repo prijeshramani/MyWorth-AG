@@ -52,6 +52,7 @@ export interface ParsedTransaction {
   statementType?: string;
   source?: string;
   isHoldings?: boolean;
+  isOpeningBalance?: boolean;
   narration?: string;
 }
 

@@ -1,12 +1,12 @@
-# Graph Report - C:\Users\prije\Downloads\MyWorth  (2026-08-16)
+# Graph Report - C:\Users\prije\Downloads\MyWorth  (2026-08-17)
 
 ## Corpus Check
-- 370 files · ~347,773 words
+- 370 files · ~348,473 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1274 nodes · 1663 edges · 223 communities detected
-- Extraction: 63% EXTRACTED · 37% INFERRED · 0% AMBIGUOUS · INFERRED: 614 edges (avg confidence: 0.8)
+- 1274 nodes · 1664 edges · 223 communities detected
+- Extraction: 63% EXTRACTED · 37% INFERRED · 0% AMBIGUOUS · INFERRED: 615 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
@@ -265,200 +265,200 @@ Cohesion: 0.02
 Nodes (31): AccountService, AIContextService, AIMorningBriefingService, AISafetyService, AssetMasterService, authenticateMiddleware(), CapitalGainTaxEngine, DashboardController (+23 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.02
-Nodes (28): AIContextAggregator, fetchBriefing(), getBankInsightsPath(), syncBankInsightsTransactions(), CapitalGainsCalculator, fetchDashboardAndCashflow(), DashboardApplicationService, calculateFixedDepositValuation() (+20 more)
+Cohesion: 0.03
+Nodes (21): fetchBriefing(), getBankInsightsPath(), syncBankInsightsTransactions(), fetchDashboardAndCashflow(), fetchSearch(), handleKeyDown(), handleSelect(), fetchHoldings() (+13 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.03
-Nodes (43): fetchFamilyMembers(), handleAddAccount(), handleDelete(), loadAccounts(), fetchActionData(), handleExecuteAction(), handleUndoAction(), fetchDashboardData() (+35 more)
+Nodes (42): fetchFamilyMembers(), handleAddAccount(), loadAccounts(), fetchActionData(), handleExecuteAction(), handleUndoAction(), fetchDashboardData(), handleRefreshData() (+34 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.04
-Nodes (23): BondValuationStrategy, CalculationManifestHelper, CryptoValuationStrategy, CurrencyPrecision, EquityValuationStrategy, ETFValuationStrategy, FinancialMath, calculateElapsedYears() (+15 more)
+Nodes (47): authenticateAngelOne(), base32tohex(), generateTOTP(), syncAngelOneHoldings(), initDb(), createBackup(), resetDb(), seedDemo() (+39 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.04
-Nodes (49): cleanNpsSchemeName(), isSchemeHeaderLine(), parseCsvDate(), parseCsvStatement(), parseIndMoneyUsStocksCsvStatement(), parseNpsCsvStatement(), splitCsvLine(), initDb() (+41 more)
+Nodes (23): BondValuationStrategy, CalculationManifestHelper, CryptoValuationStrategy, CurrencyPrecision, EquityValuationStrategy, ETFValuationStrategy, FinancialMath, calculateElapsedYears() (+15 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.04
-Nodes (11): createApp(), CircuitBreaker, ManualProvider, MockProvider, ProviderCache, ProviderHealthService, ProviderIdentifierMapper, rateLimiterMiddleware() (+3 more)
+Cohesion: 0.05
+Nodes (9): handleDelete(), createApp(), AssetTypeValuationRegistry, EngineRegistry, HealthController, ProviderCache, rateLimiterMiddleware(), resetRateLimiterStore() (+1 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.06
-Nodes (7): AIActionRegistry, AIAdvisorService, AISkillRegistry, FeatureRegistry, fontRollback(), GeminiLLMService, PlatformRegistry
+Nodes (6): CircuitBreaker, ManualProvider, MockProvider, ProviderHealthService, ProviderIdentifierMapper, YahooFinanceProvider
 
 ### Community 7 - "Community 7"
-Cohesion: 0.06
-Nodes (7): CashflowProjectionService, GoalPlanningService, handleCreateGoal(), PlanningRecommendationService, ProjectionEngineService, RetirementPlanningService, SQLiteGoalRepository
-
-### Community 8 - "Community 8"
 Cohesion: 0.07
 Nodes (5): RecommendationEngineService, RecommendationOrchestrator, handleOpenExplainability(), SQLiteRecommendationRepository, SQLiteRecommendationRuleRepository
 
+### Community 8 - "Community 8"
+Cohesion: 0.07
+Nodes (9): AIAdvisorService, AIContextAggregator, AISkillRegistry, CapitalGainsCalculator, DashboardApplicationService, calculateFixedDepositValuation(), extractFdMetadata(), GeminiLLMService (+1 more)
+
 ### Community 9 - "Community 9"
-Cohesion: 0.1
-Nodes (17): authenticateIndMoneyApiTrading(), base32tohex(), dec2hex(), fetchIndMoneyHoldings(), generateIndMoneyTOTP(), getIndMoneyCredentials(), saveIndMoneyAccessToken(), syncIndMoneyHoldings() (+9 more)
+Cohesion: 0.06
+Nodes (7): CashflowProjectionService, GoalPlanningService, handleCreateGoal(), PlanningRecommendationService, ProjectionEngineService, RetirementPlanningService, SQLiteGoalRepository
 
 ### Community 10 - "Community 10"
 Cohesion: 0.09
-Nodes (7): InsuranceApplicationService, InsuranceRepository, blankForm(), closeModal(), handleDeletePolicy(), handleSubmit(), openAddModal()
+Nodes (18): authenticateIndMoneyApiTrading(), base32tohex(), dec2hex(), fetchIndMoneyHoldings(), generateIndMoneyTOTP(), getIndMoneyCredentials(), saveIndMoneyAccessToken(), syncIndMoneyHoldings() (+10 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.14
-Nodes (3): GraphQueryService, RelationshipService, SQLiteKnowledgeGraphRepository
+Cohesion: 0.09
+Nodes (7): InsuranceApplicationService, InsuranceRepository, blankForm(), closeModal(), handleDeletePolicy(), handleSubmit(), openAddModal()
 
 ### Community 12 - "Community 12"
 Cohesion: 0.1
-Nodes (4): AIMemoryService, EvidenceService, PromptBuilderService, SQLiteAIContextRepository
+Nodes (4): AIActionRegistry, FeatureRegistry, fontRollback(), PlatformRegistry
 
 ### Community 13 - "Community 13"
-Cohesion: 0.13
-Nodes (4): AuthenticationService, JwtService, handleSubmit(), SQLiteUserRepository
+Cohesion: 0.14
+Nodes (3): GraphQueryService, RelationshipService, SQLiteKnowledgeGraphRepository
 
 ### Community 14 - "Community 14"
-Cohesion: 0.14
-Nodes (3): handleCreateWill(), EstateHealthService, SQLiteEstateRepository
+Cohesion: 0.1
+Nodes (4): AIMemoryService, EvidenceService, PromptBuilderService, SQLiteAIContextRepository
 
 ### Community 15 - "Community 15"
 Cohesion: 0.13
-Nodes (7): AuthenticationError, DataIntegrityError, InvalidSymbolError, NetworkError, ProviderError, ProviderUnavailableError, RateLimitError
+Nodes (4): AuthenticationService, JwtService, handleSubmit(), SQLiteUserRepository
 
 ### Community 16 - "Community 16"
+Cohesion: 0.14
+Nodes (3): handleCreateWill(), EstateHealthService, SQLiteEstateRepository
+
+### Community 17 - "Community 17"
 Cohesion: 0.2
 Nodes (5): BackupService, fetchData(), handleCreateBackup(), handleRestoreLast(), SystemHealthService
 
-### Community 17 - "Community 17"
-Cohesion: 0.14
-Nodes (2): EngineRegistry, HealthController
-
 ### Community 18 - "Community 18"
+Cohesion: 0.13
+Nodes (7): AuthenticationError, DataIntegrityError, InvalidSymbolError, NetworkError, ProviderError, ProviderUnavailableError, RateLimitError
+
+### Community 19 - "Community 19"
 Cohesion: 0.18
 Nodes (5): AppError, DatabaseError, FinancialComputationError, NotFoundError, ValidationError
 
-### Community 19 - "Community 19"
-Cohesion: 0.22
-Nodes (1): AssetTypeValuationRegistry
-
 ### Community 20 - "Community 20"
-Cohesion: 0.29
-Nodes (5): authenticateAngelOne(), base32tohex(), generateTOTP(), syncAngelOneHoldings(), testAngelOneIntegration()
-
-### Community 21 - "Community 21"
 Cohesion: 0.22
 Nodes (4): FinancialEngineError, InvalidSequenceError, OversellError, UnresolvedHoldingError
 
-### Community 22 - "Community 22"
+### Community 21 - "Community 21"
 Cohesion: 0.33
 Nodes (2): generateMaskedAccountNumber(), SQLiteAccountRepository
 
-### Community 23 - "Community 23"
+### Community 22 - "Community 22"
 Cohesion: 0.32
 Nodes (1): SQLiteFamilyMemberRepository
+
+### Community 23 - "Community 23"
+Cohesion: 0.32
+Nodes (1): SQLiteFamilyRepository
 
 ### Community 24 - "Community 24"
 Cohesion: 0.32
 Nodes (1): SQLiteEntityRepository
 
 ### Community 25 - "Community 25"
+Cohesion: 0.54
+Nodes (7): cleanNpsSchemeName(), isSchemeHeaderLine(), parseCsvDate(), parseCsvStatement(), parseIndMoneyUsStocksCsvStatement(), parseNpsCsvStatement(), splitCsvLine()
+
+### Community 26 - "Community 26"
 Cohesion: 0.25
 Nodes (1): ErrorBoundary
 
-### Community 26 - "Community 26"
+### Community 27 - "Community 27"
 Cohesion: 0.38
 Nodes (1): BenchmarkFramework
 
-### Community 27 - "Community 27"
+### Community 28 - "Community 28"
 Cohesion: 0.33
 Nodes (1): ObservabilityPlatform
 
-### Community 28 - "Community 28"
+### Community 29 - "Community 29"
 Cohesion: 0.4
 Nodes (1): SQLiteSimulationSnapshotRepository
 
-### Community 29 - "Community 29"
+### Community 30 - "Community 30"
 Cohesion: 0.6
 Nodes (1): DTOMapper
 
-### Community 30 - "Community 30"
+### Community 31 - "Community 31"
 Cohesion: 0.5
 Nodes (1): WhatIfSimulationEngine
 
-### Community 31 - "Community 31"
+### Community 32 - "Community 32"
 Cohesion: 0.4
 Nodes (0): 
 
-### Community 32 - "Community 32"
+### Community 33 - "Community 33"
 Cohesion: 0.5
 Nodes (1): SwaggerController
 
-### Community 33 - "Community 33"
+### Community 34 - "Community 34"
 Cohesion: 0.5
 Nodes (0): 
 
-### Community 34 - "Community 34"
+### Community 35 - "Community 35"
 Cohesion: 0.5
 Nodes (2): useTheme(), TopNavbar()
 
-### Community 35 - "Community 35"
+### Community 36 - "Community 36"
 Cohesion: 0.67
 Nodes (1): AIContextController
 
-### Community 36 - "Community 36"
+### Community 37 - "Community 37"
 Cohesion: 0.67
 Nodes (1): AuthenticationController
 
-### Community 37 - "Community 37"
+### Community 38 - "Community 38"
 Cohesion: 0.67
 Nodes (1): DXController
 
-### Community 38 - "Community 38"
+### Community 39 - "Community 39"
 Cohesion: 0.67
 Nodes (1): EstateController
 
-### Community 39 - "Community 39"
+### Community 40 - "Community 40"
 Cohesion: 0.67
 Nodes (1): GraphController
 
-### Community 40 - "Community 40"
+### Community 41 - "Community 41"
 Cohesion: 0.67
 Nodes (1): InsuranceController
 
-### Community 41 - "Community 41"
+### Community 42 - "Community 42"
 Cohesion: 0.67
 Nodes (1): PlanningController
 
-### Community 42 - "Community 42"
+### Community 43 - "Community 43"
 Cohesion: 0.67
 Nodes (1): RecommendationController
 
-### Community 43 - "Community 43"
+### Community 44 - "Community 44"
 Cohesion: 0.67
 Nodes (1): ReportingController
 
-### Community 44 - "Community 44"
+### Community 45 - "Community 45"
 Cohesion: 0.67
 Nodes (1): TaxController
 
-### Community 45 - "Community 45"
+### Community 46 - "Community 46"
 Cohesion: 0.67
 Nodes (0): 
 
-### Community 46 - "Community 46"
+### Community 47 - "Community 47"
 Cohesion: 0.67
 Nodes (1): Form16Parser
 
-### Community 47 - "Community 47"
+### Community 48 - "Community 48"
 Cohesion: 0.67
 Nodes (1): ITRSchemaBuilder
 
-### Community 48 - "Community 48"
-Cohesion: 0.67
-Nodes (1): NotificationService
-
 ### Community 49 - "Community 49"
 Cohesion: 0.67
-Nodes (1): SearchService
+Nodes (1): NotificationService
 
 ### Community 50 - "Community 50"
 Cohesion: 0.67
@@ -1493,17 +1493,17 @@ Nodes (0):
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `runTestSuite()` connect `Community 0` to `Community 1`, `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 7`, `Community 8`, `Community 11`, `Community 12`, `Community 13`, `Community 14`, `Community 16`, `Community 17`?**
-  _High betweenness centrality (0.227) - this node is a cross-community bridge._
-- **Why does `syncMutualFunds()` connect `Community 4` to `Community 1`, `Community 2`, `Community 5`?**
+- **Why does `runTestSuite()` connect `Community 0` to `Community 1`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 17`?**
+  _High betweenness centrality (0.261) - this node is a cross-community bridge._
+- **Why does `SQLiteTaxRepository` connect `Community 0` to `Community 7`?**
   _High betweenness centrality (0.020) - this node is a cross-community bridge._
+- **Why does `SQLiteTransactionRepository` connect `Community 1` to `Community 0`, `Community 8`, `Community 5`?**
+  _High betweenness centrality (0.018) - this node is a cross-community bridge._
 - **Are the 84 inferred relationships involving `runTestSuite()` (e.g. with `initDb()` and `.log()`) actually correct?**
   _`runTestSuite()` has 84 INFERRED edges - model-reasoned connections that need verification._
 - **Should `Community 0` be split into smaller, more focused modules?**
   _Cohesion score 0.02 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.02 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.03 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**
   _Cohesion score 0.03 - nodes in this community are weakly interconnected._
-- **Should `Community 3` be split into smaller, more focused modules?**
-  _Cohesion score 0.04 - nodes in this community are weakly interconnected._

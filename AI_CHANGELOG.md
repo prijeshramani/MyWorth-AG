@@ -17,6 +17,14 @@
 - **Insurance Policy Floater Fields & 500 Error Fix**:
   - Created versioned migration `015_insurance_floater_fields.ts` adding `is_family_floater` and `covered_member_ids` columns to SQLite table `insurance_policies`.
   - Added safe fallback for `policyHolderId` in `InsuranceApplicationService.ts` to eliminate HTTP 500 Internal Server Errors when creating policies.
+- **Global Search API SQL Schema & Null-Safety Fix**:
+  - Resolved `500 Internal Server Error` on `GET /api/v1/search/query`.
+  - Updated SQL queries in [`SearchService.ts`](file:///c:/Users/prije/Downloads/MyWorth/backend/src/services/SearchService.ts) to match the actual SQLite database schema:
+    - Fixed `assets` query to join with `family_members` via `family_member_id` and query real-time valuation via `asset_prices`.
+    - Fixed `family_members` column name (`pan` instead of non-existent `pan_number`).
+    - Fixed `insurance_policies` primary key (`id` instead of `policy_id`).
+    - Added search support for `financial_goals`.
+    - Wrapped each entity query in dedicated try-catch blocks with graceful fallbacks.
 - **Bank & Broker Accounts Manager Theme & Family Member Ownership Fix**:
   - Replaced hardcoded dark modal styles in `AccountsManager.tsx` with responsive Tailwind light/dark mode utility classes.
   - Added **Primary Account Holder** dropdown in `AccountsManager.tsx` modal form allowing assignment to any active family member.

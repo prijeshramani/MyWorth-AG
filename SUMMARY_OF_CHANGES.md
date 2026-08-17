@@ -154,3 +154,19 @@ This document summarizes all systemic fixes, schema migrations, backend service 
   - Updated `POST /api/assets` (`backend/src/routes/assets.ts`) to persist `family_member_id` and insert initial opening balance into `asset_prices` table immediately (e.g. Bank of Baroda ₹3,340.40).
 - **Graphify Codebase Knowledge Graph**: Rebuilt codebase AST dependency graph via `graphify update .` (1,274 nodes, 1,662 edges, 224 communities) in `graphify-out/graph.json` & `graphify-out/GRAPH_REPORT.md`.
 
+---
+
+## 10. AI Insights Dynamic Real-Data Integration & Global Search Hardening
+- **AI Insights & Intelligent Recommendations Engine Overhaul**:
+  - Replaced hardcoded static mock values (`₹1.0 Cr` cover, `₹75,000` 80C gap, `₹1.5 Cr` estate) with live database queries in `RecommendationOrchestrator.ts` and `RecommendationEngineService.ts`.
+  - Calculates real term life insurance (₹3.01 Cr total coverage) against HLV target (₹2.50 Cr), outputting `Term Life Insurance Target Achieved`.
+  - Calculates actual 80C allocations (₹21,58,503) and outputs `Section 80C Limit Fully Maximized`.
+  - Evaluates actual net estate valuation (₹0.57 Cr) for Will succession planning.
+  - **Accept/Dismiss Action Persistence**: Updated `saveRecommendation()` in `SQLiteRecommendationRepository.ts` to check if a user decision exists (`ACCEPTED`, `DISMISSED`, `COMPLETED`), preventing accepted cards from resurrecting back as active on refetch.
+  - **Accurate Metric KPI Cards**: Replaced fallback `|| 1` and `|| 16500000` in `RecommendationsDashboard.tsx` with nullish coalescing (`?? 0`), resolving misleading "1 Critical Action Items" and fake impact totals when 0 open risks exist.
+- **Global Search API SQL Schema & Null-Safety Fix**:
+  - Resolved `500 Internal Server Error` on `GET /api/v1/search/query`.
+  - Updated SQL queries in `SearchService.ts` to match the actual SQLite database schema (`assets` joined with `family_members` and `asset_prices`, `family_members.pan`, `insurance_policies.id`, and `financial_goals`).
+  - Added isolated `try-catch` blocks around each entity query for maximum fault tolerance.
+
+

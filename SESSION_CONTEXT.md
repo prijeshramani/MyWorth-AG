@@ -1,29 +1,39 @@
 # Session Context & Active Sprints
 
-- **Current Version**: `v2.4.0`
-- **Active Phase**: `Phase 8 – Statement Import Expansion, Insurance Hardening & Accounts Management`
+- **Current Version**: `v2.5.0`
+- **Active Phase**: `Phase 9 – AI Recommendations Real-Data Integration, Global Search & System Hardening`
 - **Status**: `Completed & Production-Grade (Score: 100%)`
 
 ---
 
 ## Active Sprint Deliverables
-1. **Import Center Expansion**:
+1. **AI Insights & Intelligent Recommendations Engine Overhaul**:
+   - **Dynamic Term Life Insurance Evaluation**: Replaced static mock values with live SQLite database queries in `RecommendationOrchestrator.ts`. Correctly evaluates active term policies against the ₹2.5 Cr HLV requirement and generates `Term Life Insurance Target Achieved` confirmation card when coverage is satisfied (e.g. ₹3.01 Cr total coverage).
+   - **Dynamic Section 80C Tax Evaluation**: Aggregates actual investments in EPF, PPF, SSY, and ELSS (₹21,58,503) and outputs `Section 80C Limit Fully Maximized`.
+   - **Dynamic Net Estate Valuation**: Formats actual net estate valuation (₹0.57 Cr) for Will succession planning recommendations.
+   - **Accept/Dismiss Action Persistence**: Updated `saveRecommendation()` in `SQLiteRecommendationRepository.ts` to check if a user decision (`ACCEPTED`, `DISMISSED`, `COMPLETED`) exists, preventing accepted recommendation cards from resurrecting back as active on refetch.
+   - **Accurate Metric KPI Cards**: Replaced fallback `|| 1` and `|| 16500000` in `RecommendationsDashboard.tsx` with nullish coalescing (`?? 0`), resolving misleading "1 Critical Action Items" and fake impact totals when 0 open risks exist.
+2. **Global Search API SQL Schema & Null-Safety Fix**:
+   - Resolved `500 Internal Server Error` on `GET /api/v1/search/query`.
+   - Updated SQL queries in `SearchService.ts` to match the actual SQLite database schema (`assets` joined with `family_members` and `asset_prices`, `family_members.pan`, `insurance_policies.id`, and `financial_goals`).
+   - Added isolated `try-catch` blocks around each entity query for maximum fault tolerance.
+3. **Import Center Expansion**:
    - **EPF & INDMoney Statements**: EPF and INDMoney order book statement parsing and imports.
-   - **Upstox & AngelOne Stock Imports**: AngelOne stocks import and Upstox API sync for family members.
-2. **NPS Multi-FY Scheme & Tier I/II Account Separation**:
+   - **Upstox & AngelOne Stock Imports**: AngelOne stocks import (13 holdings worth ₹1,18,410.01) and Upstox API sync for family members.
+4. **NPS Multi-FY Scheme & Tier I/II Account Separation**:
    - Multi-FY scheme tracking across historical NPS statements.
    - Tier I vs Tier II PRAN sub-account separation (`PRAN-T1` vs `PRAN-T2`) with custom UI badges (`NPS Tier I`, `NPS Tier II`).
-3. **Zerodha Kite OAuth Redirect Decoupling**:
+5. **Zerodha Kite OAuth Redirect Decoupling**:
    - Decoupled `App.tsx` and `ImportCenter.tsx` state by having `ImportCenter` read `window.location.search` directly on mount.
    - Added top-level React `ErrorBoundary` in `App.tsx` for crash prevention.
-4. **Insurance Policy Floater Fields & API 500 Fix**:
+6. **Insurance Policy Floater Fields & API 500 Fix**:
    - Added `is_family_floater` & `covered_member_ids` columns via `015_insurance_floater_fields.ts` migration.
    - Added safe `policyHolderId` fallback in `InsuranceApplicationService.ts`.
-5. **Bank & Broker Accounts Manager Theme & Family Member Ownership Fix**:
+7. **Bank & Broker Accounts Manager Theme & Family Member Ownership Fix**:
    - Added **Primary Account Holder** dropdown in `AccountsManager.tsx` modal form allowing assignment to any active family member.
    - Fixed Light/Dark theme styles for modal popup and accounts table.
    - Updated `POST /api/assets` (`backend/src/routes/assets.ts`) to persist `family_member_id` and insert initial opening balance into `asset_prices` table immediately (e.g. Bank of Baroda ₹3,340.40).
-6. **Graphify Codebase Knowledge Graph**:
+8. **Graphify Codebase Knowledge Graph**:
    - Rebuilt codebase AST dependency graph via `graphify update .` (1,274 nodes, 1,662 edges, 224 communities).
 
 ---

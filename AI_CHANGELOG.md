@@ -1,5 +1,41 @@
 # AI Change Log
 
+## [2026-08-22] Sprint 8B.2 – Life Events Engine & Multi-Domain Consequence Propagation
+
+### Added
+- **Database Migration (`backend/src/db/migrations/017_life_events.ts`)**:
+  - Created `life_events` table with provenance fields (`baseline_state_hash`, `baseline_as_of`, `rule_version`, `calculation_version`), state timestamps, and performance indexes.
+- **Repository Layer (`backend/src/repositories/SQLiteLifeEventRepository.ts`)**:
+  - Implemented type-safe SQLite repository supporting full CRUD, status filtering, impact summary persistence, and state transitions.
+- **Core Life Events Service (`backend/src/services/familyOffice/LifeEventEngineService.ts`)**:
+  - Implemented declaration ingestion and deterministic consequence formulas for all 10 catalog event types (`CHILD_BIRTH`, `MARRIAGE`, `SALARY_INCREASE`, `JOB_CHANGE`, `HOME_PURCHASE`, `HOME_LOAN_CLOSURE`, `INSURANCE_MATURITY`, `RETIREMENT`, `DEATH_OF_MEMBER`, `MAJOR_INHERITANCE`) consuming `DigitalTwinState`.
+  - Implemented candidate detection scanning recent income credits and policy maturity schedules.
+  - Implemented human fiduciary approval gate (`POST /process` & `POST /dismiss`) with audit trail emission.
+- **REST API Endpoints (`backend/src/controllers/LifeEventController.ts` & `lifeEventRoutes.ts`)**:
+  - Exposed `/declare`, `/candidates`, `/`, `/:id/consequences`, `/:id/process`, and `/:id/dismiss` with strict authorization context resolution and idempotency middleware.
+- **Sprint 8B.2 Test Suite (`backend/src/__tests__/sprint8b2/lifeEvents.test.ts`)**:
+  - Implemented 20 dedicated assertions covering all 10 life events, candidate detection, human approval, state transitions, security isolation, and sub-10ms performance benchmarks.
+  - Advanced master test suite from 269 to 289 passing tests with 0 regressions.
+- **Documentation Deliverables**:
+  - Created `docs/LIFE_EVENTS_ARCHITECTURE.md`, `docs/LIFE_EVENTS_CONSEQUENCE_MATRIX.md`, `docs/LIFE_EVENTS_DATA_MODEL.md`, and `prompts/Phase8B.2/SPRINT_8B_2_OUTPUT_REVIEW.md`.
+
+## [2026-08-22] Sprint 8B.1 – Digital Twin Foundation & State Hydration
+
+### Added
+- **Digital Twin Service (`backend/src/services/familyOffice/DigitalTwinService.ts`)**:
+  - Implemented 5-pillar state hydration (`DigitalTwinState`) spanning Lineage, Balance Sheet, Protection Shield, Trajectory, and Governance over authoritative SQLite tables.
+  - Implemented deterministic 5-pillar mathematical completeness scoring model ($0-100\%$) with status tiering (`COMPLETE`, `PARTIAL`, `INSUFFICIENT_DATA`).
+  - Added deterministic canonical state hashing ($H_{\text{state}}$ via SHA-256) excluding volatile metadata for point-in-time state stability.
+  - Added explicit point-in-time freshness tracking (`latestPriceDate`, `latestTransactionDate`, `latestPolicySyncDate`, `latestGraphSyncDate`).
+  - Integrated sanitized, deduplicated fiduciary audit event dispatching (`DIGITAL_TWIN_HYDRATED`) via `AuditHookService`.
+- **Digital Twin REST API (`backend/src/controllers/DigitalTwinController.ts` & `digitalTwinRoutes.ts`)**:
+  - Exposed `GET /api/v1/family-office/digital-twin` and `GET /api/v1/family-office/digital-twin/completeness` with strict authorization context resolution.
+- **Sprint 8B.1 Test Suite (`backend/src/__tests__/sprint8b1/digitalTwin.test.ts`)**:
+  - Implemented 31 dedicated assertions covering empty family isolation, missing data semantics, active policy filtering, Knowledge Graph federation, sanitized audit logs, state hash determinism, and performance benchmarks ($\approx 4$ms execution).
+  - Advanced master test suite from 238 to 269 passing tests with 0 regressions.
+- **Architecture Documentation**:
+  - Created `docs/DIGITAL_TWIN_ARCHITECTURE.md` and `docs/DIGITAL_TWIN_DATA_SOURCE_MATRIX.md`.
+
 ## [2026-08-22] Sprint 8B.0 – Contracts, Correlation, Idempotency & Audit Infrastructure
 
 ### Added

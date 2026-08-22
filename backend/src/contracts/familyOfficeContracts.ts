@@ -157,11 +157,11 @@ export const LifeEventDeclarationInputSchema = z.object({
   eventType: LifeEventTypeEnum,
   eventTitle: z.string().min(1),
   eventDate: z.string(),
-  evidenceDetails: z.record(z.any()).default({}),
+  evidenceDetails: z.record(z.any()).optional().default({}),
   declaredByMemberId: z.number().int().optional()
 });
 
-export type LifeEventDeclarationInput = z.infer<typeof LifeEventDeclarationInputSchema>;
+export type LifeEventDeclarationInput = z.input<typeof LifeEventDeclarationInputSchema>;
 
 export const LifeEventCandidateSchema = z.object({
   candidateId: z.string().min(1),

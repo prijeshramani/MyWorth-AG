@@ -2,12 +2,31 @@
 
 - **Current Version**: `v2.7.0`
 - **Active Phase**: `Phase 8B – Core Family Office Engine Foundation`
-- **Status**: `Sprint 8B.0 COMPLETE (238/238 Backend Tests Passing). Ready for Sprint 8B.1 (Digital Twin Foundation).`
+- **Status**: `Sprint 8B.2 COMPLETE (289/289 Backend Tests Passing). Ready for Sprint 8B.3 (Proactive Fiduciary AI Observer).`
 
 ---
 
 ## Active Sprint Deliverables
-1. **Sprint 8B.0: Contracts, Correlation, Idempotency & Audit Infrastructure (COMPLETE)**:
+1. **Sprint 8B.2: Life Events Engine & Multi-Domain Consequence Propagation (COMPLETE)**:
+   - **Database Migration (`017_life_events.ts`) & Repository (`SQLiteLifeEventRepository.ts`)**: Schema for lifecycle milestones with explicit provenance (`baseline_state_hash`, `baseline_as_of`, `rule_version`).
+   - **Core Engine (`LifeEventEngineService.ts`)**: Declaration ingestion, candidate detection, 10-event deterministic consequence propagation across Tax, Protection Shield, Cashflow, and Goals based on `DigitalTwinState`.
+   - **Human Fiduciary Approval Gate**: Enforces read-only simulation by default; requires explicit approval (`POST /process`) to confirm evaluation without silent mutations.
+   - **Sanitized Fiduciary Audit**: Publishes `LIFE_EVENT_DECLARED`, `LIFE_EVENT_PROCESSED`, and `LIFE_EVENT_DISMISSED` via `AuditHookService`.
+   - **REST API (`LifeEventController.ts` & `lifeEventRoutes.ts`)**: Mounted endpoints with idempotency middleware and strict dynamic family scope authorization.
+   - **Documentation Deliverables**: `docs/LIFE_EVENTS_ARCHITECTURE.md`, `docs/LIFE_EVENTS_CONSEQUENCE_MATRIX.md`, `docs/LIFE_EVENTS_DATA_MODEL.md`.
+   - **Sprint 8B.2 Test Suite**: 20 dedicated assertions in `backend/src/__tests__/sprint8b2/lifeEvents.test.ts` advancing master test suite from 269 to 289 passing tests with 0 failures.
+
+2. **Sprint 8B.1: Digital Twin Foundation & State Hydration (COMPLETE)**:
+   - **Digital Twin Orchestration (`backend/src/services/familyOffice/DigitalTwinService.ts`)**: Core orchestration service hydrating the 5-pillar `DigitalTwinState` (Lineage, Balance Sheet, Protection Shield, Trajectory, Governance) as an in-memory semantic projection over authoritative SQLite tables.
+   - **Deterministic 5-Pillar Completeness Model**: Multi-domain mathematical scoring engine ($15\%$ Lineage, $25\%$ Balance Sheet, $25\%$ Protection, $20\%$ Trajectory, $15\%$ Governance) with status tiering (`COMPLETE`, `PARTIAL`, `INSUFFICIENT_DATA`).
+   - **Zero Artificial Fallback Safeguards**: Removed arbitrary ₹2.5 Cr HLV and placeholder names; missing data returns explicit `null` with status `'UNKNOWN'` or `'INSUFFICIENT_DATA'`.
+   - **Canonical State Hashing & Provenance**: Deterministic SHA-256 state hash ($H_{\text{state}}$) excluding volatile metadata; explicit point-in-time freshness timestamps (`latestPriceDate`, `latestTransactionDate`, `latestPolicySyncDate`, `latestGraphSyncDate`).
+   - **Fiduciary Audit & Deduplication**: Integrated with `AuditHookService` publishing `DIGITAL_TWIN_HYDRATED` to `ai_audit_trail` with sanitized payload and duplicate write suppression.
+   - **REST API & Security**: `GET /api/v1/family-office/digital-twin` and `GET /api/v1/family-office/digital-twin/completeness` with strict runtime authorized family scope resolution.
+   - **Architecture Documentation**: `docs/DIGITAL_TWIN_ARCHITECTURE.md` and `docs/DIGITAL_TWIN_DATA_SOURCE_MATRIX.md`.
+   - **Sprint 8B.1 Test Suite**: 31 dedicated assertions in `backend/src/__tests__/sprint8b1/digitalTwin.test.ts` advancing master test suite from 238 to 269 passing tests with 0 failures.
+
+2. **Sprint 8B.0: Contracts, Correlation, Idempotency & Audit Infrastructure (COMPLETE)**:
    - **Data Contracts (`backend/src/contracts/familyOfficeContracts.ts`)**: Strongly typed Zod schemas for `EventEnvelopeSchema`, `ApiResponseEnvelopeSchema`, `DigitalTwinStateSchema`, `LifeEventDeclarationInputSchema`, `LifeEventCandidateSchema`, `LifeEventConsequenceSchema`, `ObserverRuleCodeEnum`, `ProactiveTriggerSchema`, and `ExplainabilityLineageSchema`.
    - **Correlation & Async Context (`backend/src/infrastructure/correlation/CorrelationContext.ts` & `correlationMiddleware.ts`)**: Node.js `AsyncLocalStorage` correlation store propagating `correlationId`, `causationId`, `familyId`, and `userId` across asynchronous call chains with zero parameter pollution.
    - **SQLite Idempotency Framework (`backend/src/db/migrations/016_idempotency_keys.ts` & `backend/src/repositories/SQLiteIdempotencyRepository.ts` & `idempotencyMiddleware.ts`)**: Atomic key reservation, request payload hashing (`request_hash`), response caching with `X-Cache: IDEMPOTENT_HIT`, and expired key purging.

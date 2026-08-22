@@ -24,6 +24,8 @@ import { runContractsTests } from './sprint8b0/contracts.test';
 import { runCorrelationTests } from './sprint8b0/correlation.test';
 import { runIdempotencyTests } from './sprint8b0/idempotency.test';
 import { runAuditHooksTests } from './sprint8b0/auditHooks.test';
+import { runDigitalTwinTests } from './sprint8b1/digitalTwin.test';
+import { runLifeEventsTests } from './sprint8b2/lifeEvents.test';
 
 // Sprint 1D Engines & Infrastructure
 import { FinancialMath } from '../engines/common/FinancialMath';
@@ -1151,6 +1153,20 @@ async function runTestSuite() {
   const auditHooksResults = await runAuditHooksTests();
   passed += auditHooksResults.passed;
   failed += auditHooksResults.failed;
+
+  // ==========================================
+  // SPRINT 8B.1 DIGITAL TWIN TESTS
+  // ==========================================
+  const digitalTwinResults = await runDigitalTwinTests();
+  passed += digitalTwinResults.passed;
+  failed += digitalTwinResults.failed;
+
+  // ==========================================
+  // SPRINT 8B.2 LIFE EVENTS ENGINE TESTS
+  // ==========================================
+  const lifeEventsResults = await runLifeEventsTests();
+  passed += lifeEventsResults.passed;
+  failed += lifeEventsResults.failed;
 
   console.log('\n==================================================');
   console.log(` RESULTS: ${passed} PASSED, ${failed} FAILED`);

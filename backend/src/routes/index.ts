@@ -23,11 +23,13 @@ import notificationRoutes from './notificationRoutes';
 
 import { digitalTwinRouter } from './digitalTwinRoutes';
 import { lifeEventRouter } from './lifeEventRoutes';
+import proactiveObserverRouter from './proactiveObserverRoutes';
 
 const router = Router();
 
 router.use('/family-office/digital-twin', digitalTwinRouter);
 router.use('/family-office/life-events', lifeEventRouter);
+router.use('/family-office/proactive', proactiveObserverRouter);
 router.use('/auth', authRouter);
 router.use('/dx', dxRouter);
 router.use('/platform', platformRouter);

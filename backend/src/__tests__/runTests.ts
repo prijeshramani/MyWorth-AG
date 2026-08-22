@@ -26,6 +26,7 @@ import { runIdempotencyTests } from './sprint8b0/idempotency.test';
 import { runAuditHooksTests } from './sprint8b0/auditHooks.test';
 import { runDigitalTwinTests } from './sprint8b1/digitalTwin.test';
 import { runLifeEventsTests } from './sprint8b2/lifeEvents.test';
+import { runProactiveObserverTests } from './sprint8b3/proactiveObserver.test';
 
 // Sprint 1D Engines & Infrastructure
 import { FinancialMath } from '../engines/common/FinancialMath';
@@ -1167,6 +1168,13 @@ async function runTestSuite() {
   const lifeEventsResults = await runLifeEventsTests();
   passed += lifeEventsResults.passed;
   failed += lifeEventsResults.failed;
+
+  // ==========================================
+  // SPRINT 8B.3 PROACTIVE OBSERVER TESTS
+  // ==========================================
+  const proactiveObserverResults = await runProactiveObserverTests();
+  passed += proactiveObserverResults.passed;
+  failed += proactiveObserverResults.failed;
 
   console.log('\n==================================================');
   console.log(` RESULTS: ${passed} PASSED, ${failed} FAILED`);

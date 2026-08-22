@@ -20,6 +20,7 @@ import { migration014 } from './db/migrations/014_ppf_type';
 import { migration015 } from './db/migrations/015_insurance_floater_fields';
 import { migration016 } from './db/migrations/016_idempotency_keys';
 import { migration017 } from './db/migrations/017_life_events';
+import { migration018 } from './db/migrations/018_proactive_triggers_and_cooldowns';
 
 const migration012 = {
   version: 12,
@@ -115,7 +116,7 @@ export function initDb() {
   `).run();
 
   // Execute Versioned Database Migrations
-  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012, migration013, migration014, migration015, migration016, migration017], dbPath);
+  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007, migration008, migration009, migration010, migration011, migration012, migration013, migration014, migration015, migration016, migration017, migration018], dbPath);
 
   // Ensure family_members has pan, email, phone columns (idempotent)
   const memberCols = db.prepare("PRAGMA table_info(family_members)").all() as any[];

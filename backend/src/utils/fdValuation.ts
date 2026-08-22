@@ -34,8 +34,23 @@ export function calculateFixedDepositValuation(input: FixedDepositValuationInput
     return { marketValue: 0, accruedInterest: 0, unrealizedGainPercent: 0 };
   }
 
-  const sDate = startDateStr ? new Date(startDateStr) : new Date();
-  const eDate = asOfDateStr ? new Date(asOfDateStr) : new Date();
+  // Helper to normalize any date input to calendar day (midnight UTC YYYY-MM-DD)
+  // Prevents sub-second time-drift and ensures deterministic valuations on page refresh
+  const parseCalendarDate = (dateVal?: string | Date): Date => {
+    if (!dateVal) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      return new Date(`${todayStr}T00:00:00.000Z`);
+    }
+    if (dateVal instanceof Date) {
+      const isoStr = dateVal.toISOString().split('T')[0];
+      return new Date(`${isoStr}T00:00:00.000Z`);
+    }
+    const cleanStr = String(dateVal).trim().split('T')[0];
+    return new Date(`${cleanStr}T00:00:00.000Z`);
+  };
+
+  const sDate = parseCalendarDate(startDateStr);
+  const eDate = parseCalendarDate(asOfDateStr);
 
   if (isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || eDate <= sDate) {
     return {
@@ -49,7 +64,7 @@ export function calculateFixedDepositValuation(input: FixedDepositValuationInput
 
   // Case A: If Maturity Amount and Maturity Date are specified
   if (maturityAmount > costBasis && maturityDateStr) {
-    const mDate = new Date(maturityDateStr);
+    const mDate = parseCalendarDate(maturityDateStr);
     if (!isNaN(mDate.getTime()) && mDate > sDate) {
       const totalDurationMs = mDate.getTime() - sDate.getTime();
       const elapsedMs = Math.min(totalDurationMs, eDate.getTime() - sDate.getTime());

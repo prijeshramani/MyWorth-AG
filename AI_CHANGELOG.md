@@ -1,5 +1,27 @@
 # AI Change Log
 
+## [2026-08-22] Sprint 8B.3 – Proactive Fiduciary AI Observer & Cooldown Registry
+
+### Added
+- **Database Migration (`backend/src/db/migrations/018_proactive_triggers_and_cooldowns.ts`)**:
+  - Created `proactive_triggers` and `proactive_cooldown_registry` tables with composite indexes on `(family_id, status)`, `(family_id, rule_code)`, and `(family_id, rule_code, entity_id)`.
+- **Repository Layer (`backend/src/repositories/SQLiteProactiveTriggerRepository.ts`)**:
+  - Implemented type-safe SQLite repository supporting full trigger and cooldown lifecycle management, active trigger filtering, and atomic trigger creation transactions (`executeAtomicTriggerCreation`).
+- **Cooldown & Materiality Engine (`backend/src/services/familyOffice/CooldownRegistryService.ts`)**:
+  - Implemented deterministic SHA-256 trigger ID derivation ($H_{\text{state}}$), suppression evaluation, custom snooze/dismissal tracking, and 9 rule-specific materiality delta ($\Delta_{\text{mat}}$) thresholds.
+- **Proactive Observer Engine (`backend/src/services/familyOffice/ProactiveObserverService.ts`)**:
+  - Implemented evaluation for 9 deterministic fiduciary rules (`DRIFT_EQUITY_OVERWEIGHT`, `CONCENTRATION_SINGLE_STOCK`, `INSURANCE_RENEWAL_DUE`, `PROTECTION_HLV_GAP`, `EMERGENCY_FUND_DEFICIT`, `EXCESS_IDLE_CASH`, `GOAL_OFF_TRACK_DRIFT`, `TAX_80C_OPPORTUNITY`, `ESTATE_NOMINEE_GAP`) consuming `DigitalTwinState`.
+  - Added completeness ($\ge 70\%$) and confidence ($\ge 85\%$) evaluation gates.
+  - Implemented auto-resolution of obsolete triggers and transition of superseded triggers to `STALE`.
+  - Integrated audit trail logging and non-blocking notification presentation mirroring.
+- **REST API Endpoints (`backend/src/controllers/ProactiveObserverController.ts` & `proactiveObserverRoutes.ts`)**:
+  - Mounted `/api/v1/family-office/proactive` with endpoints for `/triggers`, `/evaluate`, `/triggers/:id/acknowledge`, `/triggers/:id/snooze`, `/triggers/:id/dismiss`, and `/triggers/:id/resolve` protected by `idempotencyMiddleware`.
+- **Sprint 8B.3 Invariant Test Suite (`backend/src/__tests__/sprint8b3/proactiveObserver.test.ts`)**:
+  - Created 27 comprehensive unit and integration tests covering all 9 individual rule codes, completeness ($\ge 75\%$) and confidence ($\ge 85\%$) gating, deterministic hashing, cooldown suppression, zero-baseline emergence and materiality overrides, snooze bounds (1..30d) validation, security isolation, lifecycle transitions (`RESOLVED`/`STALE`), 5-point explainability lineage, notification failure isolation, and sub-15ms performance benchmarks.
+  - Master test suite advanced from 289 to 316 passing tests with 0 failures.
+- **Documentation Deliverables**:
+  - Created `docs/PROACTIVE_AI_ARCHITECTURE.md`, `docs/PROACTIVE_RULE_CATALOG.md`, `docs/PROACTIVE_COOLDOWN_MODEL.md`, and `prompts/Phase8B.3/SPRINT_8B_3_OUTPUT_REVIEW.md`.
+
 ## [2026-08-22] Sprint 8B.2 – Life Events Engine & Multi-Domain Consequence Propagation
 
 ### Added

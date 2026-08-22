@@ -1,65 +1,115 @@
-# Proactive AI Architecture & Autonomous Fiduciary Intelligence
+# Proactive Fiduciary AI Observer Architecture (Sprint 8B.3)
 
-## 1. Paradigm Shift: Reactive vs. Proactive Fiduciary AI
+---
 
-| Characteristic | Reactive AI (Chatbot Model) | Proactive AI (Family Office Fiduciary Model) |
+## 1. Executive Summary & Core Invariant
+
+The **Proactive Fiduciary AI Observer** operates as a deterministic calculation & fiduciary rule evaluation engine that continuously monitors the family office state (via the 5-pillar Digital Twin) without executing autonomous financial actions.
+
+### 🛡️ Strict Fiduciary Invariant
+$$\text{Authoritative Data} \longrightarrow \text{Calculation Engine} \longrightarrow \text{Deterministic Observer Rule} \longrightarrow \text{Evidence} \longrightarrow \text{Recommendation} \longrightarrow \text{Cooldown / Deduplication} \longrightarrow \text{Notification} \longrightarrow \text{Human Decision} \longrightarrow \text{Separate Authorized Action}$$
+
+**Under no circumstances does the system execute:**
+$$\text{Event} \longrightarrow \text{AI} \longrightarrow \text{Financial Action} \quad (\text{Strictly Prohibited})$$
+
+---
+
+## 2. Invocation Model & System Classification
+
+### Classification: **Evaluation Engine with Targeted Invocation**
+For Sprint 8B.3, the observer operates as a high-performance evaluation engine invoked via:
+1. **Targeted REST Invocation**: `POST /api/v1/family-office/proactive/evaluate` (with strict family authorization and safety gating).
+2. **Domain Event Hooks**: Targeted evaluations triggered by lifecycle events (`LIFE_EVENT_PROCESSED`, `DIGITAL_TWIN_HYDRATED`).
+3. **Standing Daemon/Cron Scheduling**: Deferred to application-level runtime packaging.
+
+### 🧠 Deterministic Rule Engine vs AI Clarification
+- **Zero AI Hallucination**: AI / LLM is **not** responsible for calculating financial metrics, determining whether a rule condition is true, computing confidence scores, or executing financial mutations.
+- **Role of LLM**: In future phases, LLM layers may explain, summarize, or translate already-generated triggers for human family members, but will never override or fabricate deterministic financial evidence.
+
+---
+
+## 3. Observer Architecture & Information Flow
+
+```mermaid
+flowchart TD
+    subgraph Data Layer
+        DT[DigitalTwinService] -->|Hydrated 5-Pillars| POS[ProactiveObserverService]
+        DB[(proactive_triggers & proactive_cooldown_registry)] <--> POS
+    end
+
+    subgraph Evaluation Pipeline
+        POS --> GateCheck{Completeness >= 75% & Confidence >= 85%}
+        GateCheck -- Yes --> RuleEval[9 Deterministic Rule Evaluators]
+        GateCheck -- No --> Suppress[Suppress Trigger Creation / INSUFFICIENT_DATA]
+        RuleEval --> CDCheck{Cooldown Registry Check}
+        CDCheck -- Suppressed --> Skip[Skip Duplicate Trigger]
+        CDCheck -- Material Override or Window Expired --> AtomicTx[Atomic DB Transaction]
+    end
+
+    subgraph Fiduciary Dispatch
+        AtomicTx --> Trg[proactive_triggers Record]
+        AtomicTx --> Cooldown[proactive_cooldown_registry Update]
+        AtomicTx --> Audit[ai_audit_trail Event Dispatch]
+        AtomicTx --> Notif[NotificationService Mirror (Presentation Adapter)]
+    end
+
+    subgraph Human Control Plane
+        Trg --> REST[REST API /api/v1/family-office/proactive]
+        REST --> Human[Family Decision Maker]
+        Human -->|Acknowledge| REST
+        Human -->|Snooze 1..30d| REST
+        Human -->|Dismiss with Reason| REST
+        Human -->|Resolve with Explanation| REST
+    end
+```
+
+---
+
+## 4. Event-to-Rule Invocation Matrix
+
+To optimize compute and avoid unnecessary full-table scans, domain events target specific rule subsets:
+
+| Domain Event | Target Rule Subset | Rationale |
 | :--- | :--- | :--- |
-| **Invocation** | User types a query into a prompt box. | Automated background observer evaluates state shifts. |
-| **Context** | Dependent on user prompt completeness. | Complete, verified Family Digital Twin state. |
-| **Timing** | User must already suspect an issue exists. | Anticipatory; alerts before deadlines or risk compounding. |
-| **Evidence Basis** | Probabilistic text generation. | Verified calculation engine output with full audit lineage. |
-| **Execution** | Pure text suggestions. | Structured action items with 1-click user execution & audit trail. |
-
-```
-+---------------------------------------------------------------------------------------+
-|                               PROACTIVE OBSERVABILITY BUS                             |
-|    - Market NAV Sync    - Statement Imports    - Policy Dates    - Cashflow Ledger   |
-+---------------------------------------------------------------------------------------+
-                                           |
-                                           v
-+---------------------------------------------------------------------------------------+
-|                            ANOMALY & DRIFT DETECTORS                                  |
-|  * Asset Drift (>5%)  * Renewal in 30d  * 80C Gap  * Emergency < 6M  * Nominee Void   |
-+---------------------------------------------------------------------------------------+
-                                           |
-                                           v
-+---------------------------------------------------------------------------------------+
-|                         CONFIDENCE & COOLDOWN GATEWAY                                 |
-|  * Confidence >= 85%   * Cooldown (14-30 Days)   * Duplicate Suppression Filter       |
-+---------------------------------------------------------------------------------------+
-                                           |
-                                           v
-+---------------------------------------------------------------------------------------+
-|                          STRUCTURED RECOMMENDATION DISPATCH                           |
-|       * Morning Briefing     * Executive Notification     * Action Center Card        |
-+---------------------------------------------------------------------------------------+
-```
+| `DIGITAL_TWIN_HYDRATED` | All 9 Rules | Full periodic / manual refresh of the family financial twin |
+| `PORTFOLIO_VALUATION_CHANGED` | `DRIFT_EQUITY_OVERWEIGHT`, `CONCENTRATION_SINGLE_STOCK` | Asset price movements or trades alter allocations |
+| `INSURANCE_POLICY_UPDATED` | `INSURANCE_RENEWAL_DUE`, `PROTECTION_HLV_GAP` | Premium dates or sum assured changes alter protection shield |
+| `LIFE_EVENT_PROCESSED` | `PROTECTION_HLV_GAP`, `EMERGENCY_FUND_DEFICIT`, `GOAL_OFF_TRACK_DRIFT`, `TAX_80C_OPPORTUNITY` | Life milestones shift expenses, dependents, and goals |
+| `GOAL_UPDATED` | `GOAL_OFF_TRACK_DRIFT` | Target amount or SIP changes alter goal trajectory |
+| `TAX_PROFILE_UPDATED` | `TAX_80C_OPPORTUNITY` | Deduction claims or regime elections alter headroom |
+| `KNOWLEDGE_GRAPH_SYNCED` | `ESTATE_NOMINEE_GAP` | Entity title, will, or nominee link modifications |
 
 ---
 
-## 2. Trigger Catalog, Rules & Cooldown Thresholds
+## 5. Five-Point Explainability Lineage
 
-| Observer Rule Code | Evaluation Frequency | Detection Trigger Condition | Evidence Required | Confidence Gate | Urgency | Cooldown Period | User Approval? |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `DRIFT_EQUITY_OVERWEIGHT` | Weekly / Post-Price Sync | Equity allocation exceeds target asset allocation by $>5.0\%$ | Portfolio NAV, Target Asset Allocation table | $\ge 90\%$ | `MEDIUM` | 14 Days | **YES** |
-| `INSURANCE_RENEWAL_DUE` | Daily | Active policy `next_premium_due_date` within 30 days | `insurance_policies` active status & due date | $100\%$ | `HIGH` | 7 Days | No (Informational) |
-| `TAX_80C_OPPORTUNITY` | Monthly / Q3-Q4 FY | 80C deduction shortfall $> ₹25,000$ and current month $\ge$ Oct | `tax_deductions`, `assets` (EPF, PPF, ELSS) | $\ge 95\%$ | `HIGH` | 30 Days | **YES** |
-| `EMERGENCY_FUND_DEFICIT` | Weekly / Post-Transaction | Liquid savings cover $< 4.0$ months of fixed household expenses | Bank balances, 6-month trailing debit expenses | $\ge 90\%$ | `CRITICAL`| 14 Days | **YES** |
-| `NOMINEE_REGISTRATION_GAP`| Post-Asset Import | Asset holding or bank account missing verified nominee | `assets`, `accounts`, `graph_edges` (`NOMINATES`) | $100\%$ | `HIGH` | 30 Days | **YES** |
-| `EXCESS_IDLE_CASH` | Bi-Weekly | Savings account balance $> 12$ months of living expenses | Bank account balances, monthly expense burn | $\ge 92\%$ | `LOW` | 30 Days | **YES** |
-| `GOAL_OFF_TRACK_DRIFT` | Monthly | Goal probability score $< 60\%$ based on trailing 6-month CAGR | `financial_goals`, `goal_allocations` | $\ge 88\%$ | `HIGH` | 21 Days | **YES** |
-| `CONCENTRATION_SINGLE_STOCK`| Post-Price Sync | Single stock holding constitutes $> 20\%$ of total liquid portfolio | `holdings`, `asset_prices`, `portfolio` | $\ge 95\%$ | `HIGH` | 14 Days | **YES** |
-| `ESTATE_WILL_LAPSED` | Quarterly | No Will registered, or last Will version updated $> 3$ years ago | `wills`, `will_versions`, Net Worth $> ₹50\text{L}$ | $\ge 95\%$ | `MEDIUM` | 60 Days | **YES** |
+Every proactive trigger persists a complete 5-point explainability lineage payload:
+
+1. **Why (`why`)**: Plain-language fiduciary rationale grounded in authoritative calculation.
+2. **Evidence (`evidence`)**: Serialized JSON payload containing exact numeric inputs, benchmarks, and deltas.
+3. **Rule (`rule`)**: Immutable rule code and version string (e.g. `DRIFT_EQUITY_OVERWEIGHT:2026.1`).
+4. **Calculation (`calculation`)**: Originating calculation engine owner and mathematical formula reference.
+5. **Freshness (`freshness`)**: Snapshot as-of timestamp establishing point-in-time state provenance.
 
 ---
 
-## 3. False-Positive Prevention & Noise Suppression
+## 6. Key Components & Responsibilities
 
-To avoid user alert fatigue:
-1. **Cooldown Registry (`recommendation_history`)**:
-   - When an insight is dismissed or snoozed, the engine records `status: 'DISMISSED'` or `snoozed_until: timestamp`.
-   - The engine will not regenerate the same recommendation until the cooldown expires.
-2. **Confidence Threshold Gating**:
-   - No recommendation is emitted if calculation confidence is below $85\%$.
-3. **Actionability Requirement**:
-   - Every proactive insight must contain a concrete `nextAction` (e.g. navigation path, form pre-fill, or rebalance execution).
+| Component | File Path | Architectural Role |
+| :--- | :--- | :--- |
+| **Contracts** | `backend/src/contracts/familyOfficeContracts.ts` | Zod schemas, enums, DTOs for triggers, cooldowns, and actions |
+| **Migration** | `backend/src/db/migrations/018_proactive_triggers_and_cooldowns.ts` | Relational tables with composite performance indexes |
+| **Repository** | `backend/src/repositories/SQLiteProactiveTriggerRepository.ts` | Type-safe database CRUD with atomic SQLite transactions |
+| **Cooldown Service** | `backend/src/services/familyOffice/CooldownRegistryService.ts` | Deterministic SHA-256 trigger ID generation, cooldown math, and materiality delta detection |
+| **Observer Engine** | `backend/src/services/familyOffice/ProactiveObserverService.ts` | Core engine evaluating 9 deterministic rules against Digital Twin, gating ($\ge 75\%$), and stale management |
+| **REST Controller** | `backend/src/controllers/ProactiveObserverController.ts` | Express controller validating inputs and enforcing server-resolved family scope |
+| **Router** | `backend/src/routes/proactiveObserverRoutes.ts` | REST endpoints with idempotency middleware protection |
+
+---
+
+## 7. Security, Scope & Failure Isolation
+
+1. **Server-Resolved Family Scope**: Family ID is derived strictly from `CorrelationContext.getFamilyId()`. No client query or body parameter can tamper with or override family scope.
+2. **Idempotency Protection**: All mutating endpoints (`acknowledge`, `snooze`, `dismiss`, `resolve`) are wrapped in `idempotencyMiddleware` using the `X-Idempotency-Key` header.
+3. **Notification Failure Isolation**: The `proactive_triggers` record is authoritative. Failures in external notification presentation adapters do not rollback or abort trigger persistence.
+4. **Fiduciary Audit Trail**: Every trigger creation, resolution, snooze, and dismissal produces an immutable audit record in `ai_audit_trail` referencing the triggering rule, state hash, correlation ID, and rationale.

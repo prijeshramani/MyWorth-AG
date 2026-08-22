@@ -177,27 +177,37 @@ export const LifeEventCandidateSchema = z.object({
 export type LifeEventCandidate = z.infer<typeof LifeEventCandidateSchema>;
 
 export const LifeEventConsequenceSchema = z.object({
+  consequenceId: z.string().optional(),
   eventId: z.string(),
   eventType: LifeEventTypeEnum,
   taxImpact: z.object({
-    deductionHeadroomDelta: z.number(),
-    taxLiabilityDelta: z.number(),
-    regimeRecommendation: z.enum(['OLD', 'NEW', 'UNCHANGED'])
+    deductionHeadroomDelta: z.number().nullable(),
+    taxLiabilityDelta: z.number().nullable(),
+    regimeRecommendation: z.enum(['OLD', 'NEW', 'UNCHANGED']),
+    status: z.enum(['CALCULATED', 'INSUFFICIENT_DATA', 'UNKNOWN']).default('CALCULATED')
   }),
   protectionImpact: z.object({
-    additionalTermCoverRequired: z.number(),
-    additionalHealthCoverRequired: z.number()
+    additionalTermCoverRequired: z.number().nullable(),
+    additionalHealthCoverRequired: z.number().nullable(),
+    status: z.enum(['CALCULATED', 'INSUFFICIENT_DATA', 'UNKNOWN']).default('CALCULATED')
   }),
   cashflowImpact: z.object({
-    monthlySurplusDelta: z.number(),
-    recommendedSipAdjustment: z.number()
+    monthlySurplusDelta: z.number().nullable(),
+    recommendedSipAdjustment: z.number().nullable(),
+    status: z.enum(['CALCULATED', 'INSUFFICIENT_DATA', 'UNKNOWN']).default('CALCULATED')
   }),
   goalImpact: z.object({
     newGoalsRecommended: z.array(z.string()),
-    timelineShiftYears: z.number().default(0)
+    timelineShiftYears: z.number().nullable().default(0),
+    status: z.enum(['CALCULATED', 'INSUFFICIENT_DATA', 'UNKNOWN']).default('CALCULATED')
   }),
   actionSummary: z.string(),
-  suggestedActionPath: z.string().optional()
+  suggestedActionPath: z.string().optional(),
+  provenance: z.object({
+    ruleVersion: z.string().default('2026.1'),
+    jurisdiction: z.string().default('IN'),
+    sourceReference: z.string().default('Income Tax Act 1961 / HLV Protection Standards')
+  }).optional()
 });
 
 export type LifeEventConsequence = z.infer<typeof LifeEventConsequenceSchema>;
@@ -208,36 +218,89 @@ export type LifeEventConsequence = z.infer<typeof LifeEventConsequenceSchema>;
 
 export const ObserverRuleCodeEnum = z.enum([
   'DRIFT_EQUITY_OVERWEIGHT',
+  'CONCENTRATION_SINGLE_STOCK',
   'INSURANCE_RENEWAL_DUE',
-  'TAX_80C_OPPORTUNITY',
+  'PROTECTION_HLV_GAP',
   'EMERGENCY_FUND_DEFICIT',
-  'NOMINEE_REGISTRATION_GAP',
   'EXCESS_IDLE_CASH',
   'GOAL_OFF_TRACK_DRIFT',
-  'CONCENTRATION_SINGLE_STOCK',
+  'TAX_80C_OPPORTUNITY',
+  'ESTATE_NOMINEE_GAP',
+  // Backward-compatible aliases
+  'NOMINEE_REGISTRATION_GAP',
   'ESTATE_WILL_LAPSED'
 ]);
 
 export type ObserverRuleCode = z.infer<typeof ObserverRuleCodeEnum>;
 
+export const ProactiveTriggerStatusEnum = z.enum([
+  'ACTIVE',
+  'ACKNOWLEDGED',
+  'SNOOZED',
+  'DISMISSED',
+  'RESOLVED',
+  'STALE',
+  'EXPIRED'
+]);
+
+export type ProactiveTriggerStatus = z.infer<typeof ProactiveTriggerStatusEnum>;
+
 export const ProactiveTriggerSchema = z.object({
   triggerId: z.string().min(1),
   familyId: z.number().int().positive(),
   ruleCode: ObserverRuleCodeEnum,
+  ruleVersion: z.string().default('2026.1'),
+  entityId: z.string().default('FAMILY'),
   urgency: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']),
+  priorityScore: z.number().int().min(0).max(100).default(50),
   confidencePct: z.number().min(0).max(100),
+  dataCompletenessScore: z.number().min(0).max(1),
   headline: z.string().min(1),
   rationale: z.string().min(1),
   evidencePayload: z.record(z.any()),
-  cooldownDays: z.number().int().positive().default(14),
+  explainabilityLineage: z.record(z.any()).optional(),
   actionPayload: z.object({
     label: z.string(),
     targetRoute: z.string(),
     prefillData: z.record(z.any()).optional()
-  })
+  }),
+  stateHash: z.string(),
+  asOfDate: z.string(),
+  correlationId: z.string(),
+  status: ProactiveTriggerStatusEnum.default('ACTIVE'),
+  snoozedUntil: z.string().optional(),
+  resolvedAt: z.string().optional(),
+  resolvedReason: z.string().optional(),
+  expiresAt: z.string().optional()
 });
 
 export type ProactiveTrigger = z.infer<typeof ProactiveTriggerSchema>;
+
+export const ProactiveTriggerActionInputSchema = z.object({
+  action: z.enum(['ACKNOWLEDGE', 'SNOOZE', 'DISMISS', 'RESOLVE']),
+  snoozeDays: z.number().int().min(1).max(30).optional(),
+  dismissReason: z.string().max(500).optional(),
+  resolveReason: z.string().max(500).optional()
+});
+
+export type ProactiveTriggerActionInput = z.infer<typeof ProactiveTriggerActionInputSchema>;
+
+export const CooldownRecordSchema = z.object({
+  familyId: z.number().int().positive(),
+  ruleCode: ObserverRuleCodeEnum,
+  ruleVersion: z.string().default('2026.1'),
+  entityId: z.string().default('FAMILY'),
+  lastTriggeredAt: z.string(),
+  cooldownUntil: z.string(),
+  lastStateHash: z.string(),
+  lastMetricValue: z.number().optional(),
+  status: z.enum(['ACTIVE', 'COOLDOWN', 'DISMISSED', 'SNOOZED']).default('COOLDOWN'),
+  snoozedUntil: z.string().optional(),
+  dismissedAt: z.string().optional(),
+  dismissReason: z.string().optional()
+});
+
+export type CooldownRecord = z.infer<typeof CooldownRecordSchema>;
 
 // ============================================================================
 // 5. EXPLAINABILITY & LINEAGE CONTRACTS

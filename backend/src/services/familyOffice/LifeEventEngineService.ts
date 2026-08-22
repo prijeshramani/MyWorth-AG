@@ -262,24 +262,28 @@ export class LifeEventEngineService {
     const { eventId, eventType, twinState, evidenceDetails } = params;
 
     let taxImpact = {
-      deductionHeadroomDelta: 0,
-      taxLiabilityDelta: 0,
-      regimeRecommendation: 'UNCHANGED' as 'OLD' | 'NEW' | 'UNCHANGED'
+      deductionHeadroomDelta: 0 as number | null,
+      taxLiabilityDelta: 0 as number | null,
+      regimeRecommendation: 'UNCHANGED' as 'OLD' | 'NEW' | 'UNCHANGED',
+      status: 'CALCULATED' as 'CALCULATED' | 'INSUFFICIENT_DATA' | 'UNKNOWN'
     };
 
     let protectionImpact = {
-      additionalTermCoverRequired: 0,
-      additionalHealthCoverRequired: 0
+      additionalTermCoverRequired: 0 as number | null,
+      additionalHealthCoverRequired: 0 as number | null,
+      status: 'CALCULATED' as 'CALCULATED' | 'INSUFFICIENT_DATA' | 'UNKNOWN'
     };
 
     let cashflowImpact = {
-      monthlySurplusDelta: 0,
-      recommendedSipAdjustment: 0
+      monthlySurplusDelta: 0 as number | null,
+      recommendedSipAdjustment: 0 as number | null,
+      status: 'CALCULATED' as 'CALCULATED' | 'INSUFFICIENT_DATA' | 'UNKNOWN'
     };
 
     let goalImpact = {
       newGoalsRecommended: [] as string[],
-      timelineShiftYears: 0
+      timelineShiftYears: 0 as number | null,
+      status: 'CALCULATED' as 'CALCULATED' | 'INSUFFICIENT_DATA' | 'UNKNOWN'
     };
 
     let actionSummary = '';
@@ -372,6 +376,7 @@ export class LifeEventEngineService {
     }
 
     const consequenceObject: LifeEventConsequence = {
+      consequenceId: `csq_${eventId}_${eventType}_2026.1`,
       eventId,
       eventType,
       taxImpact,
@@ -379,7 +384,12 @@ export class LifeEventEngineService {
       cashflowImpact,
       goalImpact,
       actionSummary,
-      suggestedActionPath
+      suggestedActionPath,
+      provenance: {
+        ruleVersion: '2026.1',
+        jurisdiction: 'IN',
+        sourceReference: 'Income Tax Act 1961 / HLV Protection Standards'
+      }
     };
 
     return LifeEventConsequenceSchema.parse(consequenceObject);

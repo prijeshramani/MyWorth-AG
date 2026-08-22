@@ -1,13 +1,21 @@
 # Session Context & Active Sprints
 
-- **Current Version**: `v2.7.0`
+- **Current Version**: `v2.8.0`
 - **Active Phase**: `Phase 8B – Core Family Office Engine Foundation`
-- **Status**: `Sprint 8B.2 COMPLETE (289/289 Backend Tests Passing). Ready for Sprint 8B.3 (Proactive Fiduciary AI Observer).`
+- **Status**: `Sprint 8B.3 COMPLETE (316/316 Backend Tests Passing). Ready for Phase 8C (Family Office UI Experience & AI Mission Control Integration).`
 
 ---
 
 ## Active Sprint Deliverables
-1. **Sprint 8B.2: Life Events Engine & Multi-Domain Consequence Propagation (COMPLETE)**:
+1. **Sprint 8B.3: Proactive Fiduciary AI Observer & Cooldown Registry (COMPLETE)**:
+   - **Database Migration (`018_proactive_triggers_and_cooldowns.ts`) & Repository (`SQLiteProactiveTriggerRepository.ts`)**: Authoritative schema for `proactive_triggers` and `proactive_cooldown_registry` with atomic SQLite transaction support.
+   - **Cooldown & Materiality Service (`CooldownRegistryService.ts`)**: Deterministic SHA-256 trigger ID generation ($H_{\text{state}}$), intelligent cooldown suppression, zero-baseline emergence handling, and rule-specific materiality threshold overrides ($\Delta_{\text{mat}}$).
+   - **Proactive Observer Engine (`ProactiveObserverService.ts`)**: Evaluates 9 deterministic fiduciary rules across all digital twin pillars, gates on domain completeness ($\ge 75\%$) and calculation confidence ($\ge 85\%$), auto-resolves obsolete triggers, supersedes material baseline shifts as `STALE`, persists 5-point explainability lineage, and mirrors high-urgency triggers to `NotificationService`.
+   - **REST API (`ProactiveObserverController.ts` & `proactiveObserverRoutes.ts`)**: Comprehensive lifecycle endpoints (`/triggers`, `/evaluate`, `/acknowledge`, `/snooze`, `/dismiss`, `/resolve`) protected by `idempotencyMiddleware`, strict snooze bounds (1..30d), and server-resolved family scope.
+   - **Documentation Deliverables**: `docs/PROACTIVE_AI_ARCHITECTURE.md`, `docs/PROACTIVE_RULE_CATALOG.md`, `docs/PROACTIVE_COOLDOWN_MODEL.md`, and `prompts/Phase8B.3/SPRINT_8B_3_OUTPUT_REVIEW.md`.
+   - **Master Test Suite Expansion**: 27 dedicated invariant tests in `backend/src/__tests__/sprint8b3/proactiveObserver.test.ts` advancing master test suite from 289 to 316 passing tests with 0 failures (Rule evaluation latency: 11ms $\le$ 250ms target).
+
+2. **Sprint 8B.2: Life Events Engine & Multi-Domain Consequence Propagation (COMPLETE)**:
    - **Database Migration (`017_life_events.ts`) & Repository (`SQLiteLifeEventRepository.ts`)**: Schema for lifecycle milestones with explicit provenance (`baseline_state_hash`, `baseline_as_of`, `rule_version`).
    - **Core Engine (`LifeEventEngineService.ts`)**: Declaration ingestion, candidate detection, 10-event deterministic consequence propagation across Tax, Protection Shield, Cashflow, and Goals based on `DigitalTwinState`.
    - **Human Fiduciary Approval Gate**: Enforces read-only simulation by default; requires explicit approval (`POST /process`) to confirm evaluation without silent mutations.
@@ -158,12 +166,12 @@
 13. **Build & Test Status**:
     - Backend TypeScript build: **PASSED (0 ERRORS)**
     - Frontend Vite production build: **PASSED (0 ERRORS)**
-    - Backend Unit Test Suite: **58/58 PASSED (215 Assertions Green)**
+    - Backend Master Test Suite: **316/316 PASSED (0 FAILURES)**
 
 ---
 
 ## Instructions for Next Session / Developer Commands
-- **Reset Database**: `npm run db:reset` (runs migrations 001 through 011 cleanly).
+- **Reset Database**: `npm run db:reset` (runs migrations 001 through 018 cleanly).
 - **Run Application**: `npm run dev` (launches backend Express server on port 5000 and frontend Vite dev server on port 5173).
 - **Run Full Build**: `npm run build`
 - **Run Backend Tests**: `cd backend && npm test`

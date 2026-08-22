@@ -58,10 +58,42 @@ The **Life Events Engine (`LifeEventEngineService`)** is an event-driven, determ
 
 ---
 
-## 3. Core Architectural Principles & Invariants
+## 3. Lifecycle States & Operations
+
+```text
+[Candidate Discovered] ---> DETECTED
+                               │
+[User Declared] ---------> VERIFIED (with deterministic Consequence DTO evaluated)
+                               │
+                     ┌─────────┴─────────┐
+                     │                   │
+                     v                   v
+                 PROCESSED           DISMISSED
+```
+
+- **`DETECTED`**: Prospective event candidate discovered by automated background pattern detectors.
+- **`VERIFIED`**: Explicitly declared or user-confirmed event fact baseline. The consequence evaluation is a computed DTO (`LifeEventConsequence`) calculated against the active Digital Twin state.
+- **`PROCESSED`**: Terminal state upon user confirmation (`POST /process`). Approves the consequence evaluation without performing automated financial mutations on real assets or policies.
+- **`DISMISSED`**: Terminal alternative upon user dismissal (`POST /dismiss`), preserving candidate evidence and dismissal reason for fiduciary provenance.
+
+---
+
+## 4. Automatic Candidate Detectors vs User Declared Events
+
+To maintain high confidence and avoid weak heuristics:
+1. **Automated Pattern Detectors (Currently Supported)**:
+   - **`SALARY_INCREASE`**: Detects $\ge 15\%$ salary credit spike over recent consecutive income transactions ($90\%$ confidence).
+   - **`INSURANCE_MATURITY`**: Detects active insurance policies reaching maturity within 90 days ($95\%$ confidence).
+2. **User-Declared Lifecycle Events**:
+   - `CHILD_BIRTH`, `MARRIAGE`, `JOB_CHANGE`, `HOME_PURCHASE`, `HOME_LOAN_CLOSURE`, `RETIREMENT`, `DEATH_OF_MEMBER`, `MAJOR_INHERITANCE` are declared via `POST /declare` with explicit evidence facts ($100\%$ confidence).
+
+---
+
+## 5. Core Architectural Principles & Invariants
 
 1. **Human-in-the-Loop Fiduciary Guardrail**: Consequence evaluation is strictly a read-only simulation. Approving a life event (`POST /process`) confirms the impact evaluation; it never silently mutates actual bank balances, demat holdings, or insurance policies.
-2. **Zero Financial Invention**: If critical facts (such as loan tenure or salary bump) are missing, the engine returns explicit `null` and marks impacts as `UNKNOWN` or `INSUFFICIENT_DATA`.
-3. **No Duplicate Financial Database**: Operates strictly as a computable semantic projection over SQLite and domain calculation engines (`TaxCalculationEngine`, `NetWorthEngine`).
-4. **Idempotency & Concurrency**: Mutating endpoints enforce atomic SQLite transitions using `idempotencyMiddleware`.
-5. **Death of Member Safety Boundary**: `DEATH_OF_MEMBER` triggers emergency estate and insurance claim checklists; automated asset transfer or claim submission is strictly prohibited.
+2. **Zero Financial Invention**: If critical facts (such as loan tenure or salary bump) are missing, the engine returns explicit `null` and marks impacts with `status: 'INSUFFICIENT_DATA'`.
+3. **Tax Rule Provenance**: Tax consequences carry explicit provenance metadata (`ruleVersion: '2026.1'`, `jurisdiction: 'IN'`, `sourceReference: 'Income Tax Act 1961'`).
+4. **No Duplicate Financial Database**: Operates strictly as a computable semantic projection over SQLite and domain calculation engines (`TaxCalculationEngine`, `NetWorthEngine`).
+5. **Idempotency & Concurrency**: Mutating endpoints enforce atomic SQLite transitions using `idempotencyMiddleware`.
+6. **Death of Member Safety Boundary**: `DEATH_OF_MEMBER` triggers emergency estate and insurance claim checklists; automated asset transfer or claim submission is strictly prohibited.

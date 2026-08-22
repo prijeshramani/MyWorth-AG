@@ -13,7 +13,7 @@ export interface NotificationDTO {
 }
 
 export class NotificationService {
-  public async getNotifications(familyId: number = 1): Promise<{
+  public async getNotifications(familyId: number): Promise<{
     notifications: NotificationDTO[];
     unreadCount: number;
   }> {

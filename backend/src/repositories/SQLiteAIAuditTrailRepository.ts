@@ -127,7 +127,7 @@ export class SQLiteAIAuditTrailRepository {
     };
   }
 
-  public getDecisionJournal(familyId: number = 1): DecisionJournalRecord[] {
+  public getDecisionJournal(familyId: number): DecisionJournalRecord[] {
     const rows = db.prepare('SELECT * FROM ai_decision_journal WHERE family_id = ? ORDER BY created_at DESC').all(familyId) as any[];
     return rows.map(r => ({
       id: r.id,
@@ -144,14 +144,14 @@ export class SQLiteAIAuditTrailRepository {
   // 3. Action Center Items Operations
   public upsertActionItem(item: {
     id: string;
-    familyId?: number;
+    familyId: number;
     actionId: string;
     status: 'PENDING' | 'DRAFT' | 'RECOMMENDED' | 'COMPLETED' | 'SCHEDULED' | 'DISMISSED';
     title: string;
     description: string;
     impactSummary?: any;
   }): AIActionItemRecord {
-    const familyId = item.familyId || 1;
+    const familyId = item.familyId;
     const now = new Date().toISOString();
 
     db.prepare(`
@@ -189,7 +189,7 @@ export class SQLiteAIAuditTrailRepository {
     };
   }
 
-  public getActionItemsByStatus(familyId: number = 1, status?: string): AIActionItemRecord[] {
+  public getActionItemsByStatus(familyId: number, status?: string): AIActionItemRecord[] {
     const rows = status
       ? db.prepare('SELECT * FROM ai_action_items WHERE family_id = ? AND status = ? ORDER BY updated_at DESC').all(familyId, status) as any[]
       : db.prepare('SELECT * FROM ai_action_items WHERE family_id = ? ORDER BY updated_at DESC').all(familyId) as any[];

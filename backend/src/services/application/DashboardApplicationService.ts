@@ -184,33 +184,13 @@ export class DashboardApplicationService {
     requestedFamilyId?: number,
     asOfDate?: string
   ): Promise<DashboardOverviewResponseDTO> {
-    const allFamilies = familyRepository.findAll();
     let family: any = null;
-
     if (requestedFamilyId && !isNaN(requestedFamilyId) && requestedFamilyId > 0) {
       family = familyRepository.findById(requestedFamilyId);
     }
 
-    // If requested family is missing or has 0 total assets, fall back to family with assets
-    if (!family || this.computeRealDatabaseNetWorth(family.id).totalMarketValue === 0) {
-      try {
-        const famWithAssets = db.prepare(`
-          SELECT DISTINCT fm.family_id 
-          FROM assets a 
-          JOIN family_members fm ON a.family_member_id = fm.id
-          ORDER BY a.id DESC
-        `).get() as { family_id: number } | undefined;
-
-        if (famWithAssets && famWithAssets.family_id) {
-          const foundFam = familyRepository.findById(famWithAssets.family_id);
-          if (foundFam) {
-            family = foundFam;
-          }
-        }
-      } catch (e) {}
-    }
-
     if (!family) {
+      const allFamilies = familyRepository.findAll();
       family = allFamilies[0] || { id: 1, name: 'My Family', currency: 'INR' };
     }
     

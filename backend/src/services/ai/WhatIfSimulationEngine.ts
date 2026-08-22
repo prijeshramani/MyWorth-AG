@@ -137,16 +137,18 @@ export class WhatIfSimulationEngine {
   }
 
   public runSimulation(
-    familyId: number = 1,
+    familyId: number,
     params: SimulationParams,
     templateType?: string
   ): WhatIfSimulationResponse {
-    // 1. Retrieve current baseline portfolio net worth
+    // 1. Retrieve current baseline portfolio net worth scoped to familyId
     const assets = db.prepare(`
       SELECT a.id, a.type, a.category, COALESCE(p.price, 0) as price
       FROM assets a
+      LEFT JOIN family_members fm ON a.family_member_id = fm.id
       LEFT JOIN asset_prices p ON p.asset_id = a.id AND p.date = (SELECT MAX(date) FROM asset_prices WHERE asset_id = a.id)
-    `).all() as any[];
+      WHERE (fm.family_id = ? OR a.family_member_id IS NULL)
+    `).all(familyId) as any[];
 
     let baselineNetWorth = 0;
     for (const a of assets) {

@@ -68,15 +68,17 @@ export interface AggregatedAIContext {
 }
 
 export class AIContextAggregator {
-  public async getContextForFamily(familyId: number = 1): Promise<AggregatedAIContext> {
+  public async getContextForFamily(familyId: number): Promise<AggregatedAIContext> {
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // 1. Gather Asset & Portfolio Metrics from Asset Repositories / Views
+    // 1. Gather Asset & Portfolio Metrics from Asset Repositories / Views scoped to familyId
     const assets = db.prepare(`
       SELECT a.*, ap.price as latest_price
       FROM assets a
+      LEFT JOIN family_members fm ON a.family_member_id = fm.id
       LEFT JOIN asset_prices ap ON ap.asset_id = a.id AND ap.date = (SELECT MAX(date) FROM asset_prices WHERE asset_id = a.id)
-    `).all() as any[];
+      WHERE (fm.family_id = ? OR a.family_member_id IS NULL)
+    `).all(familyId) as any[];
 
     let equityTotal = 0;
     let debtTotal = 0;
@@ -146,8 +148,10 @@ export class AIContextAggregator {
                a.type as assetType, a.category, t.type, t.date, t.quantity, t.price, t.amount
         FROM transactions t
         JOIN assets a ON t.asset_id = a.id
+        LEFT JOIN family_members fm ON a.family_member_id = fm.id
+        WHERE (fm.family_id = ? OR a.family_member_id IS NULL)
         ORDER BY t.date ASC
-      `).all() as any[];
+      `).all(familyId) as any[];
 
       const currentAssets = db.prepare(`
         SELECT a.id, a.name, a.identifier, a.type,
@@ -155,13 +159,15 @@ export class AIContextAggregator {
                COALESCE(AVG(CASE WHEN t.type = 'BUY' THEN t.price END), 0) as avgBuyPrice,
                COALESCE(p.price, AVG(CASE WHEN t.type = 'BUY' THEN t.price END), 0) as currentPrice
         FROM assets a
+        LEFT JOIN family_members fm ON a.family_member_id = fm.id
         LEFT JOIN transactions t ON a.id = t.asset_id
         LEFT JOIN (
           SELECT asset_id, price FROM asset_prices 
           WHERE (asset_id, date) IN (SELECT asset_id, MAX(date) FROM asset_prices GROUP BY asset_id)
         ) p ON a.id = p.asset_id
+        WHERE (fm.family_id = ? OR a.family_member_id IS NULL)
         GROUP BY a.id
-      `).all() as any[];
+      `).all(familyId) as any[];
 
       const enrichedAssets = currentAssets.map(a => ({
         id: a.id,

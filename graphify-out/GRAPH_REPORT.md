@@ -1,7 +1,7 @@
-# Graph Report - C:\Users\prije\Downloads\MyWorth  (2026-08-17)
+# Graph Report - C:\Users\prije\Downloads\MyWorth  (2026-08-22)
 
 ## Corpus Check
-- 370 files · ~348,473 words
+- 370 files · ~362,824 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -1494,11 +1494,11 @@ Nodes (0):
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `runTestSuite()` connect `Community 0` to `Community 1`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 7`, `Community 8`, `Community 9`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 17`?**
-  _High betweenness centrality (0.261) - this node is a cross-community bridge._
-- **Why does `SQLiteTaxRepository` connect `Community 0` to `Community 7`?**
+  _High betweenness centrality (0.237) - this node is a cross-community bridge._
+- **Why does `syncMutualFunds()` connect `Community 3` to `Community 1`, `Community 2`, `Community 5`?**
+  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `fetchUpstoxHoldings()` connect `Community 10` to `Community 1`, `Community 2`, `Community 3`?**
   _High betweenness centrality (0.020) - this node is a cross-community bridge._
-- **Why does `SQLiteTransactionRepository` connect `Community 1` to `Community 0`, `Community 8`, `Community 5`?**
-  _High betweenness centrality (0.018) - this node is a cross-community bridge._
 - **Are the 84 inferred relationships involving `runTestSuite()` (e.g. with `initDb()` and `.log()`) actually correct?**
   _`runTestSuite()` has 84 INFERRED edges - model-reasoned connections that need verification._
 - **Should `Community 0` be split into smaller, more focused modules?**

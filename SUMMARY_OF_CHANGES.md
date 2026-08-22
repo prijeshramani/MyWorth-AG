@@ -169,4 +169,23 @@ This document summarizes all systemic fixes, schema migrations, backend service 
   - Updated SQL queries in `SearchService.ts` to match the actual SQLite database schema (`assets` joined with `family_members` and `asset_prices`, `family_members.pan`, `insurance_policies.id`, and `financial_goals`).
   - Added isolated `try-catch` blocks around each entity query for maximum fault tolerance.
 
+---
+
+## 11. Sprint 8B.0 Contracts, Correlation, Idempotency & Audit Infrastructure
+- **Strict Dynamic Family Scoping & Hardcoded ID Purge**:
+  - Eliminated all static `familyId = 1` assumptions across documentation, guides, and services (`SearchService`, `AIContextAggregator`, `AIAdvisorService`, `NotificationService`, `WhatIfSimulationEngine`, `RelationshipService`, `DashboardApplicationService`).
+  - Updated `GlobalSearchModal.tsx` to bind directly to `activeFamilyId` from `useUiStore`.
+- **Data & Event Contracts (`backend/src/contracts/familyOfficeContracts.ts`)**:
+  - Strongly-typed Zod schemas and TypeScript interfaces for `EventEnvelopeSchema`, `ApiResponseEnvelopeSchema`, `DigitalTwinStateSchema`, `LifeEventDeclarationInputSchema`, `LifeEventCandidateSchema`, `LifeEventConsequenceSchema`, `ObserverRuleCodeEnum`, `ProactiveTriggerSchema`, and `ExplainabilityLineageSchema`.
+- **Async Correlation Context (`backend/src/infrastructure/correlation/CorrelationContext.ts` & `correlationMiddleware.ts`)**:
+  - Node.js `AsyncLocalStorage<CorrelationStore>` context store with automatic `req_` fallback generation, nested asynchronous boundary propagation, and Express request interception.
+- **SQLite Idempotency Framework (`backend/src/db/migrations/016_idempotency_keys.ts` & `backend/src/repositories/SQLiteIdempotencyRepository.ts` & `idempotencyMiddleware.ts`)**:
+  - Migration `016_idempotency_keys.ts` with indexed `idempotency_keys` table.
+  - `SQLiteIdempotencyRepository` with atomic reservation, payload hashing (`request_hash`), response caching with `X-Cache: IDEMPOTENT_HIT`, and expired key purging.
+- **Fiduciary Audit Hooks & Event Bus (`backend/src/infrastructure/audit/AuditHookService.ts`)**:
+  - In-process pub/sub event bus supporting schema validation, asynchronous correlation propagation, registered event subscribers, and persistent logging to `ai_audit_trail`.
+- **Sprint 8B.0 Test Harness & Regression Suite (`backend/src/__tests__/sprint8b0/`)**:
+  - Added 4 dedicated unit test suites (`contracts.test.ts`, `correlation.test.ts`, `idempotency.test.ts`, `auditHooks.test.ts`) integrated with master test runner (`runTests.ts`), achieving **238/238 PASSED tests (100%)** with **0 failures**.
+
+
 

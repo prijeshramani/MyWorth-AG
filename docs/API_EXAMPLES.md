@@ -10,7 +10,7 @@
 ## 1. API-001: Consolidated Family Portfolio Summary
 
 ### Request
-`GET /api/v1/portfolio/summary?familyId=1&includeRiskMetrics=true`
+`GET /api/v1/portfolio/summary?familyId=${activeFamilyId}&includeRiskMetrics=true`
 
 Headers:
 `X-Correlation-ID: req_9901_test`

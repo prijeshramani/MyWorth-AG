@@ -1,5 +1,43 @@
 # AI Change Log
 
+## [2026-08-22] Sprint 8B.0 – Contracts, Correlation, Idempotency & Audit Infrastructure
+
+### Added
+- **Data & Event Contracts (`backend/src/contracts/familyOfficeContracts.ts`)**:
+  - Implemented strongly-typed Zod schemas and TypeScript interfaces for Phase 8B event envelopes, digital twin state, life event inputs/consequences, observer rules, proactive triggers, and the 5-point fiduciary explainability lineage.
+- **Async Correlation Context (`backend/src/infrastructure/correlation/CorrelationContext.ts` & `correlationMiddleware.ts`)**:
+  - Implemented Node.js `AsyncLocalStorage<CorrelationStore>` context store with automatic `req_` fallback generation, nested asynchronous boundary propagation, and Express request interception.
+- **SQLite Idempotency Framework (`backend/src/db/migrations/016_idempotency_keys.ts` & `backend/src/repositories/SQLiteIdempotencyRepository.ts` & `idempotencyMiddleware.ts`)**:
+  - Created migration `016_idempotency_keys.ts` with indexed `idempotency_keys` table.
+  - Implemented `SQLiteIdempotencyRepository` with atomic reservation, payload hashing (`request_hash`), response caching with `X-Cache: IDEMPOTENT_HIT`, and expired key purging.
+- **Fiduciary Audit Hooks & Event Bus (`backend/src/infrastructure/audit/AuditHookService.ts`)**:
+  - Built an in-process pub/sub event bus supporting schema validation, asynchronous correlation propagation, registered event subscribers, and persistent logging to `ai_audit_trail`.
+- **Sprint 8B.0 Test Harness (`backend/src/__tests__/sprint8b0/`)**:
+  - Built 4 dedicated test suites (`contracts.test.ts`, `correlation.test.ts`, `idempotency.test.ts`, `auditHooks.test.ts`) integrated with the master test runner (`runTests.ts`), achieving 238/238 passing tests with 0 failures.
+
+## [2026-08-22] Phase 8A – Personal Family Office Intelligence Architecture & Product Blueprint
+
+### Added
+- **Complete Phase 8A Architecture Package (14 Workstream Artifacts)**:
+  - `docs/FAMILY_OFFICE_VISION.md`: 10 Pillars of the Personal Family Office OS.
+  - `docs/FAMILY_DIGITAL_TWIN.md`: Unified computable semantic state machine mapping Family Members, Lineage, Balance Sheet, Protection, Goals, and Estate.
+  - `docs/LIFE_EVENTS_ENGINE.md`: Event-driven consequence propagation engine across Childbirth, Marriage, Salary shifts, Real Estate, Debt, and Retirement.
+  - `docs/PROACTIVE_AI_ARCHITECTURE.md`: Autonomous fiduciary observer with confidence gating ($>85\%$), cooldown registry, and duplicate suppression.
+  - `docs/FAMILY_FINANCIAL_HEALTH.md`: Weighted composite 0–100 index (Protection 25%, Liquidity 20%, Retirement 20%, Estate 15%, Tax/Asset Quality 20%) with dynamic life-stage tuning.
+  - `docs/FAMILY_TIMELINE.md`: Multi-domain chronological milestone feed and historical narrative ledger.
+  - `docs/AI_MEMORY_MODEL.md`: 4-Tier memory boundary isolating Authoritative Truth, User Mandates, Episodic Dialogue, and Derived Hypotheses.
+  - `docs/AI_EXPLAINABILITY.md`: 5-Point Fiduciary Lineage Standard (*Why? Evidence? Rule? Calculation? Freshness?*).
+  - `docs/FINANCIAL_TIME_MACHINE.md`: Point-in-time retroactive balance sheet reconstruction and zero-mutation counterfactual What-If simulation sandbox.
+  - `docs/FAMILY_COMMAND_CENTER.md`: Decision-centric UX prioritizing actionable fiduciary choices over dashboard widget clutter.
+  - `docs/USER_JOURNEY_MAPS.md`: End-to-end workflows for Onboarding, Retirement, Insurance Audit, and Emergency Survival Mode.
+  - `docs/USER_PERSONAS.md`: Fiduciary archetypes covering Young Professionals, Married Couples, Families with Kids, HNIs, and Retirees.
+  - `docs/PHASE_8_ROADMAP.md`: Strategic roadmap spanning Phase 8A through 8F.
+  - `docs/PHASE_8A_ARCHITECTURE_REVIEW.md`: Comprehensive assessment of reusable subsystems, database schema additions, and API endpoints.
+- **Dynamic Family Scope Enforcement & Removal of Hardcoded Family IDs**:
+  - Removed all hardcoded `familyId = 1` assumptions across Phase 8 documentation, guides, and API examples.
+  - Enforced strict runtime scoping in `SearchService.ts`, `AIContextAggregator.ts`, `AIAdvisorService.ts`, `WhatIfSimulationEngine.ts`, `NotificationService.ts`, `SQLiteSimulationSnapshotRepository.ts`, and `SQLiteAIAuditTrailRepository.ts` where `familyId` is strictly derived from `activeFamilyId` or authenticated user context.
+  - Updated `GlobalSearchModal.tsx` to query directly via `activeFamilyId` from `useUiStore` with zero static mock fallback rows.
+
 ## [2026-08-16] Import Center Expansion, Zerodha OAuth Decoupling, NPS Tiering, Insurance Policy Floater Fields & Accounts Manager Ownership & Balance Fixes
 
 ### Added

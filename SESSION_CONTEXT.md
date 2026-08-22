@@ -1,13 +1,35 @@
 # Session Context & Active Sprints
 
-- **Current Version**: `v2.5.0`
-- **Active Phase**: `Phase 9 – AI Recommendations Real-Data Integration, Global Search & System Hardening`
-- **Status**: `Completed & Production-Grade (Score: 100%)`
+- **Current Version**: `v2.7.0`
+- **Active Phase**: `Phase 8B – Core Family Office Engine Foundation`
+- **Status**: `Sprint 8B.0 COMPLETE (238/238 Backend Tests Passing). Ready for Sprint 8B.1 (Digital Twin Foundation).`
 
 ---
 
 ## Active Sprint Deliverables
-1. **AI Insights & Intelligent Recommendations Engine Overhaul**:
+1. **Sprint 8B.0: Contracts, Correlation, Idempotency & Audit Infrastructure (COMPLETE)**:
+   - **Data Contracts (`backend/src/contracts/familyOfficeContracts.ts`)**: Strongly typed Zod schemas for `EventEnvelopeSchema`, `ApiResponseEnvelopeSchema`, `DigitalTwinStateSchema`, `LifeEventDeclarationInputSchema`, `LifeEventCandidateSchema`, `LifeEventConsequenceSchema`, `ObserverRuleCodeEnum`, `ProactiveTriggerSchema`, and `ExplainabilityLineageSchema`.
+   - **Correlation & Async Context (`backend/src/infrastructure/correlation/CorrelationContext.ts` & `correlationMiddleware.ts`)**: Node.js `AsyncLocalStorage` correlation store propagating `correlationId`, `causationId`, `familyId`, and `userId` across asynchronous call chains with zero parameter pollution.
+   - **SQLite Idempotency Framework (`backend/src/db/migrations/016_idempotency_keys.ts` & `backend/src/repositories/SQLiteIdempotencyRepository.ts` & `idempotencyMiddleware.ts`)**: Atomic key reservation, request payload hashing (`request_hash`), response caching with `X-Cache: IDEMPOTENT_HIT`, and expired key purging.
+   - **Fiduciary Audit Hooks & Event Bus (`backend/src/infrastructure/audit/AuditHookService.ts`)**: In-process pub/sub event bus validating Zod envelopes, auto-attaching active `correlationId`, dispatching subscribers, and logging immutable audit records to `ai_audit_trail`.
+   - **Sprint 8B.0 Test Harness (`backend/src/__tests__/sprint8b0/`)**: 23 dedicated unit tests across contracts, correlation context, idempotency, and audit hooks integrated into master test suite with 238/238 passing tests.
+   - **Dynamic Family Scoping & Hardcoded ID Purge**: Purged static `familyId = 1` assumptions across documentation and services (`SearchService`, `AIContextAggregator`, `AIAdvisorService`, `NotificationService`, `WhatIfSimulationEngine`, `RelationshipService`, `DashboardApplicationService`).
+
+2. **Phase 8A: Personal Family Office Architecture Deliverables**:
+   - **Family Office Vision (`docs/FAMILY_OFFICE_VISION.md`)**: Comprehensive philosophy and 10 pillars of the Personal Family Office OS.
+   - **Family Digital Twin (`docs/FAMILY_DIGITAL_TWIN.md`)**: Unified semantic state machine integrating Lineage, Balance Sheet, Protection Shield, Trajectory, and Governance over SQLite & Knowledge Graph.
+   - **Life Events Engine (`docs/LIFE_EVENTS_ENGINE.md`)**: Event-driven consequence propagation for Childbirth, Marriage, Salary shifts, Home purchases, Loan closures, and Retirement.
+   - **Proactive AI Architecture (`docs/PROACTIVE_AI_ARCHITECTURE.md`)**: Autonomous fiduciary observer with confidence gating ($>85\%$), cooldown timers, and noise suppression.
+   - **Family Financial Health Index (`docs/FAMILY_FINANCIAL_HEALTH.md`)**: Composite 0–100 index aggregating Protection, Liquidity, Retirement, Estate, and Tax.
+   - **Family Timeline (`docs/FAMILY_TIMELINE.md`)**: Unified multi-domain chronological narrative and historical milestone ledger.
+   - **AI Memory Model (`docs/AI_MEMORY_MODEL.md`)**: 4-Tier memory boundary strictly isolating Authoritative Truth, User Mandates, Episodic Chat Memory, and Derived Inferences.
+   - **AI Explainability (`docs/AI_EXPLAINABILITY.md`)**: 5-Point Fiduciary Lineage Standard (*Why? Evidence? Rule? Calculation? Freshness?*).
+   - **Financial Time Machine (`docs/FINANCIAL_TIME_MACHINE.md`)**: Retroactive point-in-time balance sheet reconstruction and zero-mutation What-If sandbox.
+   - **Family Command Center (`docs/FAMILY_COMMAND_CENTER.md`)**: Decision-centric UX prioritizing actionable items over widget clutter.
+   - **User Journeys (`docs/USER_JOURNEY_MAPS.md`) & Personas (`docs/USER_PERSONAS.md`)**: 4 end-to-end fiduciary journeys and 5 household archetypes.
+   - **Phase 8 Strategic Roadmap (`docs/PHASE_8_ROADMAP.md`)**: Phased execution plan spanning 8A through 8F.
+   - **Comprehensive Review Report (`docs/PHASE_8A_ARCHITECTURE_REVIEW.md`)**: Component reuse assessment, database schema additions, and implementation plan.
+2. **AI Insights & Intelligent Recommendations Engine Overhaul**:
    - **Dynamic Term Life Insurance Evaluation**: Replaced static mock values with live SQLite database queries in `RecommendationOrchestrator.ts`. Correctly evaluates active term policies against the ₹2.5 Cr HLV requirement and generates `Term Life Insurance Target Achieved` confirmation card when coverage is satisfied (e.g. ₹3.01 Cr total coverage).
    - **Dynamic Section 80C Tax Evaluation**: Aggregates actual investments in EPF, PPF, SSY, and ELSS (₹21,58,503) and outputs `Section 80C Limit Fully Maximized`.
    - **Dynamic Net Estate Valuation**: Formats actual net estate valuation (₹0.57 Cr) for Will succession planning recommendations.

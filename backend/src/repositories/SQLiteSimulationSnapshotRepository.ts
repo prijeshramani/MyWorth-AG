@@ -13,7 +13,7 @@ export interface SimulationSnapshotRecord {
 
 export class SQLiteSimulationSnapshotRepository {
   public saveSnapshot(
-    familyId: number = 1,
+    familyId: number,
     title: string,
     templateType: string,
     scenarioInputs: any,
@@ -52,7 +52,7 @@ export class SQLiteSimulationSnapshotRepository {
     };
   }
 
-  public findAllForFamily(familyId: number = 1): SimulationSnapshotRecord[] {
+  public findAllForFamily(familyId: number): SimulationSnapshotRecord[] {
     const rows = db.prepare('SELECT * FROM simulation_snapshots WHERE family_id = ? ORDER BY created_at DESC').all(familyId) as any[];
     return rows.map(row => ({
       id: row.id,

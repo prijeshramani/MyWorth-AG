@@ -27,7 +27,7 @@ export interface AdvisorChatResponse {
 }
 
 export class AIAdvisorService {
-  public async processUserQuery(query: string, familyId: number = 1): Promise<AdvisorChatResponse> {
+  public async processUserQuery(query: string, familyId: number): Promise<AdvisorChatResponse> {
     const timestamp = new Date().toISOString();
     const cleanQuery = (query || '').trim();
 

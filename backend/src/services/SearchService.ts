@@ -10,7 +10,7 @@ export interface SearchResultItemDTO {
 }
 
 export class SearchService {
-  public async search(query: string, familyId: number = 1): Promise<SearchResultItemDTO[]> {
+  public async search(query: string, familyId: number): Promise<SearchResultItemDTO[]> {
     const q = (query || '').trim().toLowerCase();
     const results: SearchResultItemDTO[] = [];
 

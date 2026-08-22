@@ -70,10 +70,11 @@ export class RelationshipService {
       if (accountsTable) {
         const accounts = this.db
           .prepare(`
-            SELECT a.id, a.account_name as name, a.account_type as type, a.masked_account_number as account_number_masked, a.institution_name, a.family_member_id 
+            SELECT a.id, a.account_name as name, a.account_type as type, a.masked_account_number as account_number_masked, a.institution_name, e.family_member_id 
             FROM accounts a 
-            LEFT JOIN family_members fm ON a.family_member_id = fm.id 
-            WHERE (fm.family_id = ? OR a.family_member_id IS NULL) AND a.deleted_at IS NULL
+            LEFT JOIN entities e ON a.entity_id = e.id
+            LEFT JOIN family_members fm ON e.family_member_id = fm.id 
+            WHERE (fm.family_id = ? OR e.family_member_id IS NULL) AND a.deleted_at IS NULL
           `)
           .all(targetFamilyId) as Array<{ id: number; name: string; type: string; account_number_masked?: string; institution_name?: string; family_member_id?: number | null }>;
 

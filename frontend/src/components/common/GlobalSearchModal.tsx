@@ -66,17 +66,11 @@ export const GlobalSearchModal: React.FC = () => {
     const fetchSearch = async () => {
       try {
         setLoading(true);
-        const res = await apiClient.get(`/search/query?q=${encodeURIComponent(query)}&familyId=${activeFamilyId || 1}`);
+        const res = await apiClient.get(`/search/query?q=${encodeURIComponent(query)}&familyId=${activeFamilyId}`);
         setResults(res.data?.data || []);
         setSelectedIndex(0);
       } catch {
-        // Local fallback index
-        setResults([
-          { id: '1', category: 'Investment', title: 'HDFC Top 100 Equity Fund', subtitle: 'Mutual Fund • Value: ₹24,50,000', tabTarget: 'portfolio' },
-          { id: '2', category: 'Family', title: 'Rajesh Sharma (Head)', subtitle: 'PAN: ABCDE1234F • Active Member', tabTarget: 'family' },
-          { id: '3', category: 'Protection', title: 'Star Health Optima Plan', subtitle: 'Policy #POL-4402 • Sum Assured: ₹10,00,000', tabTarget: 'protection' },
-          { id: '4', category: 'Tax', title: 'Tax Intelligence & 80C Optimizer', subtitle: 'FY Tax Breakdown & Capital Gains Summary', tabTarget: 'tax' }
-        ]);
+        setResults([]);
       } finally {
         setLoading(false);
       }

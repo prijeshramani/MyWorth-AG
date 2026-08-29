@@ -1,5 +1,32 @@
 # AI Change Log
 
+## [2026-08-29] Sprint 8C.3 – Financial Time Machine, Point-in-Time Reconstruction & What-If Simulation Sandbox (Hardened)
+
+### Added & Hardened
+- **Core Time Machine Engine (`backend/src/services/familyOffice/FinancialTimeMachineService.ts`)**:
+  - Implemented point-in-time historical economic state reconstruction as of any `asOfDate <= CURRENT_DATE` using business-effective transaction dates with explicit mode (`reconstructionMode: 'HISTORICAL_ECONOMIC_STATE'`) and knowledge-time transparency (`knowledgeTimeStatus: 'NOT_FULLY_RECONSTRUCTABLE'`).
+  - Implemented 5-level valuation hierarchy: `EXACT_HISTORICAL` (lag=0) $\to$ `PROXY_HISTORICAL` ($\le$ maxAgeDays) $\to$ `KNOWN_ACQUISITION_COST` $\to$ `CALCULATED` $\to$ `HISTORICAL_SOURCE_UNAVAILABLE`.
+  - Implemented versioned proxy freshness policy in `TIME_MACHINE_RULE_REGISTRY` (30d Equity/US Stock, 60d Debt/Gold, 365d Property, 90d Cash Snapshots).
+  - Enforced Mandatory Correction #1: Missing historical data returns `null` with status `INSUFFICIENT_DATA` and provenance `HISTORICAL_SOURCE_UNAVAILABLE` (never fabricated numeric `0`).
+  - Enforced Mandatory Correction #2: Post-maturity FDs without redemption or renewal records are omitted from net worth with `totalMarketValue: null`, `status: 'INSUFFICIENT_DATA'`, and `lifecycleStatus: 'MATURED_PENDING_REINVESTMENT'`.
+  - Enforced Protection Shield Isolation: Insurance `sumAssured` is reported strictly under `protectionShield` and never added to gross assets or net worth.
+  - Implemented deterministic canonical state hashing using SHA-256 over sorted preimage excluding volatile timestamps.
+- **In-Memory What-If Simulation Sandbox (`backend/src/services/familyOffice/WhatIfSimulationEngine.ts`)**:
+  - Built zero-write simulation engine operating over deep-cloned reconstructed baseline states (0 INSERT, 0 UPDATE, 0 DELETE across 21 system tables, proven via full DB SHA-256 fingerprinting).
+  - Implemented 5 closed scenario types: `RECURRING_SIP_STEP_UP`, `ONE_TIME_LUMP_SUM_INVESTMENT`, `RETIREMENT_AGE_ADJUSTMENT`, `GOAL_CONTRIBUTION_REALLOCATION`, and `TAX_REGIME_OPTIMIZATION_SCENARIO`.
+  - Hardened Blocker 2: Eliminated arbitrary ₹15 lakh tax income fallback; missing/unverified income returns `status: 'INSUFFICIENT_DATA'` with `taxSavingsBenefit: null`.
+  - Hardened Assumption Provenance: Exposes explicit `USER_PROVIDED`, `FAMILY_PROFILE`, and `SYSTEM_ASSUMPTION` tags in `assumptionsUsed`.
+  - Hardened Incomplete Baseline Handling: Reconstructed baselines with partial pricing flag `baselineLimitations` metadata; 0 completeness returns `INSUFFICIENT_DATA`.
+- **Family Scope Security Authorization (`backend/src/controllers/TimeMachineController.ts`)**:
+  - Hardened Blocker 1: Removed `x-family-id` header selection and hardcoded `|| 1` fallback. Authorized family scope is strictly resolved from `CorrelationContext.getFamilyId()`, failing closed (`ValidationError`) on missing context and throwing 403 `FORBIDDEN` on client query/body parameter mismatch.
+- **REST Controller & Routing (`backend/src/controllers/TimeMachineController.ts`, `backend/src/routes/timeMachineRoutes.ts`)**:
+  - Mounted at `/api/v1/family-office/time-machine`: `GET /` (historical reconstruction) and `POST /what-if` (what-if scenario execution with `idempotencyMiddleware`).
+- **Master Test Suite Expansion (`backend/src/__tests__/sprint8c3/financialTimeMachine.test.ts`)**:
+  - 39 dedicated invariant tests covering exact pricing, proxy lag, cost basis fallback, missing data null semantics, FD lifecycle & maturity, Protection Shield isolation, cross-family SQL isolation, 21-table zero database writes, canonical state hashing, future date rejection, authorization scope rejection, non-fabricated tax optimization, assumption provenance, baseline completeness, and all 5 What-If scenarios.
+  - Advanced master test suite from 348 to **387 passing tests (0 failures)**.
+- **Documentation Deliverables**:
+  - Created and updated `docs/FINANCIAL_TIME_MACHINE.md` and `prompts/Phase8C/SPRINT_8C_3_OUTPUT_REVIEW.md`.
+
 ## [2026-08-22] Sprint 8C.2 – Multi-Domain Timeline Ledger & Narrative History
 
 ### Added

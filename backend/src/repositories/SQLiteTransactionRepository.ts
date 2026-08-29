@@ -227,6 +227,30 @@ export class SQLiteTransactionRepository implements ITransactionRepository {
     const info = db.prepare('DELETE FROM transactions WHERE id = ?').run(id);
     return info.changes > 0;
   }
+
+  public findByAssetIdAsOf(familyId: number, assetId: number, asOfDate: string): Transaction[] {
+    return db.prepare(`
+      SELECT t.*
+      FROM transactions t
+      JOIN assets a ON a.id = t.asset_id
+      JOIN family_members fm ON fm.id = a.family_member_id
+      WHERE fm.family_id = ? AND t.asset_id = ? AND t.date <= ?
+      ORDER BY t.date ASC, t.id ASC
+    `).all(familyId, assetId, asOfDate) as Transaction[];
+  }
+
+  public findAllByFamilyAsOf(familyId: number, asOfDate: string): TransactionWithAssetInfo[] {
+    return db.prepare(`
+      SELECT t.*, a.name as asset_name, a.type as asset_type, a.category as asset_category,
+             h.account_id
+      FROM transactions t
+      JOIN assets a ON a.id = t.asset_id
+      JOIN family_members fm ON fm.id = a.family_member_id
+      LEFT JOIN holdings h ON t.holding_id = h.id
+      WHERE fm.family_id = ? AND t.date <= ?
+      ORDER BY t.date ASC, t.id ASC
+    `).all(familyId, asOfDate) as TransactionWithAssetInfo[];
+  }
 }
 
 export const transactionRepository = new SQLiteTransactionRepository();

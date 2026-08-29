@@ -56,4 +56,6 @@ export interface ITransactionRepository {
   create(transaction: CreateTransactionInput): Transaction;
   createManualWithAsset(assetInput: CreateAssetInput, transactionInput?: Omit<CreateTransactionInput, 'asset_id' | 'source'>): number;
   delete(id: number): boolean;
+  findByAssetIdAsOf(familyId: number, assetId: number, asOfDate: string): Transaction[];
+  findAllByFamilyAsOf(familyId: number, asOfDate: string): TransactionWithAssetInfo[];
 }

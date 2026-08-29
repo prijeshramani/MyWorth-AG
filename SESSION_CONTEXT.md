@@ -1,13 +1,26 @@
 # Session Context & Active Sprints
 
-- **Current Version**: `v2.9.2`
+- **Current Version**: `v2.9.3`
 - **Active Phase**: `Phase 8C – Family Financial Health, Timeline, Time Machine & Command Center`
-- **Status**: `Sprint 8C.2 COMPLETE (348/348 Backend Tests Passing). Ready for Sprint 8C.3 (Financial Time Machine & Point-in-Time Reconstruction).`
+- **Status**: `Sprint 8C.3 COMPLETE & HARDENED (387/387 Backend Tests Passing, 0 tsc errors). Ready for user sign-off prior to Sprint 8C.4 (Real-Time Collaboration & Family Access Control).`
 
 ---
 
 ## Active Sprint Deliverables
-1. **Sprint 8C.2: Multi-Domain Timeline Ledger & Narrative History (COMPLETE)**:
+1. **Sprint 8C.3: Financial Time Machine, Point-in-Time Reconstruction & What-If Simulation Sandbox (COMPLETE & HARDENED)**:
+   - **Point-in-Time Historical Reconstruction (`FinancialTimeMachineService.ts`)**: Deterministic multi-pillar economic reconstruction as of any `asOfDate <= CURRENT_DATE` using business-effective transaction dates with explicit mode (`reconstructionMode: 'HISTORICAL_ECONOMIC_STATE'`) and knowledge-time transparency (`knowledgeTimeStatus: 'NOT_FULLY_RECONSTRUCTABLE'`).
+   - **5-Level Valuation Hierarchy**: `EXACT_HISTORICAL` (lag=0) $\to$ `PROXY_HISTORICAL` ($\le$ maxAgeDays: 30d Equity, 60d Debt/Gold, 365d Property) $\to$ `KNOWN_ACQUISITION_COST` $\to$ `CALCULATED` $\to$ `HISTORICAL_SOURCE_UNAVAILABLE`.
+   - **Mandatory Non-Fabrication Guardrails**: Missing historical values strictly return `null` with status `INSUFFICIENT_DATA` (never fabricated numeric `0`); post-maturity FDs without redemption are omitted from net worth with `totalMarketValue: null`, `lifecycleStatus: 'MATURED_PENDING_REINVESTMENT'`.
+   - **Protection Shield Isolation**: `SUM_ASSURED` across term and health policies is reported strictly under `protectionShield` and never enters gross assets or net worth.
+   - **In-Memory What-If Simulation Sandbox (`WhatIfSimulationEngine.ts`)**: Zero-write sandbox executing 5 closed scenarios (`RECURRING_SIP_STEP_UP`, `ONE_TIME_LUMP_SUM_INVESTMENT`, `RETIREMENT_AGE_ADJUSTMENT`, `GOAL_CONTRIBUTION_REALLOCATION`, `TAX_REGIME_OPTIMIZATION_SCENARIO`) over deep-cloned baselines with deterministic SHA-256 baseline state hashing.
+   - **Production-Safe Family Scope Authorization**: `TimeMachineController.ts` strictly authorizes from `CorrelationContext.getFamilyId()`, failing closed on missing context (`ValidationError`) and rejecting mismatched client query/body parameters (`403 FORBIDDEN`).
+   - **Non-Fabricated Tax Optimization**: Unverified income profiles return `status: 'INSUFFICIENT_DATA'` with `taxSavingsBenefit: null` (never arbitrary ₹15L fallback).
+   - **Comprehensive 21-Table Zero-Write Verification**: Tested with SHA-256 full database state fingerprinting before and after all 5 scenarios.
+   - **Assumption Provenance**: Explicit tracking of `USER_PROVIDED`, `FAMILY_PROFILE`, and `SYSTEM_ASSUMPTION` sources in `assumptionsUsed`.
+   - **Master Test Suite Expansion**: 39 dedicated invariant tests in `financialTimeMachine.test.ts` advancing master test suite from 348 to **387 passing tests (0 failures)**.
+   - **Documentation Deliverables**: `docs/FINANCIAL_TIME_MACHINE.md`, `prompts/Phase8C/SPRINT_8C_3_OUTPUT_REVIEW.md`.
+
+2. **Sprint 8C.2: Multi-Domain Timeline Ledger & Narrative History (COMPLETE)**:
    - **Core Service (`FamilyTimelineService.ts`)**: Chronological 7-domain ledger projection aggregating Portfolio, Protection, Goals, Life Events, Estate, Tax, and AI Decisions.
    - **Deterministic Event Identity & Narrative Engine (`TimelineNarrativeEngine`)**: Collision-proof canonical IDs (`evt_${domain}_${sourceType}_${sourceId}_${eventType}_[${milestoneKey}]`), Indian currency formatting (`₹15 L`, `₹1.5 Cr`), and central identifier masking (`maskIdentifier`).
    - **Scheduled vs Historical Separation**: Future obligations tagged `SCHEDULED` and filtered from past historical queries by default.

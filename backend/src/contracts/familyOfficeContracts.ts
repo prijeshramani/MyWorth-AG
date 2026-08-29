@@ -560,63 +560,161 @@ export type TimelineEventRow = z.infer<typeof TimelineEventRowSchema>;
 // 9. PHASE 8C: FINANCIAL TIME MACHINE & WHAT-IF CONTRACTS
 // ============================================================================
 
+export const ReconstructionModeEnum = z.enum(['HISTORICAL_ECONOMIC_STATE', 'SYSTEM_TIME_RECONSTRUCTION']);
+export type ReconstructionMode = z.infer<typeof ReconstructionModeEnum>;
+
+export const KnowledgeTimeStatusEnum = z.enum(['FULLY_RECONSTRUCTABLE', 'NOT_FULLY_RECONSTRUCTABLE', 'UNKNOWN']);
+export type KnowledgeTimeStatus = z.infer<typeof KnowledgeTimeStatusEnum>;
+
+export const HistoricalValuationTypeEnum = z.enum([
+  'MARKET_VALUE',
+  'NAV',
+  'ACQUISITION_COST',
+  'ACCRUED_VALUE',
+  'LEDGER_BALANCE',
+  'UNKNOWN'
+]);
+export type HistoricalValuationType = z.infer<typeof HistoricalValuationTypeEnum>;
+
 export const ReconstructedAssetHoldingSchema = z.object({
   assetId: z.number().int().positive(),
   assetName: z.string(),
   assetClass: z.string(),
   units: z.number(),
-  unitPrice: z.number(),
-  priceDate: z.string(),
-  valuationType: ValuationTypeEnum,
+  unitPrice: z.number().nullable().optional(),
+  costBasis: z.number().nullable().optional(),
+  priceDate: z.string().nullable().optional(),
+  valuationType: HistoricalValuationTypeEnum,
   provenance: ProvenanceTypeEnum,
-  totalMarketValue: z.number(),
+  daysOfProxyLag: z.number().int().min(0).default(0),
+  totalMarketValue: z.number().nullable(),
+  unrealizedGainLoss: z.number().nullable().optional(),
   currency: z.string().default('INR'),
+  status: PillarStatusEnum.default('COMPLETE'),
+  lifecycleStatus: z.string().optional().nullable(),
+  missingDataReason: z.string().optional().nullable(),
   isEstimate: z.boolean().default(false)
 });
 export type ReconstructedAssetHolding = z.infer<typeof ReconstructedAssetHoldingSchema>;
 
+export const ReconstructionDomainEnum = z.enum([
+  'PORTFOLIO',
+  'PROTECTION',
+  'LIQUIDITY',
+  'GOALS',
+  'ESTATE',
+  'TAX'
+]);
+export type ReconstructionDomain = z.infer<typeof ReconstructionDomainEnum>;
+
+export const DomainReconstructionStatusSchema = z.object({
+  domain: ReconstructionDomainEnum,
+  status: PillarStatusEnum,
+  coveragePct: z.number().min(0).max(100),
+  missingDataReasons: z.array(z.string()).default([]),
+  sourceTables: z.array(z.string()).default([])
+});
+export type DomainReconstructionStatus = z.infer<typeof DomainReconstructionStatusSchema>;
+
+export const ProtectionShieldSummarySchema = z.object({
+  totalSumAssured: z.number().min(0),
+  activePolicyCount: z.number().int().min(0),
+  policies: z.array(z.object({
+    policyId: z.number().int().positive(),
+    policyName: z.string(),
+    policyType: z.string(),
+    sumAssured: z.number().min(0),
+    startDate: z.string(),
+    status: z.string()
+  })).default([])
+});
+export type ProtectionShieldSummary = z.infer<typeof ProtectionShieldSummarySchema>;
+
 export const TimeMachineReconstructionSchema = z.object({
   familyId: z.number().int().positive(),
-  targetDate: z.string(),
+  asOfDate: z.string(),
+  reconstructionMode: ReconstructionModeEnum.default('HISTORICAL_ECONOMIC_STATE'),
+  knowledgeTimeStatus: KnowledgeTimeStatusEnum.default('NOT_FULLY_RECONSTRUCTABLE'),
   netWorth: z.number(),
   grossAssets: z.number(),
   totalLiabilities: z.number(),
+  containsNonMarketValuations: z.boolean().default(false),
+  completenessScore: z.number().min(0).max(1),
+  overallStatus: PillarStatusEnum,
   holdings: z.array(ReconstructedAssetHoldingSchema),
   cashBalances: z.record(z.number()),
   liabilitiesBreakdown: z.record(z.number()),
-  overallStatus: PillarStatusEnum,
-  completenessScore: z.number().min(0).max(1),
-  provenanceBreakdown: z.record(ProvenanceTypeEnum),
+  protectionShield: ProtectionShieldSummarySchema,
+  domains: z.object({
+    portfolio: DomainReconstructionStatusSchema,
+    protection: DomainReconstructionStatusSchema,
+    liquidity: DomainReconstructionStatusSchema,
+    goals: DomainReconstructionStatusSchema,
+    estate: DomainReconstructionStatusSchema,
+    tax: DomainReconstructionStatusSchema
+  }),
+  provenanceBreakdown: z.record(z.number()),
+  stateHash: z.string(),
+  ruleVersion: z.string().default('2026.1'),
   calculationVersion: z.string().default('2026.1'),
-  asOfTimestamp: z.string()
+  reconstructedAt: z.string()
 });
 export type TimeMachineReconstruction = z.infer<typeof TimeMachineReconstructionSchema>;
 
+export const WhatIfScenarioTypeEnum = z.enum([
+  'RECURRING_SIP_STEP_UP',
+  'ONE_TIME_LUMP_SUM_INVESTMENT',
+  'RETIREMENT_AGE_ADJUSTMENT',
+  'GOAL_CONTRIBUTION_REALLOCATION',
+  'TAX_REGIME_OPTIMIZATION_SCENARIO'
+]);
+export type WhatIfScenarioType = z.infer<typeof WhatIfScenarioTypeEnum>;
+
 export const WhatIfScenarioInputSchema = z.object({
-  templateId: z.string().optional(),
+  scenarioType: WhatIfScenarioTypeEnum,
+  baselineAsOf: z.string().optional(),
+  // RECURRING_SIP_STEP_UP
   monthlySipAmount: z.number().min(0).max(5000000).optional(),
   sipStepUpPercent: z.number().min(0).max(100).optional(),
-  targetRetirementAge: z.number().int().min(35).max(80).optional(),
-  loanPrepaymentAmount: z.number().min(0).optional(),
-  assetRebalanceEquityPercent: z.number().min(0).max(100).optional(),
-  assetRebalanceDebtPercent: z.number().min(0).max(100).optional(),
-  targetGoalId: z.number().int().positive().optional()
+  years: z.number().int().min(1).max(50).optional(),
+  // ONE_TIME_LUMP_SUM_INVESTMENT
+  lumpSumAmount: z.number().min(0).optional(),
+  investmentHorizonYears: z.number().int().min(1).max(50).optional(),
+  assumedReturnPct: z.number().min(0).max(30).optional(),
+  // RETIREMENT_AGE_ADJUSTMENT
+  targetRetirementAge: z.number().int().min(35).max(75).optional(),
+  // GOAL_CONTRIBUTION_REALLOCATION
+  targetGoalId: z.number().int().positive().optional(),
+  reallocatedMonthlySip: z.number().min(0).optional(),
+  // TAX_REGIME_OPTIMIZATION_SCENARIO
+  hypothetical80CAmount: z.number().min(0).max(150000).optional(),
+  hypothetical80CCDAmount: z.number().min(0).max(50000).optional(),
+  salaryIncome: z.number().min(0).optional()
 });
 export type WhatIfScenarioInput = z.infer<typeof WhatIfScenarioInputSchema>;
 
 export const WhatIfSimulationResultSchema = z.object({
   scenarioId: z.string(),
+  scenarioType: WhatIfScenarioTypeEnum,
   familyId: z.number().int().positive(),
   baselineStateHash: z.string(),
   baselineAsOf: z.string(),
   appliedParameters: WhatIfScenarioInputSchema,
-  corpusAtRetirement: z.number(),
-  readinessPercent: z.number().min(0),
-  gapDelta: z.number(),
-  monthlyBenefitAmount: z.number(),
-  riskLevel: z.enum(['LOW', 'MODERATE', 'HIGH']),
-  taxSavingsBenefit: z.number(),
+  status: PillarStatusEnum.default('COMPLETE'),
+  corpusAtRetirement: z.number().optional().nullable(),
+  readinessPercent: z.number().min(0).optional().nullable(),
+  gapDelta: z.number().optional().nullable(),
+  monthlyBenefitAmount: z.number().optional().nullable(),
+  projectedValue: z.number().optional().nullable(),
+  estimatedWealthGain: z.number().optional().nullable(),
+  taxSavingsBenefit: z.number().optional().nullable(),
+  optimalRegime: z.enum(['OLD', 'NEW']).optional().nullable(),
+  effectiveTaxRate: z.number().optional().nullable(),
+  yearlySchedule: z.array(z.any()).optional(),
+  assumptionsUsed: z.record(z.any()).default({}),
+  missingDataReason: z.string().optional().nullable(),
   calculationVersion: z.string().default('2026.1'),
+  ruleVersion: z.string().default('2026.1'),
   generatedAt: z.string()
 });
 export type WhatIfSimulationResult = z.infer<typeof WhatIfSimulationResultSchema>;

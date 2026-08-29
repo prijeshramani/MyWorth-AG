@@ -26,11 +26,13 @@ import { lifeEventRouter } from './lifeEventRoutes';
 import proactiveObserverRouter from './proactiveObserverRoutes';
 import familyHealthRouter from './familyHealthRoutes';
 import familyTimelineRouter from './familyTimelineRoutes';
+import timeMachineRouter from './timeMachineRoutes';
 
 const router = Router();
 
 router.use('/family-office/health', familyHealthRouter);
 router.use('/family-office/timeline', familyTimelineRouter);
+router.use('/family-office/time-machine', timeMachineRouter);
 router.use('/family-office/digital-twin', digitalTwinRouter);
 router.use('/family-office/life-events', lifeEventRouter);
 router.use('/family-office/proactive', proactiveObserverRouter);

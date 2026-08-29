@@ -185,7 +185,7 @@ export async function runSprint8c0Tests() {
   // 1.6 Time Machine Reconstruction Schema & Completeness Verification
   const validTimeMachine = TimeMachineReconstructionSchema.parse({
     familyId: TEST_FAM_A,
-    targetDate: '2024-03-31',
+    asOfDate: '2024-03-31',
     netWorth: 4500000,
     grossAssets: 5000000,
     totalLiabilities: 500000,
@@ -206,19 +206,33 @@ export async function runSprint8c0Tests() {
     ],
     cashBalances: { 'HDFC_Savings_9901': 350000 },
     liabilitiesBreakdown: { 'Home_Loan_Principal': 500000 },
+    protectionShield: {
+      totalSumAssured: 10000000,
+      activePolicyCount: 1,
+      policies: []
+    },
+    domains: {
+      portfolio: { domain: 'PORTFOLIO', status: 'COMPLETE', coveragePct: 100, missingDataReasons: [], sourceTables: [] },
+      protection: { domain: 'PROTECTION', status: 'COMPLETE', coveragePct: 100, missingDataReasons: [], sourceTables: [] },
+      liquidity: { domain: 'LIQUIDITY', status: 'COMPLETE', coveragePct: 100, missingDataReasons: [], sourceTables: [] },
+      goals: { domain: 'GOALS', status: 'PARTIAL', coveragePct: 50, missingDataReasons: [], sourceTables: [] },
+      estate: { domain: 'ESTATE', status: 'PARTIAL', coveragePct: 50, missingDataReasons: [], sourceTables: [] },
+      tax: { domain: 'TAX', status: 'COMPLETE', coveragePct: 100, missingDataReasons: [], sourceTables: [] }
+    },
     overallStatus: 'PARTIAL',
     completenessScore: 0.85,
     provenanceBreakdown: {
-      'equities': 'EXACT_HISTORICAL',
-      'fixed_deposits': 'CALCULATED',
-      'real_estate': 'KNOWN_ACQUISITION_COST'
+      EXACT_HISTORICAL: 1,
+      CALCULATED: 1,
+      KNOWN_ACQUISITION_COST: 0
     },
+    stateHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     calculationVersion: '2026.1',
-    asOfTimestamp: '2026-08-23T00:00:00.000Z'
+    reconstructedAt: '2026-08-23T00:00:00.000Z'
   });
   assert.strictEqual(validTimeMachine.overallStatus, 'PARTIAL');
   assert.strictEqual(validTimeMachine.completenessScore, 0.85);
-  assert.strictEqual(validTimeMachine.provenanceBreakdown['equities'], 'EXACT_HISTORICAL');
+  assert.strictEqual(validTimeMachine.provenanceBreakdown['EXACT_HISTORICAL'], 1);
 
   // Completeness score bounds rejection
   assert.throws(() => {

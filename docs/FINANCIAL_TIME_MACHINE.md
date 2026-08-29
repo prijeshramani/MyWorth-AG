@@ -1,82 +1,101 @@
-# Financial Time Machine & Simulation Sandbox Architecture
+# Financial Time Machine & What-If Simulation Sandbox
 
-## 1. Dual Capability Overview
+## Overview
 
-The **Financial Time Machine** provides two core superpowers for the family office:
+Sprint 8C.3 delivers the **Financial Time Machine & Point-in-Time Reconstruction Engine** alongside the **In-Memory What-If Simulation Sandbox** for MyWorth Family Office.
 
-```
-+---------------------------------------------------------------------------------------+
-|                              FINANCIAL TIME MACHINE                                   |
-+---------------------------------------------------------------------------------------+
-        |                                                              |
-        v                                                              v
-  [ 1. RETROACTIVE RECONSTRUCTION ]             [ 2. COUNTERFACTUAL WHAT-IF SANDBOX ]
-  "What was our exact net worth, asset          "What if we had invested ₹25,000/mo into
-   allocation, and tax position on               Nifty 50 instead of Fixed Deposits over
-   31 March 2024?"                               the last 5 years?"
-  -> Deterministic Backward State Engine        -> Zero-Mutation Parallel Simulation Sandbox
-```
+The Financial Time Machine enables family offices, advisors, and estate planners to accurately reconstruct historical balance sheets, asset portfolios, liability positions, insurance coverage, and estate/tax pillar statuses as of any historical timestamp (`asOfDate <= CURRENT_DATE`), while enforcing strict non-fabrication guardrails.
+
+The What-If Simulation Sandbox provides an isolated, in-memory environment to test hypothetical financial adjustments (SIP step-ups, lump-sum deployments, retirement age shifts, goal reallocations, and tax regime switches) against an immutable reconstructed historical or current baseline state without altering persistent database records.
 
 ---
 
-## 2. Retroactive Point-in-Time Reconstruction Engine
+## 1. Core Architectural Guardrails
 
-### Reconstruction Strategy:
-To reconstruct the exact financial state on any target date $T_{\text{target}}$:
+### 1.1 Reconstruction Mode & Knowledge-Time Transparency
+- **Mode**: `HISTORICAL_ECONOMIC_STATE` using business-effective transaction dates (`date <= asOfDate`).
+- **Knowledge-Time Status**: Explicitly labelled `knowledgeTimeStatus: 'NOT_FULLY_RECONSTRUCTABLE'` to truthfully reflect that retroactively edited historical entries reflect today's corrections rather than point-in-time system state snapshots.
+- **Future Date Guardrail**: Any reconstruction or simulation with `asOfDate > CURRENT_DATE` is rejected with `ValidationError` (`400 Bad Request`, `code: 'FUTURE_AS_OF_DATE_UNSUPPORTED'`).
 
-1. **Asset Quantity Reconstruction**:
-   $$\text{Quantity}(T_{\text{target}}) = \sum_{t \le T_{\text{target}}} \text{BuyUnits}(t) - \sum_{t \le T_{\text{target}}} \text{SellUnits}(t)$$
-2. **Historical Asset Pricing**:
-   Find price $P(T_{\text{target}})$ from `asset_prices` where $\text{date} \le T_{\text{target}}$ ordered by `date DESC LIMIT 1`.
-3. **Historical Cash & FD Valuation**:
-   - For Bank Accounts: Reconstruct balance using running balances or cumulative credits/debits up to $T_{\text{target}}$.
-   - For Fixed Deposits: Calculate accrued interest up to $T_{\text{target}}$ via `fdValuation.ts`.
-4. **Policy & Estate State**:
-   Filter `insurance_policies` and `wills` where $\text{created\_at} \le T_{\text{target}}$ and $(\text{deleted\_at} > T_{\text{target}} \text{ OR } \text{deleted\_at IS NULL})$.
-5. **Knowledge Graph Temporal Slicing**:
-   Filter graph nodes and edges active on $T_{\text{target}}$.
-
----
-
-## 3. Counterfactual What-If Sandbox Architecture
-
-### Zero-Mutation Isolation Guarantee:
-- **Sandbox Context**: Counterfactual simulations run entirely in ephemeral memory (`WhatIfSimulationState`).
-- **No Database Writes**: Never modifies live SQLite tables (`assets`, `transactions`, `holdings`).
-- **Differential Branching**: Clones the Digital Twin state into an in-memory branch, applies the hypothetical delta parameters (e.g. higher monthly SIP, different asset allocation, early mortgage prepayment), and executes the deterministic projection engine.
-
-```
-                    [ Live SQLite Production State ] (IMMUTABLE)
-                                   |
-                                   | (In-Memory Deep Clone)
-                                   v
-             [ Ephemeral Simulation Sandbox Context ]
-                    |                              |
-            (Scenario Branch A)            (Scenario Branch B)
-            SIP +₹25k in Nifty 50          Prepay ₹15L Home Loan
-                    |                              |
-                    v                              v
-             [ Projection Engine ]          [ Projection Engine ]
-                    |                              |
-                    +--------------+---------------+
-                                   |
-                                   v
-             [ Comparative Delta Visualizer & PDF Report ]
-```
+### 1.2 Mandatory Non-Fabrication Guardrails
+1. **Mandatory Correction #1 (Missing Data Invariant)**:
+   - Missing historical values (unpriced assets, unrecorded cash balances, unverified assets) must strictly evaluate to `null` with explicit `status: 'INSUFFICIENT_DATA'` and provenance (`HISTORICAL_SOURCE_UNAVAILABLE`).
+   - Numeric `0` is strictly reserved for evaluated zero (e.g. fully sold holdings, `KNOWN_ZERO`).
+2. **Mandatory Correction #2 (Fixed Deposit Maturity Invariant)**:
+   - Fixed deposits past their maturity date (`asOfDate > maturityDate`) without authoritative evidence of renewal or redemption are excluded from net worth with `totalMarketValue: null`, `status: 'INSUFFICIENT_DATA'`, and `lifecycleStatus: 'MATURED_PENDING_REINVESTMENT'`.
+3. **Protection Shield Isolation**:
+   - `sumAssured` across term and health policies is reported strictly under `protectionShield` and **never added to gross assets or net worth**.
 
 ---
 
-## 4. Technical Schema (`simulation_snapshots`)
+## 2. 5-Level Valuation Hierarchy
 
-```sql
-CREATE TABLE IF NOT EXISTS simulation_snapshots (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  family_id INTEGER NOT NULL,
-  scenario_name TEXT NOT NULL,
-  base_date TEXT NOT NULL,
-  assumptions_json TEXT NOT NULL,
-  projected_outcomes_json TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (family_id) REFERENCES families(id)
-);
+When reconstructing historical asset holdings, valuations follow a strict 5-level deterministic precedence:
+
+```mermaid
+graph TD
+    A[Asset Holding at asOfDate] --> B{Exact Historical Price? lag=0}
+    B -- Yes --> C[Level 1: EXACT_HISTORICAL / MARKET_VALUE]
+    B -- No --> D{Proxy Price <= maxAgeDays?}
+    D -- Yes --> E[Level 2: PROXY_HISTORICAL / MARKET_VALUE]
+    D -- No --> F{Known Acquisition Cost?}
+    F -- Yes --> G[Level 3: KNOWN_ACQUISITION_COST / ACQUISITION_COST]
+    F -- No --> H{Accrued/Calculated Valuation? e.g. Active FD}
+    H -- Yes --> I[Level 4: CALCULATED / ACCRUED_VALUE]
+    H -- No --> J[Level 5: HISTORICAL_SOURCE_UNAVAILABLE / UNKNOWN / null value]
 ```
+
+### Proxy Freshness Policy (`TIME_MACHINE_RULE_REGISTRY`)
+| Asset Category | Max Proxy Age (`MAX_PROXY_AGE_DAYS`) | Fallback if Expired |
+| :--- | :--- | :--- |
+| `Equity` / `US Stock` | 30 days | `KNOWN_ACQUISITION_COST` |
+| `Debt` / `Gold` | 60 days | `KNOWN_ACQUISITION_COST` |
+| `Property` (Real Estate) | 365 days | `KNOWN_ACQUISITION_COST` |
+| `Cash Snapshots` | 90 days | `INSUFFICIENT_DATA` (null) |
+
+---
+
+## 3. What-If Simulation Sandbox
+
+The What-If engine runs entirely in-memory over a deep-cloned reconstructed baseline state:
+- **0 Database Writes**: 0 `INSERT`, 0 `UPDATE`, 0 `DELETE` across all 21 system tables, proven via SHA-256 database fingerprinting.
+- **Deterministic Baseline Binding**: Every simulation result includes `baselineStateHash` (SHA-256 canonical hash of the baseline) and `baselineAsOf`.
+- **Assumption Provenance**: All assumptions explicitly track source provenance (`USER_PROVIDED`, `FAMILY_PROFILE`, `SYSTEM_ASSUMPTION`).
+- **Incomplete Baseline Guardrail**: Simulations against incomplete historical baselines flag `baselineLimitations` metadata or return `INSUFFICIENT_DATA`.
+- **No Fabricated Income**: Tax regime simulations require verified income profiles or explicit `salaryIncome` parameters; unverified income returns `INSUFFICIENT_DATA` with `taxSavingsBenefit: null`.
+
+### Supported Scenario Catalogue
+1. **`RECURRING_SIP_STEP_UP`**: Models compound growth under annual SIP step-up percentages.
+2. **`ONE_TIME_LUMP_SUM_INVESTMENT`**: Simulates deployment of surplus capital across configurable time horizons.
+3. **`RETIREMENT_AGE_ADJUSTMENT`**: Re-evaluates retirement corpus sufficiency and readiness score under altered retirement age targets.
+4. **`GOAL_CONTRIBUTION_REALLOCATION`**: Models shifting monthly savings allocations between competing financial goals.
+5. **`TAX_REGIME_OPTIMIZATION_SCENARIO`**: Evaluates tax liabilities under hypothetical 80C/80CCD deductions and selects optimal regime (Old vs New).
+
+---
+
+## 4. API Endpoints & Security Scope
+
+### 4.1 Production-Safe Family Scope Authorization
+- Endpoints strictly authorize the active family scope from authenticated session context (`CorrelationContext.getFamilyId()`).
+- Direct client parameter overrides or spoofed `x-family-id` headers without authenticated context fail closed (`400 ValidationError`). Mismatched client-supplied IDs throw `403 FORBIDDEN`.
+
+### 4.2 Reconstruct Historical Economic State
+- **Route**: `GET /api/v1/family-office/time-machine`
+- **Query Params**:
+  - `asOfDate` (required, `YYYY-MM-DD`, `<= CURRENT_DATE`)
+- **Response**: `TimeMachineReconstructionSchema`
+
+### 4.3 Execute What-If Scenario Simulation
+- **Route**: `POST /api/v1/family-office/time-machine/what-if`
+- **Middleware**: `idempotencyMiddleware` (HTTP platform response caching; engine itself performs 0 domain mutations).
+- **Body**:
+  ```json
+  {
+    "scenarioType": "RECURRING_SIP_STEP_UP",
+    "baselineAsOf": "2024-03-31",
+    "monthlySipAmount": 50000,
+    "sipStepUpPercent": 10,
+    "years": 20
+  }
+  ```
+- **Response**: `WhatIfSimulationResultSchema`

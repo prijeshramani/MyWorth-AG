@@ -30,6 +30,7 @@ import { runProactiveObserverTests } from './sprint8b3/proactiveObserver.test';
 import { runSprint8c0Tests } from './sprint8c0/contractsAndMigrations.test';
 import { runSprint8c1Tests } from './sprint8c1/familyFinancialHealth.test';
 import { runSprint8c2Tests } from './sprint8c2/familyTimeline.test';
+import { runSprint8c3Tests } from './sprint8c3/financialTimeMachine.test';
 
 // Sprint 1D Engines & Infrastructure
 import { FinancialMath } from '../engines/common/FinancialMath';
@@ -1199,6 +1200,13 @@ async function runTestSuite() {
   const sprint8c2Results = await runSprint8c2Tests();
   passed += sprint8c2Results.passed;
   failed += sprint8c2Results.failed;
+
+  // ==========================================
+  // SPRINT 8C.3 FINANCIAL TIME MACHINE TESTS
+  // ==========================================
+  const sprint8c3Results = await runSprint8c3Tests();
+  passed += sprint8c3Results.passed;
+  failed += sprint8c3Results.failed;
 
   console.log('\n==================================================');
   console.log(` RESULTS: ${passed} PASSED, ${failed} FAILED`);

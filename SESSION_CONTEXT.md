@@ -1,13 +1,40 @@
 # Session Context & Active Sprints
 
-- **Current Version**: `v2.8.0`
-- **Active Phase**: `Phase 8B – Core Family Office Engine Foundation`
-- **Status**: `Sprint 8B.3 COMPLETE (316/316 Backend Tests Passing). Ready for Phase 8C (Family Office UI Experience & AI Mission Control Integration).`
+- **Current Version**: `v2.9.2`
+- **Active Phase**: `Phase 8C – Family Financial Health, Timeline, Time Machine & Command Center`
+- **Status**: `Sprint 8C.2 COMPLETE (348/348 Backend Tests Passing). Ready for Sprint 8C.3 (Financial Time Machine & Point-in-Time Reconstruction).`
 
 ---
 
 ## Active Sprint Deliverables
-1. **Sprint 8B.3: Proactive Fiduciary AI Observer & Cooldown Registry (COMPLETE)**:
+1. **Sprint 8C.2: Multi-Domain Timeline Ledger & Narrative History (COMPLETE)**:
+   - **Core Service (`FamilyTimelineService.ts`)**: Chronological 7-domain ledger projection aggregating Portfolio, Protection, Goals, Life Events, Estate, Tax, and AI Decisions.
+   - **Deterministic Event Identity & Narrative Engine (`TimelineNarrativeEngine`)**: Collision-proof canonical IDs (`evt_${domain}_${sourceType}_${sourceId}_${eventType}_[${milestoneKey}]`), Indian currency formatting (`₹15 L`, `₹1.5 Cr`), and central identifier masking (`maskIdentifier`).
+   - **Scheduled vs Historical Separation**: Future obligations tagged `SCHEDULED` and filtered from past historical queries by default.
+   - **Valuation Invariant & Protection**: Insurance `SUM_ASSURED` explicitly isolated to `amountType = 'SUM_ASSURED'` (coverage protection).
+   - **Fail-Closed Atomic Rollback & Zero Mutations**: Single-transaction atomic reconciliation (`batchReconcileTimeline`); confirmed 0 writes across all 11 domain source tables.
+   - **REST API (`FamilyTimelineController.ts` & `familyTimelineRoutes.ts`)**: Mounted at `/api/v1/family-office/timeline` (`GET /`, `POST /sync`) with idempotency protection.
+   - **Master Test Suite Expansion**: 11 dedicated invariant tests in `familyTimeline.test.ts` advancing master test suite from 337 to **348 passing tests (0 failures)** with 14ms execution latency ($\le 100\text{ms}$ budget).
+   - **Documentation Deliverables**: `docs/FAMILY_TIMELINE_LEDGER.md`, `prompts/Phase8C/SPRINT_8C_2_OUTPUT_REVIEW.md`.
+
+2. **Sprint 8C.1: Family Financial Health (FFH) Index Engine & Historical Snapshotting (COMPLETE)**:
+   - **Core Engine (`FamilyFinancialHealthService.ts`)**: 100% deterministic composite scoring across 5 pillars (Protection, Liquidity, Goals & Planning, Estate, Tax/Data) reusing authoritative calculation engines (`DigitalTwinService`, `EstateHealthService`, `GoalPlanningService`, `TaxCalculationEngine`).
+   - **Explicit Life-Stage Weighting Matrix**: Deterministic 4-tier precedence (`RETIREMENT` $\to$ `FAMILY_EXPANSION` $\to$ `WEALTH_PRESERVATION` $\to$ `EARLY_CAREER`) with proportional weight redistribution when Goals is `NOT_APPLICABLE`.
+   - **Fiduciary-Safe Tax/Data Hygiene**: 30% Compliance + 40% Twin Completeness + 30% Regime Optimization (no 80C bias, no penalty under New Tax Regime).
+   - **Versioned Rule Registry (`FFH_RULE_REGISTRY`)**: Parameterized thresholds for ₹25L health target, 6-month emergency runway, and ₹1.5L 80C ceiling.
+   - **Snapshot Deduplication & Comparability**: Read-only return on identical `(family_id, snapshot_period, state_hash)`; division-by-zero protection (`percentDelta = null`); life-stage comparison flag (`WEIGHTING_OR_LIFESTAGE_CHANGED`); past `asOfDate` rejected with `ValidationError`.
+   - **REST API (`FamilyHealthController.ts` & `familyHealthRoutes.ts`)**: Mounted at `/api/v1/family-office/health` (`GET /`, `GET /history`, `POST /snapshot`) protected by `idempotencyMiddleware` and server-resolved family scope.
+   - **Master Test Suite Expansion**: 9 dedicated invariant test suites in `familyFinancialHealth.test.ts` advancing master test suite from 328 to **337 passing tests (0 failures)** with 3ms execution latency ($\le 500\text{ms}$ target).
+   - **Documentation Deliverables**: `docs/FAMILY_FINANCIAL_HEALTH.md`, `prompts/Phase8C/SPRINT_8C_1_OUTPUT_REVIEW.md`.
+
+2. **Sprint 8C.0: Contracts, Zod Schemas & Database Migration 019 (COMPLETE)**:
+   - **Data Contracts (`familyOfficeContracts.ts`)**: Added authoritative schemas for FFH (`FamilyFinancialHealthSchema`, `FFHPillarScoreSchema`), Timeline (`TimelineEventSchema`, `TimelineQueryFilterSchema`), Time Machine (`TimeMachineReconstructionSchema`, `WhatIfScenarioInputSchema`, `WhatIfSimulationResultSchema`), with strict separation of status (`PillarStatusEnum`) and provenance (`ProvenanceTypeEnum`).
+   - **Database Migration (`019_family_health_and_timeline.ts`)**: Created `family_health_history` (`UNIQUE(family_id, snapshot_period, state_hash)`) and `family_timeline_events` (`UNIQUE(family_id, event_id)`) with composite performance indexes.
+   - **Repositories**: `SQLiteFamilyHealthRepository.ts` and `SQLiteFamilyTimelineRepository.ts` providing strictly family-scoped persistence, concurrency-safe deduplication, and atomic transaction batch upserts.
+   - **Invariant Test Suite (`contractsAndMigrations.test.ts`)**: 12 dedicated invariant tests verifying Zod parsing, boundary rejections, Time Machine completeness bounds, migration safety, repository CRUD, and cross-family isolation (advancing master test suite from 316 to 328 passing tests, 0 failures).
+   - **Documentation Deliverables**: `prompts/Phase8C/PHASE_8C_STRATEGIC_PLAN.md`, `prompts/Phase8C/SPRINT_8C_0_IMPLEMENTATION_PLAN.md`, and `prompts/Phase8C/SPRINT_8C_0_OUTPUT_REVIEW.md`.
+
+2. **Sprint 8B.3: Proactive Fiduciary AI Observer & Cooldown Registry (COMPLETE)**:
    - **Database Migration (`018_proactive_triggers_and_cooldowns.ts`) & Repository (`SQLiteProactiveTriggerRepository.ts`)**: Authoritative schema for `proactive_triggers` and `proactive_cooldown_registry` with atomic SQLite transaction support.
    - **Cooldown & Materiality Service (`CooldownRegistryService.ts`)**: Deterministic SHA-256 trigger ID generation ($H_{\text{state}}$), intelligent cooldown suppression, zero-baseline emergence handling, and rule-specific materiality threshold overrides ($\Delta_{\text{mat}}$).
    - **Proactive Observer Engine (`ProactiveObserverService.ts`)**: Evaluates 9 deterministic fiduciary rules across all digital twin pillars, gates on domain completeness ($\ge 75\%$) and calculation confidence ($\ge 85\%$), auto-resolves obsolete triggers, supersedes material baseline shifts as `STALE`, persists 5-point explainability lineage, and mirrors high-urgency triggers to `NotificationService`.
@@ -166,12 +193,12 @@
 13. **Build & Test Status**:
     - Backend TypeScript build: **PASSED (0 ERRORS)**
     - Frontend Vite production build: **PASSED (0 ERRORS)**
-    - Backend Master Test Suite: **316/316 PASSED (0 FAILURES)**
+    - Backend Master Test Suite: **337/337 PASSED (0 FAILURES)**
 
 ---
 
 ## Instructions for Next Session / Developer Commands
-- **Reset Database**: `npm run db:reset` (runs migrations 001 through 018 cleanly).
+- **Reset Database**: `npm run db:reset` (runs migrations 001 through 019 cleanly).
 - **Run Application**: `npm run dev` (launches backend Express server on port 5000 and frontend Vite dev server on port 5173).
 - **Run Full Build**: `npm run build`
 - **Run Backend Tests**: `cd backend && npm test`

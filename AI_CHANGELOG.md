@@ -1,5 +1,68 @@
 # AI Change Log
 
+## [2026-08-22] Sprint 8C.2 – Multi-Domain Timeline Ledger & Narrative History
+
+### Added
+- **Core Orchestrator (`backend/src/services/familyOffice/FamilyTimelineService.ts`)**:
+  - Implemented unified, cross-domain chronological ledger projection aggregating events across 7 logical domains: Portfolio (`transactions`, `holdings`, `assets_master`), Protection (`insurance_policies`), Goals (`financial_goals`), Life Events (`life_events`), Estate (`wills`, `trusts`, `graph_edges`), Tax (`tax_profiles`, `tax_deductions`), and AI Decisions (`proactive_triggers`, `ai_audit_trail`).
+  - Added `TIMELINE_RULE_REGISTRY` with versioned importance thresholds for Portfolio (₹10L CRITICAL, ₹1L HIGH), Protection (₹1 Cr CRITICAL cover), and Goals (₹25L HIGH target).
+  - Built `TimelineNarrativeEngine` with Indian currency formatting (`₹15 L`, `₹1.5 Cr`), central identifier masking (`••••1234`), and Zod-validated structured metadata (`TimelineNarrativeMetadataSchema`).
+  - Built collision-proof deterministic event identity schema: `evt_${domain}_${sourceType}_${sourceId}_${eventType}_[${milestoneKey}]`.
+  - Added scheduled vs historical event separation: `SCHEDULED_PREMIUM_DUE` tagged `SCHEDULED` and excluded from default historical timeline queries unless `includeScheduled=true`.
+  - Enforced valuation invariant: insurance `sum_assured` mapped strictly to `amount_type = 'SUM_ASSURED'` (coverage protection).
+  - Built `syncFamilyTimeline(familyId)` with fail-closed error handling and single-transaction atomic rollback (`batchReconcileTimeline`).
+- **Repository Enhancements (`backend/src/repositories/SQLiteFamilyTimelineRepository.ts`)**:
+  - Added `batchReconcileTimeline` for single-transaction atomic obsolete deletion + projection upsert.
+  - Added deterministic multi-tier sorting (`event_date DESC`, `importance_tier ASC`, `event_id ASC`).
+- **REST Controller & Routes (`backend/src/controllers/FamilyTimelineController.ts`, `backend/src/routes/familyTimelineRoutes.ts`)**:
+  - Mounted at `/api/v1/family-office/timeline`: `GET /` (timeline query with multi-dimensional filtering) and `POST /sync` (idempotent synchronization).
+- **Invariant Test Suite (`backend/src/__tests__/sprint8c2/familyTimeline.test.ts`)**:
+  - 11 comprehensive invariant tests verifying 7-domain normalization, repeating event identity, scheduled vs historical filtering, SUM_ASSURED valuation isolation, Indian currency narratives, central masking, currency-aware filtering, zero-mutation across 11 source tables, atomic failure rollback, deterministic rebuild, cross-family isolation, and 14ms performance benchmark ($\le 100\text{ms}$ budget).
+  - Master test suite advanced from 337 to **348 passing tests (0 failures)**.
+- **Documentation Deliverables**:
+  - Created `docs/FAMILY_TIMELINE_LEDGER.md` and `prompts/Phase8C/SPRINT_8C_2_OUTPUT_REVIEW.md`.
+
+## [2026-08-22] Sprint 8C.1 – Family Financial Health (FFH) Index Engine & Historical Snapshotting
+
+### Added
+- **Core Orchestrator (`backend/src/services/familyOffice/FamilyFinancialHealthService.ts`)**:
+  - Implemented 100% deterministic 5-pillar composite scoring (Protection, Liquidity, Goals & Planning, Estate, Tax/Data) reusing authoritative domain calculation engines.
+  - Added `FFH_RULE_REGISTRY` with versioned parameters for health cover target (₹25L), emergency runway (6 months), and 80C statutory limit (₹1.5L).
+  - Added deterministic 4-tier life-stage classification (`RETIREMENT` $\to$ `FAMILY_EXPANSION` $\to$ `WEALTH_PRESERVATION` $\to$ `EARLY_CAREER`) and `LIFE_STAGE_WEIGHTS` table.
+  - Implemented proportional weight redistribution when Goals is `NOT_APPLICABLE` ($\sum W_i' = 1.00$).
+  - Implemented unified fiduciary-safe Tax & Data Hygiene formula: 30% Compliance + 40% Twin Completeness + 30% Regime Optimization (no 80C bias, New Tax Regime safe).
+  - Implemented `completenessScore` ($0.0..1.0$) and hierarchical `overallStatus` precedence (`INSUFFICIENT_DATA` $\to$ `PARTIAL` $\to$ `COMPLETE`).
+  - Added canonical SHA-256 `stateHash`, division-by-zero delta safety (`percentDelta = null`), and life-stage change flag (`comparisonStatus = 'WEIGHTING_OR_LIFESTAGE_CHANGED'`).
+  - Added snapshot deduplication: identical point-in-time state returns existing record without redundant database writes.
+  - Enforced historical date guard: past `asOfDate` rejected with `ValidationError` until Sprint 8C.3 Time Machine.
+- **REST Controller & Routes (`backend/src/controllers/FamilyHealthController.ts`, `backend/src/routes/familyHealthRoutes.ts`)**:
+  - Mounted endpoints at `/api/v1/family-office/health`: `GET /` (live non-mutating), `GET /history` (paginated), `POST /snapshot` (idempotent persistence).
+  - Server-resolved family scope from `CorrelationContext.getFamilyId()`.
+- **Invariant Test Suite (`backend/src/__tests__/sprint8c1/familyFinancialHealth.test.ts`)**:
+  - 9 test suites verifying life-stage precedence, 5-pillar math, weight normalization, read-only GET invariant, snapshot deduplication, delta zero-division safety, historical date rejection, cross-family isolation, and sub-500ms performance benchmark (3ms actual).
+  - Master test suite advanced from 328 to **337 passing tests (0 failures)**.
+- **Architecture Documentation**:
+  - Created `docs/FAMILY_FINANCIAL_HEALTH.md` and `prompts/Phase8C/SPRINT_8C_1_OUTPUT_REVIEW.md`.
+
+## [2026-08-22] Sprint 8C.0 – Phase 8C Contracts, Zod Schemas & Migration 019
+
+### Added
+- **Domain Contracts (`backend/src/contracts/familyOfficeContracts.ts`)**:
+  - Implemented authoritative Zod schemas for Phase 8C with strict separation of status (`PillarStatusEnum`: `COMPLETE`, `PARTIAL`, `KNOWN_ZERO`, `UNKNOWN`, `INSUFFICIENT_DATA`, `NOT_APPLICABLE`, `STALE`) and provenance (`ProvenanceTypeEnum`: `AUTHORITATIVE_SOURCE`, `CALCULATED`, `EXACT_HISTORICAL`, `PRIOR_DATE_PROXY`, `KNOWN_ACQUISITION_COST`, `HISTORICAL_SOURCE_UNAVAILABLE`).
+  - Added `ValuationTypeEnum` (`MARKET_VALUE`, `ACQUISITION_COST`, `LEDGER_BALANCE`, `SUM_ASSURED`, `SURRENDER_VALUE`, `NAV`, `ACCRUED_VALUE`, `BOOK_VALUE`, `UNKNOWN`) guaranteeing `SUM_ASSURED` is coverage, never net worth.
+  - Added FFH contracts (`FamilyFinancialHealthSchema`, `FFHPillarScoreSchema`, `LifeStageEnum`, `FamilyHealthSnapshotRowSchema`).
+  - Added Timeline contracts (`TimelineEventSchema`, `TimelineDomainEnum`, `TimelineImportanceEnum`, `TimelineQueryFilterSchema`, `TimelineEventRowSchema`).
+  - Added Time Machine contracts (`TimeMachineReconstructionSchema`, `ReconstructedAssetHoldingSchema`, `WhatIfScenarioInputSchema`, `WhatIfSimulationResultSchema`).
+- **Database Migration 019 (`backend/src/db/migrations/019_family_health_and_timeline.ts`)**:
+  - Created `family_health_history` with `snapshot_period` and `UNIQUE(family_id, snapshot_period, state_hash)`.
+  - Created `family_timeline_events` with `UNIQUE(family_id, event_id)` and composite family-scoped indexes `(family_id, event_date DESC)`, `(family_id, domain)`, `(family_id, source_type, source_id)`.
+- **Type-Safe Repositories**:
+  - `SQLiteFamilyHealthRepository.ts`: Implemented `saveSnapshot`, `getLatestSnapshot`, `getSnapshotHistory`, `findSnapshotByMonth`, `findSnapshotByPeriodAndHash`, `deleteSnapshotsByFamily`.
+  - `SQLiteFamilyTimelineRepository.ts`: Implemented `upsertEvent`, `batchUpsertEvents` (atomic transaction), `getTimeline` (domain/date/member filters), `deleteBySource` (strictly family-scoped), `purgeFamilyTimeline`.
+- **Invariant Test Suite (`backend/src/__tests__/sprint8c0/contractsAndMigrations.test.ts`)**:
+  - 11 dedicated invariant tests verifying Zod parsing, boundary rejections, migration 019 verification, concurrency deduplication, atomic batch transactions, and cross-family isolation.
+  - Master test suite advanced from 316 to **327 passing tests (0 failures)**.
+
 ## [2026-08-22] Sprint 8B.3 – Proactive Fiduciary AI Observer & Cooldown Registry
 
 ### Added

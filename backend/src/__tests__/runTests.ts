@@ -27,6 +27,9 @@ import { runAuditHooksTests } from './sprint8b0/auditHooks.test';
 import { runDigitalTwinTests } from './sprint8b1/digitalTwin.test';
 import { runLifeEventsTests } from './sprint8b2/lifeEvents.test';
 import { runProactiveObserverTests } from './sprint8b3/proactiveObserver.test';
+import { runSprint8c0Tests } from './sprint8c0/contractsAndMigrations.test';
+import { runSprint8c1Tests } from './sprint8c1/familyFinancialHealth.test';
+import { runSprint8c2Tests } from './sprint8c2/familyTimeline.test';
 
 // Sprint 1D Engines & Infrastructure
 import { FinancialMath } from '../engines/common/FinancialMath';
@@ -1175,6 +1178,27 @@ async function runTestSuite() {
   const proactiveObserverResults = await runProactiveObserverTests();
   passed += proactiveObserverResults.passed;
   failed += proactiveObserverResults.failed;
+
+  // ==========================================
+  // SPRINT 8C.0 CONTRACTS & MIGRATIONS TESTS
+  // ==========================================
+  const sprint8c0Results = await runSprint8c0Tests();
+  passed += sprint8c0Results.passed;
+  failed += sprint8c0Results.failed;
+
+  // ==========================================
+  // SPRINT 8C.1 FAMILY FINANCIAL HEALTH TESTS
+  // ==========================================
+  const sprint8c1Results = await runSprint8c1Tests();
+  passed += sprint8c1Results.passed;
+  failed += sprint8c1Results.failed;
+
+  // ==========================================
+  // SPRINT 8C.2 MULTI-DOMAIN TIMELINE TESTS
+  // ==========================================
+  const sprint8c2Results = await runSprint8c2Tests();
+  passed += sprint8c2Results.passed;
+  failed += sprint8c2Results.failed;
 
   console.log('\n==================================================');
   console.log(` RESULTS: ${passed} PASSED, ${failed} FAILED`);

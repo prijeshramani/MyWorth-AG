@@ -8,11 +8,11 @@ export function correlationMiddleware(req: Request, res: Response, next: NextFun
   
   const headerCausationId = (req.headers['x-causation-id'] as string) || (req.headers['causation-id'] as string);
   
-  // Extract familyId dynamically without hardcoded fallback
+  // Extract familyId dynamically from headers (case-insensitive), query, body, or session
   const familyIdQuery = req.query.familyId as string;
   const familyIdBody = (req.body && req.body.familyId) ? String(req.body.familyId) : undefined;
-  const familyIdHeader = req.headers['x-family-id'] as string;
-  const familyIdUser = (req as any).user?.family_id ? String((req as any).user.family_id) : undefined;
+  const familyIdHeader = (req.headers['x-family-id'] || req.headers['X-Family-Id']) as string;
+  const familyIdUser = (req as any).user?.family_id || (req as any).user?.familyId ? String((req as any).user.family_id || (req as any).user.familyId) : undefined;
 
   const rawFamilyId = familyIdQuery || familyIdBody || familyIdHeader || familyIdUser;
   const parsedFamilyId = rawFamilyId ? parseInt(rawFamilyId, 10) : undefined;

@@ -234,6 +234,8 @@ export class WhatIfSimulationEngine {
           readinessPercent: readiness,
           gapDelta: gap,
           monthlyBenefitAmount: monthlySipGap,
+          projectedValue: projectedCorpus,
+          yearlySchedule: projection.yearlySchedule,
           assumptionsUsed: {
             currentAge,
             targetRetirementAge: targetAge,
@@ -317,6 +319,7 @@ export class WhatIfSimulationEngine {
           readinessPercent: readiness,
           gapDelta: gap,
           projectedValue: proj.totalProjectedCorpus,
+          yearlySchedule: proj.yearlySchedule,
           assumptionsUsed: {
             goalName: goalRow.title || goalRow.name || 'Financial Goal',
             targetAmount: goalRow.target_amount,

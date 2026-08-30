@@ -26,6 +26,9 @@ import { RecommendationsDashboard } from './components/recommendations/Recommend
 import { AIWealthAdvisor } from './components/advisor/AIWealthAdvisor';
 import { AIActionCenter } from './components/advisor/AIActionCenter';
 import { WhatIfSimulator } from './components/advisor/WhatIfSimulator';
+import { FamilyHealthDashboard } from './components/health/FamilyHealthDashboard';
+import { FamilyTimelineView } from './components/timeline/FamilyTimelineView';
+import { TimeMachineView } from './components/timeMachine/TimeMachineView';
 import { AIReadinessDashboard } from './components/ai/AIReadinessDashboard';
 import { ProductionReadinessDashboard } from './components/platform/ProductionReadinessDashboard';
 import { DeveloperDiagnosticConsole } from './components/platform/DeveloperDiagnosticConsole';
@@ -102,6 +105,12 @@ function AppContent() {
         return <AIWealthAdvisor />;
       case 'ai-action-center':
         return <AIActionCenter />;
+      case 'family-health':
+        return <FamilyHealthDashboard />;
+      case 'family-timeline':
+        return <FamilyTimelineView />;
+      case 'time-machine':
+        return <TimeMachineView />;
       case 'what-if-simulator':
         return <WhatIfSimulator />;
       case 'ai-context':
@@ -154,30 +163,30 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
-    console.error('Unhandled UI Render Error caught by ErrorBoundary:', error, errorInfo);
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Uncaught React Error:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
-          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center space-y-4 shadow-xl">
-            <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center mx-auto">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <div className="min-h-screen bg-[#0F1012] flex items-center justify-center p-6 text-[#F3F4F6]">
+          <div className="max-w-md w-full p-6 rounded-2xl bg-[#15161A] border border-[#2B2E35] text-center space-y-4">
+            <div className="w-12 h-12 rounded-xl bg-[#F04438]/15 text-[#F04438] flex items-center justify-center mx-auto text-xl font-bold">
+              !
             </div>
-            <h3 className="text-lg font-bold text-slate-100">Something went wrong</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              {this.state.error?.message || 'An unexpected rendering error occurred.'}
+            <h2 className="text-xl font-bold">Application Error</h2>
+            <p className="text-sm text-[#9CA3AF]">
+              An unexpected error occurred in the financial operating system.
             </p>
+            <pre className="text-xs bg-[#1E2025] p-3 rounded-lg text-left overflow-x-auto text-[#F04438]">
+              {this.state.error?.message}
+            </pre>
             <button
-              onClick={() => {
-                window.history.replaceState({}, document.title, window.location.pathname);
-                window.location.href = '/';
-              }}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all inline-block"
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-[#4F7FFF] text-white rounded-xl text-sm font-semibold hover:bg-[#3D6CE6] transition"
             >
-              Return to Dashboard
+              Reload System
             </button>
           </div>
         </div>
@@ -187,7 +196,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-export function App() {
+export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
@@ -198,5 +207,3 @@ export function App() {
     </ErrorBoundary>
   );
 }
-
-export default App;

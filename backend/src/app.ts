@@ -20,7 +20,7 @@ export function createApp(): Express {
   app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'X-Idempotency-Key']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'X-Idempotency-Key', 'X-Family-Id', 'x-family-id']
   }));
   app.use(helmetSecurityMiddleware);
 

@@ -1,5 +1,33 @@
 # AI Change Log
 
+## [2026-08-30] Sprint 8C.4 – Family Office UI Experience & Financial Intelligence Visualization
+
+### Added
+- **Frontend Type & Service Layer**:
+  - `frontend/src/types/familyOffice.ts`: 1:1 frontend TypeScript contracts mapped to backend Zod schemas (`FamilyFinancialHealth`, `TimelineEvent`, `TimeMachineReconstruction`, `WhatIfSimulationResult`, `ProactiveTrigger`).
+  - Created typed API clients: `familyHealthService.ts`, `familyTimelineService.ts`, `timeMachineService.ts`, `proactiveObserverService.ts`.
+- **Family Financial Health UI**:
+  - `frontend/src/components/health/PillarScoreCard.tsx`: Individual cards for 5 pillars (Protection, Liquidity, Goals, Estate, Tax & Data) with score meters, dynamic weight breakdown, status badges, missing data alert banners, and engine provenance tags.
+  - `frontend/src/components/health/HealthHistoryChart.tsx`: Area chart visualizing historical monthly health snapshots.
+  - `frontend/src/components/health/FamilyHealthDashboard.tsx`: Executive dashboard with composite score, dynamic life-stage badge, completeness score, state hash, and snapshot triggers.
+  - `frontend/src/components/dashboard/FFHHealthWidget.tsx`: Compact 5-pillar health widget embedded directly into AI Mission Control.
+- **Family Timeline Ledger UI**:
+  - `frontend/src/components/timeline/TimelineFilterBar.tsx`: Multi-dimensional filtering by domain, priority tier, search terms, and scheduled obligations toggle.
+  - `frontend/src/components/timeline/TimelineEventCard.tsx`: Domain-colored event cards with masked identifiers, importance badges, and scheduled indicator.
+  - `frontend/src/components/timeline/FamilyTimelineView.tsx`: Chronological family timeline stream with read-only default and explicit `Sync Ledger Projection` action.
+- **Financial Time Machine & What-If Sandbox UI**:
+  - `frontend/src/components/timeMachine/HistoricalBalanceSheet.tsx`: Point-in-time balance sheet reconstruction with net worth, gross assets, liabilities, and **isolated Protection Shield**.
+  - `frontend/src/components/timeMachine/ReconstructedHoldingsTable.tsx`: 5-level valuation hierarchy table with explicit provenance badges (`EXACT_HISTORICAL`, `PROXY_HISTORICAL`, `KNOWN_ACQUISITION_COST`, `CALCULATED`) and null-safe `Historical value unavailable` rendering for unpriced assets.
+  - `frontend/src/components/timeMachine/WhatIfSimulatorPanel.tsx`: Presentation & input layer for 5 authoritative simulation scenarios with zero-write sandbox invariant banner and assumption provenance audit tags.
+  - `frontend/src/components/timeMachine/TimeMachineView.tsx`: Integrated historical date picker with financial year presets and sandbox switcher.
+  - `frontend/src/components/advisor/WhatIfSimulator.tsx`: Updated to delegate directly to `WhatIfSimulatorPanel`.
+- **AI Mission Control & Navigation Integration**:
+  - `frontend/src/components/dashboard/AIMissionControl.tsx`: Integrated with live `FFHHealthWidget` and active Proactive AI triggers stream with server-confirmed triage (`Ack`, `Snooze`, `Dismiss`). Hardcoded `familyId=1` references purged.
+  - `frontend/src/components/layout/NavigationDrawer.tsx`: Mounted navigation items for `family-health`, `family-timeline`, and `time-machine`.
+  - `frontend/src/store/useUiStore.ts` & `frontend/src/App.tsx`: Registered and mounted tab routes.
+- **Master Test Suite Expansion (`backend/src/__tests__/sprint8c4/frontendContracts.test.ts`)**:
+  - Added 13 contract & invariant tests advancing master test suite from 387 to **400 passing tests (0 failures)**.
+
 ## [2026-08-29] Sprint 8C.3 – Financial Time Machine, Point-in-Time Reconstruction & What-If Simulation Sandbox (Hardened)
 
 ### Added & Hardened

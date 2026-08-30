@@ -22,7 +22,10 @@ import {
   Sparkles,
   Award,
   Bot,
-  ChevronRight
+  ChevronRight,
+  Activity,
+  History,
+  Clock
 } from 'lucide-react';
 
 export interface NavItem {
@@ -45,13 +48,15 @@ export const navItems: NavItem[] = [
   { id: 'holdings', label: 'Asset Holdings', icon: <Table className="w-4 h-4 text-[#38BDF8]" />, category: 'Wealth' },
   { id: 'transactions', label: 'Cashflow & Activity', icon: <TrendingUp className="w-4 h-4 text-[#32D583]" />, category: 'Wealth' },
   { id: 'accounts', label: 'Bank & Demat Accounts', icon: <Landmark className="w-4 h-4 text-[#F79009]" />, category: 'Wealth' },
+  { id: 'family-timeline', label: 'Family Timeline Ledger', icon: <History className="w-4 h-4 text-[#38BDF8]" />, badge: 'Ledger', category: 'Wealth' },
 
   // Intelligence & Planning
+  { id: 'family-health', label: 'Family Financial Health', icon: <Activity className="w-4 h-4 text-[#32D583]" />, badge: 'Index', category: 'Planning' },
+  { id: 'time-machine', label: 'Time Machine & What-If', icon: <Clock className="w-4 h-4 text-[#8B5CF6]" />, badge: 'Sandbox', category: 'Planning' },
   { id: 'tax', label: 'Tax Intelligence', icon: <Calculator className="w-4 h-4 text-[#38BDF8]" />, category: 'Planning' },
   { id: 'planning', label: 'Financial Goals', icon: <Target className="w-4 h-4 text-[#4F7FFF]" />, category: 'Planning' },
   { id: 'protection', label: 'Protection & Insurance', icon: <ShieldAlert className="w-4 h-4 text-[#F04438]" />, category: 'Planning' },
   { id: 'estate', label: 'Estate & Succession', icon: <Scroll className="w-4 h-4 text-[#F79009]" />, category: 'Planning' },
-  { id: 'what-if-simulator', label: 'What-If Simulator', icon: <Target className="w-4 h-4 text-[#8B5CF6]" />, badge: 'Sim', category: 'Planning' },
 
   // Entity & Governance
   { id: 'family', label: 'Family Members', icon: <Users className="w-4 h-4 text-[#E879F9]" />, category: 'Entities' },
@@ -121,7 +126,7 @@ export const NavigationDrawer: React.FC = () => {
       <div className="pt-3 border-t border-[#2B2E35] text-[10px] text-[#6B7280] font-mono flex flex-col gap-1">
         <div className="flex justify-between items-center">
           <span>OS Version:</span>
-          <span className="text-[#F3F4F6] font-semibold">v7D.0 (Modernized)</span>
+          <span className="text-[#F3F4F6] font-semibold">v8C.4 (Family Intelligence)</span>
         </div>
         <div className="flex justify-between items-center">
           <span>Engine Status:</span>

@@ -363,9 +363,23 @@ export class FamilyFinancialHealthService {
 
     for (const p of policies) {
       if (p.status === 'ACTIVE') {
-        if (p.policy_type === 'TERM' || p.policy_type === 'LIFE') {
+        const type = (p.policy_type || '').toUpperCase();
+        if (
+          type.includes('TERM') ||
+          type.includes('LIFE') ||
+          type.includes('ENDOWMENT') ||
+          type.includes('MONEY_BACK') ||
+          type.includes('CHILD') ||
+          type.includes('PENSION') ||
+          type.includes('ULIP')
+        ) {
           activeTermCover += Number(p.sum_assured) || 0;
-        } else if (p.policy_type === 'HEALTH') {
+        } else if (
+          type.includes('HEALTH') ||
+          type.includes('FLOATER') ||
+          type.includes('CRITICAL') ||
+          type.includes('MEDICLAIM')
+        ) {
           activeHealthCover += Number(p.sum_assured) || 0;
         }
       }

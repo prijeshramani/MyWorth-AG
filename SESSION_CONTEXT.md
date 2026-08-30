@@ -1,13 +1,22 @@
 # Session Context & Active Sprints
 
-- **Current Version**: `v2.9.3`
+- **Current Version**: `v2.9.4`
 - **Active Phase**: `Phase 8C – Family Financial Health, Timeline, Time Machine & Command Center`
-- **Status**: `Sprint 8C.3 COMPLETE & HARDENED (387/387 Backend Tests Passing, 0 tsc errors). Ready for user sign-off prior to Sprint 8C.4 (Real-Time Collaboration & Family Access Control).`
+- **Status**: `Sprint 8C.4 COMPLETE & VERIFIED (400/400 Backend Tests Passing, Frontend built with 0 errors). Phase 8C fully completed and ready for user sign-off.`
 
 ---
 
 ## Active Sprint Deliverables
-1. **Sprint 8C.3: Financial Time Machine, Point-in-Time Reconstruction & What-If Simulation Sandbox (COMPLETE & HARDENED)**:
+1. **Sprint 8C.4: Family Office UI Experience & Financial Intelligence Visualization (COMPLETE & VERIFIED)**:
+   - **Frontend Contracts & Services**: 1:1 typed services (`familyHealthService.ts`, `familyTimelineService.ts`, `timeMachineService.ts`, `proactiveObserverService.ts`) mapped to backend Zod contracts.
+   - **Family Financial Health UI (`FamilyHealthDashboard.tsx`)**: 5-pillar scorecard breakdown (`PillarScoreCard.tsx`), life-stage weighting badge, data completeness indicators, historical area chart trend (`HealthHistoryChart.tsx`), and compact widget (`FFHHealthWidget.tsx`).
+   - **Family Timeline Ledger UI (`FamilyTimelineView.tsx`)**: Multi-domain filter bar (`TimelineFilterBar.tsx`), domain-badged event cards (`TimelineEventCard.tsx`), scheduled obligation toggle, and explicit atomic sync action.
+   - **Financial Time Machine & What-If Sandbox UI (`TimeMachineView.tsx`)**: Historical date picker with financial year presets, historical balance sheet (`HistoricalBalanceSheet.tsx`) with isolated Protection Shield, 5-level valuation hierarchy table (`ReconstructedHoldingsTable.tsx`) with null-safe unpriced display, and What-If simulator panel (`WhatIfSimulatorPanel.tsx`) with assumption provenance tags and 0-write sandbox guarantee.
+   - **AI Mission Control Integration (`AIMissionControl.tsx`)**: Embedded live FFH health widget, live proactive AI triggers stream with server-confirmed triage (`Ack`, `Snooze`, `Dismiss`), and purged hardcoded `familyId=1` references.
+   - **Master Test Suite Expansion**: Added 13 contract & invariant tests in `frontendContracts.test.ts` advancing master test suite from 387 to **400 passing tests (0 failures)**.
+   - **Documentation Deliverables**: `prompts/Phase8C/SPRINT_8C_4_OUTPUT_REVIEW.md`.
+
+2. **Sprint 8C.3: Financial Time Machine, Point-in-Time Reconstruction & What-If Simulation Sandbox (COMPLETE & HARDENED)**:
    - **Point-in-Time Historical Reconstruction (`FinancialTimeMachineService.ts`)**: Deterministic multi-pillar economic reconstruction as of any `asOfDate <= CURRENT_DATE` using business-effective transaction dates with explicit mode (`reconstructionMode: 'HISTORICAL_ECONOMIC_STATE'`) and knowledge-time transparency (`knowledgeTimeStatus: 'NOT_FULLY_RECONSTRUCTABLE'`).
    - **5-Level Valuation Hierarchy**: `EXACT_HISTORICAL` (lag=0) $\to$ `PROXY_HISTORICAL` ($\le$ maxAgeDays: 30d Equity, 60d Debt/Gold, 365d Property) $\to$ `KNOWN_ACQUISITION_COST` $\to$ `CALCULATED` $\to$ `HISTORICAL_SOURCE_UNAVAILABLE`.
    - **Mandatory Non-Fabrication Guardrails**: Missing historical values strictly return `null` with status `INSUFFICIENT_DATA` (never fabricated numeric `0`); post-maturity FDs without redemption are omitted from net worth with `totalMarketValue: null`, `lifecycleStatus: 'MATURED_PENDING_REINVESTMENT'`.

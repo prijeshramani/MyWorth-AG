@@ -719,3 +719,47 @@ export const WhatIfSimulationResultSchema = z.object({
 });
 export type WhatIfSimulationResult = z.infer<typeof WhatIfSimulationResultSchema>;
 
+// ============================================================================
+// 10. SPRINT 9.1: ACTIONABLE COMPLETENESS & NEXT-BEST-ACTION CONTRACTS
+// ============================================================================
+
+export const ActionPriorityCategoryEnum = z.enum([
+  'DATA_INTEGRITY',
+  'MISSING_FOUNDATION',
+  'INTELLIGENCE_ENRICHMENT',
+  'OPTIONAL_ENRICHMENT'
+]);
+export type ActionPriorityCategory = z.infer<typeof ActionPriorityCategoryEnum>;
+
+export const ActionImpactLevelEnum = z.enum(['HIGH', 'MEDIUM', 'LOW']);
+export type ActionImpactLevel = z.infer<typeof ActionImpactLevelEnum>;
+
+export const NextBestActionSchema = z.object({
+  actionId: z.string(),
+  title: z.string(),
+  description: z.string(),
+  category: ActionPriorityCategoryEnum,
+  impactLevel: ActionImpactLevelEnum,
+  whyItMatters: z.string(),
+  affectedCapabilities: z.array(z.string()),
+  targetRoute: z.string(),
+  targetDomain: z.enum(['LINEAGE', 'PORTFOLIO', 'PROTECTION', 'TAX', 'ESTATE', 'GOALS', 'LIQUIDITY', 'DATA_HYGIENE'])
+});
+export type NextBestAction = z.infer<typeof NextBestActionSchema>;
+
+export const ActionableCompletenessResponseSchema = z.object({
+  familyId: z.number().int().positive(),
+  overallCompleteness: z.number().min(0).max(1),
+  completenessScore: z.number().min(0).max(100),
+  status: z.enum(['COMPLETE', 'PARTIAL', 'INSUFFICIENT_DATA']),
+  rankedActions: z.array(NextBestActionSchema),
+  domainReadiness: z.record(z.object({
+    isReady: z.boolean(),
+    status: z.string(),
+    missingSummary: z.string().optional()
+  })),
+  calculatedAt: z.string()
+});
+export type ActionableCompletenessResponse = z.infer<typeof ActionableCompletenessResponseSchema>;
+
+

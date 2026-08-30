@@ -17,8 +17,11 @@ import {
   DigitalTwinStateSchema,
   LineageMemberSchema,
   LegalEntitySchema,
-  GraphRelationshipSchema
+  GraphRelationshipSchema,
+  ActionableCompletenessResponse,
+  ActionableCompletenessResponseSchema
 } from '../../contracts/familyOfficeContracts';
+import { ActionRankingEngine } from './ActionRankingEngine';
 import { NotFoundError, AppError } from '../../errors/AppError';
 import { calculateFixedDepositValuation, extractFdMetadata } from '../../utils/fdValuation';
 
@@ -719,6 +722,112 @@ export class DigitalTwinService {
       }
     });
   }
+
+  /**
+   * SPRINT 9.1: Evaluates authoritative twin state and record counts,
+   * producing ranked NextBestActions and domain readiness.
+   */
+  public async getActionableCompleteness(familyId: number): Promise<ActionableCompletenessResponse> {
+    const twin = await this.getDigitalTwin(familyId);
+
+    // 1. Authoritative record counts
+    let activeAssetCount = 0;
+    let liquidAssetCount = 0;
+    try {
+      const assetRows = db.prepare(`
+        SELECT DISTINCT a.id, a.type
+        FROM assets a
+        LEFT JOIN family_members fm ON a.family_member_id = fm.id
+        WHERE (fm.family_id = ? OR (a.family_member_id IS NULL AND ? = 1))
+      `).all(familyId, familyId) as Array<{ id: number; type: string }>;
+      activeAssetCount = assetRows.length;
+      liquidAssetCount = assetRows.filter(a => ['BANK_ACCOUNT', 'FIXED_DEPOSIT', 'SAVINGS', 'CASH'].includes(a.type)).length;
+    } catch {
+      activeAssetCount = 0;
+      liquidAssetCount = 0;
+    }
+
+    const policies = this.insuranceRepo.findByFamilyId(familyId);
+    const activePolicyCount = policies.filter((p: InsurancePolicyRecord) => p.status === 'ACTIVE').length;
+
+    let taxProfilesCount = 0;
+    try {
+      const taxRow = db.prepare('SELECT COUNT(*) as count FROM tax_profiles WHERE family_id = ? AND deleted_at IS NULL').get(familyId) as any;
+      taxProfilesCount = Number(taxRow?.count || 0);
+    } catch {
+      taxProfilesCount = 0;
+    }
+
+    const goals = this.goalRepo.getGoals(familyId);
+    const activeGoalsCount = goals.filter((g: FinancialGoalRecord) => g.status === 'IN_PROGRESS' || g.status === 'ON_TRACK').length;
+
+    // 2. Deterministic gap analysis & ranking
+    const unrankedActions = ActionRankingEngine.analyzeGaps({
+      digitalTwin: twin.state,
+      activeAssetCount,
+      activePolicyCount,
+      liquidAssetCount,
+      taxProfilesCount,
+      activeGoalsCount
+    });
+
+    const rankedActions = ActionRankingEngine.rankActions(unrankedActions);
+
+    // 3. Domain readiness breakdown
+    const hasPrimaryHead = twin.state.lineage.members.some(m => m.isPrimaryTestator);
+    const domainReadiness: Record<string, { isReady: boolean; status: string; missingSummary?: string }> = {
+      lineage: {
+        isReady: twin.state.lineage.members.length > 0 && hasPrimaryHead,
+        status: twin.state.lineage.members.length > 0 && hasPrimaryHead ? 'COMPLETE' : 'INCOMPLETE',
+        missingSummary: (!hasPrimaryHead && twin.state.lineage.members.length > 0)
+          ? 'Primary testator/Head of family not declared'
+          : (twin.state.lineage.members.length === 0 ? 'No family members registered' : undefined)
+      },
+      balanceSheet: {
+        isReady: activeAssetCount > 0,
+        status: activeAssetCount > 0 ? 'COMPLETE' : 'INCOMPLETE',
+        missingSummary: activeAssetCount === 0 ? 'No investment assets or holdings imported' : undefined
+      },
+      protection: {
+        isReady: activePolicyCount > 0,
+        status: activePolicyCount > 0 ? 'COMPLETE' : 'INCOMPLETE',
+        missingSummary: activePolicyCount === 0 ? 'No active insurance policies recorded' : undefined
+      },
+      liquidity: {
+        isReady: liquidAssetCount > 0,
+        status: liquidAssetCount > 0 ? 'COMPLETE' : 'INCOMPLETE',
+        missingSummary: liquidAssetCount === 0 ? 'No liquid bank accounts or cash reserves mapped' : undefined
+      },
+      tax: {
+        isReady: taxProfilesCount > 0,
+        status: taxProfilesCount > 0 ? 'COMPLETE' : 'INCOMPLETE',
+        missingSummary: taxProfilesCount === 0 ? 'No tax profile configured for current FY' : undefined
+      },
+      estate: {
+        isReady: twin.state.governance.willRegistered,
+        status: twin.state.governance.willRegistered ? 'COMPLETE' : 'INCOMPLETE',
+        missingSummary: !twin.state.governance.willRegistered ? 'No registered will or trust on file' : undefined
+      },
+      goals: {
+        isReady: activeGoalsCount > 0,
+        status: activeGoalsCount > 0 ? 'COMPLETE' : 'INCOMPLETE',
+        missingSummary: activeGoalsCount === 0 ? 'No active financial goals defined' : undefined
+      }
+    };
+
+    const responsePayload: ActionableCompletenessResponse = {
+      familyId,
+      overallCompleteness: twin.state.dataCompletenessScore,
+      completenessScore: twin.metadata.completeness.overallScore,
+      status: twin.metadata.completeness.status,
+      rankedActions,
+      domainReadiness,
+      calculatedAt: new Date().toISOString()
+    };
+
+    return ActionableCompletenessResponseSchema.parse(responsePayload);
+  }
 }
 
 export const digitalTwinService = new DigitalTwinService();
+

@@ -20,8 +20,11 @@ import {
   PieChart as PieIcon, 
   FileUp, 
   PlusCircle, 
-  RefreshCw 
+  RefreshCw,
+  Sparkles 
 } from 'lucide-react';
+import { NextBestActionPanel } from './dashboard/NextBestActionPanel';
+import { OnboardingWizardModal } from './onboarding/OnboardingWizardModal';
 
 interface DashboardProps {
   onNavigate: (tab: string) => void;
@@ -32,6 +35,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   const [cashflowData, setCashflowData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
 
   const fetchDashboardAndCashflow = async () => {
     try {
@@ -91,7 +95,17 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           Aggregating and visualizing your net worth has never been simpler. All your financial data stays completely offline in a local database.
         </p>
 
-        <div className="grid sm:grid-cols-2 gap-6 mt-12 max-w-2xl mx-auto">
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={() => setIsOnboardingOpen(true)}
+            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm rounded-2xl shadow-xl shadow-indigo-600/25 transition-all flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            Launch Step-by-Step Onboarding Wizard
+          </button>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-6 mt-8 max-w-2xl mx-auto">
           {/* Card 1: Import */}
           <div className="card-glass p-6 rounded-2xl text-left flex flex-col justify-between group hover:border-indigo-500/35 transition-all">
             <div>
@@ -130,6 +144,12 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </button>
           </div>
         </div>
+
+        <OnboardingWizardModal 
+          isOpen={isOnboardingOpen} 
+          onClose={() => setIsOnboardingOpen(false)} 
+          onNavigate={onNavigate} 
+        />
       </div>
     );
   }
@@ -205,6 +225,12 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Sprint 9.1: Prioritized Next-Best-Action Recommendation Panel */}
+      <NextBestActionPanel 
+        onNavigate={onNavigate} 
+        onOpenOnboarding={() => setIsOnboardingOpen(true)} 
+      />
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* KPI 1: Net Worth */}
@@ -606,6 +632,15 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           </div>
         </div>
       </div>
+
+      <OnboardingWizardModal 
+        isOpen={isOnboardingOpen} 
+        onClose={() => { 
+          setIsOnboardingOpen(false); 
+          fetchDashboardAndCashflow(); 
+        }} 
+        onNavigate={onNavigate} 
+      />
     </div>
   );
 }

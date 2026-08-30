@@ -1,24 +1,45 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { CorrelationContext, CorrelationStore } from './CorrelationContext';
+import { JwtService } from '../../services/jwtService';
 
 export function correlationMiddleware(req: Request, res: Response, next: NextFunction): void {
   const headerCorrId = (req.headers['x-correlation-id'] as string) || (req.headers['correlation-id'] as string);
-  const correlationId = headerCorrId && headerCorrId.trim() !== '' ? headerCorrId.trim() : `req_${crypto.randomUUID()}`;
+  const correlationId = headerCorrId && headerCorrId.trim() !== '' ? headerCorrId.trim() : `req_${crypto.randomUUID().replace(/-/g, '').substring(0, 16)}`;
   
   const headerCausationId = (req.headers['x-causation-id'] as string) || (req.headers['causation-id'] as string);
   
-  // Extract familyId dynamically from headers (case-insensitive), query, body, or session
-  const familyIdQuery = req.query.familyId as string;
-  const familyIdBody = (req.body && req.body.familyId) ? String(req.body.familyId) : undefined;
-  const familyIdHeader = (req.headers['x-family-id'] || req.headers['X-Family-Id']) as string;
-  const familyIdUser = (req as any).user?.family_id || (req as any).user?.familyId ? String((req as any).user.family_id || (req as any).user.familyId) : undefined;
+  // 1. Authoritative: Authenticated JWT user context
+  let authenticatedUser = (req as any).user;
+  if (!authenticatedUser && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      authenticatedUser = JwtService.verifyAccessToken(token);
+      (req as any).user = authenticatedUser;
+    } catch {
+      // ignore invalid token here, auth middleware handles rejection
+    }
+  }
 
-  const rawFamilyId = familyIdQuery || familyIdBody || familyIdHeader || familyIdUser;
-  const parsedFamilyId = rawFamilyId ? parseInt(rawFamilyId, 10) : undefined;
-  const familyId = (parsedFamilyId && !isNaN(parsedFamilyId)) ? parsedFamilyId : undefined;
+  const rawFamilyId = authenticatedUser?.familyId || authenticatedUser?.family_id;
+  const parsedFamilyId = rawFamilyId ? parseInt(String(rawFamilyId), 10) : undefined;
 
-  const userId = (req as any).user?.id ? Number((req as any).user.id) : undefined;
+  // 2. Unauthenticated / Dev fallback: Header -> Query -> Default 1
+  const headerFamilyId = req.headers['x-family-id'] ? parseInt(String(req.headers['x-family-id']), 10) : undefined;
+  const queryFamilyId = (req.query && req.query.familyId) ? parseInt(String(req.query.familyId), 10) : undefined;
+
+  let familyId: number | undefined;
+  if (parsedFamilyId && !isNaN(parsedFamilyId)) {
+    familyId = parsedFamilyId;
+  } else if (headerFamilyId && !isNaN(headerFamilyId)) {
+    familyId = headerFamilyId;
+  } else if (queryFamilyId && !isNaN(queryFamilyId)) {
+    familyId = queryFamilyId;
+  } else {
+    familyId = 1;
+  }
+
+  const userId = authenticatedUser?.id ? Number(authenticatedUser.id) : undefined;
 
   // Set response correlation header
   res.setHeader('X-Correlation-ID', correlationId);

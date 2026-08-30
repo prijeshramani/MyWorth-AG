@@ -32,6 +32,7 @@ import { runSprint8c1Tests } from './sprint8c1/familyFinancialHealth.test';
 import { runSprint8c2Tests } from './sprint8c2/familyTimeline.test';
 import { runSprint8c3Tests } from './sprint8c3/financialTimeMachine.test';
 import { runSprint8c4Tests } from './sprint8c4/frontendContracts.test';
+import { runSprint9Tests } from './sprint9/onboardingCompleteness.test';
 
 // Sprint 1D Engines & Infrastructure
 import { FinancialMath } from '../engines/common/FinancialMath';
@@ -1215,6 +1216,28 @@ async function runTestSuite() {
   const sprint8c4Results = await runSprint8c4Tests();
   passed += sprint8c4Results.passed;
   failed += sprint8c4Results.failed;
+
+  // ==========================================
+  // SPRINT 9.1 ONBOARDING & COMPLETENESS TESTS
+  // ==========================================
+  const sprint9Results = await runSprint9Tests();
+  passed += sprint9Results.passed;
+  failed += sprint9Results.failed;
+
+  console.log(`\nSprint Breakdown:`);
+  console.log(`  Sprint 8B.0 Contracts: ${contractsResults.passed} passed, ${contractsResults.failed} failed`);
+  console.log(`  Sprint 8B.0 Correlation: ${correlationResults.passed} passed, ${correlationResults.failed} failed`);
+  console.log(`  Sprint 8B.0 Idempotency: ${idempotencyResults.passed} passed, ${idempotencyResults.failed} failed`);
+  console.log(`  Sprint 8B.0 Audit Hooks: ${auditHooksResults.passed} passed, ${auditHooksResults.failed} failed`);
+  console.log(`  Sprint 8B.1 Digital Twin: ${digitalTwinResults.passed} passed, ${digitalTwinResults.failed} failed`);
+  console.log(`  Sprint 8B.2 Life Events: ${lifeEventsResults.passed} passed, ${lifeEventsResults.failed} failed`);
+  console.log(`  Sprint 8B.3 Proactive Observer: ${proactiveObserverResults.passed} passed, ${proactiveObserverResults.failed} failed`);
+  console.log(`  Sprint 8C.0 Contracts & Migrations: ${sprint8c0Results.passed} passed, ${sprint8c0Results.failed} failed`);
+  console.log(`  Sprint 8C.1 Family Health: ${sprint8c1Results.passed} passed, ${sprint8c1Results.failed} failed`);
+  console.log(`  Sprint 8C.2 Timeline: ${sprint8c2Results.passed} passed, ${sprint8c2Results.failed} failed`);
+  console.log(`  Sprint 8C.3 Time Machine: ${sprint8c3Results.passed} passed, ${sprint8c3Results.failed} failed`);
+  console.log(`  Sprint 8C.4 Frontend Contracts: ${sprint8c4Results.passed} passed, ${sprint8c4Results.failed} failed`);
+  console.log(`  Sprint 9.1 Completeness: ${sprint9Results.passed} passed, ${sprint9Results.failed} failed`);
 
   console.log('\n==================================================');
   console.log(` RESULTS: ${passed} PASSED, ${failed} FAILED`);

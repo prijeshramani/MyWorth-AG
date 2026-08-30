@@ -34,6 +34,7 @@ router.use('/family-office/health', familyHealthRouter);
 router.use('/family-office/timeline', familyTimelineRouter);
 router.use('/family-office/time-machine', timeMachineRouter);
 router.use('/family-office/digital-twin', digitalTwinRouter);
+router.use('/family-office/completeness', digitalTwinRouter);
 router.use('/family-office/life-events', lifeEventRouter);
 router.use('/family-office/proactive', proactiveObserverRouter);
 router.use('/auth', authRouter);

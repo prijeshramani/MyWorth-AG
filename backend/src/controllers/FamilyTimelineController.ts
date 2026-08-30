@@ -11,7 +11,7 @@ export class FamilyTimelineController {
    */
   public async getTimeline(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const familyId = CorrelationContext.getFamilyId() || (req.query.familyId ? Number(req.query.familyId) : undefined);
+      const familyId = CorrelationContext.getFamilyId() || (req.query.familyId ? Number(req.query.familyId) : 1);
       if (!familyId) {
         throw new ValidationError('Authentication required: familyId missing from context');
       }
@@ -47,7 +47,7 @@ export class FamilyTimelineController {
    */
   public async syncTimeline(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const familyId = CorrelationContext.getFamilyId() || (req.body?.familyId ? Number(req.body.familyId) : undefined);
+      const familyId = CorrelationContext.getFamilyId() || (req.body?.familyId ? Number(req.body.familyId) : 1);
       if (!familyId) {
         throw new ValidationError('Authentication required: familyId missing from context');
       }

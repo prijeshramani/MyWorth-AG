@@ -10,7 +10,7 @@ export class FamilyHealthController {
    */
   public async getHealth(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const familyId = CorrelationContext.getFamilyId() || (req.query.familyId ? Number(req.query.familyId) : undefined);
+      const familyId = CorrelationContext.getFamilyId() || (req.query.familyId ? Number(req.query.familyId) : 1);
       if (!familyId || isNaN(familyId)) {
         throw new ValidationError('A valid family context or familyId query parameter is required');
       }
@@ -31,7 +31,7 @@ export class FamilyHealthController {
    */
   public async getHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const familyId = CorrelationContext.getFamilyId() || (req.query.familyId ? Number(req.query.familyId) : undefined);
+      const familyId = CorrelationContext.getFamilyId() || (req.query.familyId ? Number(req.query.familyId) : 1);
       if (!familyId || isNaN(familyId)) {
         throw new ValidationError('A valid family context or familyId query parameter is required');
       }
@@ -62,7 +62,7 @@ export class FamilyHealthController {
    */
   public async createSnapshot(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const familyId = CorrelationContext.getFamilyId() || (req.body?.familyId ? Number(req.body.familyId) : undefined);
+      const familyId = CorrelationContext.getFamilyId() || (req.body?.familyId ? Number(req.body.familyId) : 1);
       if (!familyId || isNaN(familyId)) {
         throw new ValidationError('A valid family context or familyId body parameter is required');
       }

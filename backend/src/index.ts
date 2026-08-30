@@ -41,7 +41,7 @@ app.use(cors({
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID', 'X-Family-Id']
 }));
 
 // Express Middlewares

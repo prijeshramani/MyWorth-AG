@@ -9,11 +9,8 @@ export class DigitalTwinController {
    */
   private resolveAuthorizedFamilyId(req: Request): number {
     const contextFamilyId = CorrelationContext.getFamilyId();
-    const headerFamilyId = req.headers['x-family-id'] ? Number(req.headers['x-family-id']) : undefined;
+    const authorizedFamilyId = contextFamilyId || 1;
     const queryFamilyId = req.query.familyId ? Number(req.query.familyId) : undefined;
-
-    // Determine the authoritative context family
-    const authorizedFamilyId = contextFamilyId || headerFamilyId || 1;
 
     // If client supplied a query parameter familyId, assert it matches authorization
     if (queryFamilyId !== undefined && queryFamilyId !== authorizedFamilyId) {
@@ -78,6 +75,41 @@ export class DigitalTwinController {
           familyId,
           ...completeness
         },
+        metadata: {
+          executionTimeMs: Date.now() - startTime,
+          apiVersion: 'v1.0'
+        }
+      });
+    } catch (err: any) {
+      const statusCode = err.statusCode || 500;
+      const errorCode = err.code || 'INTERNAL_ERROR';
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: err.message
+        },
+        metadata: {
+          executionTimeMs: Date.now() - startTime,
+          apiVersion: 'v1.0'
+        }
+      });
+    }
+  }
+
+  /**
+   * GET /api/v1/family-office/completeness/actions
+   * or GET /api/v1/family-office/digital-twin/actions
+   */
+  public async getActionableCompleteness(req: Request, res: Response): Promise<void> {
+    const startTime = Date.now();
+    try {
+      const familyId = this.resolveAuthorizedFamilyId(req);
+      const result = await digitalTwinService.getActionableCompleteness(familyId);
+
+      res.status(200).json({
+        success: true,
+        data: result,
         metadata: {
           executionTimeMs: Date.now() - startTime,
           apiVersion: 'v1.0'

@@ -359,3 +359,52 @@ export interface ProactiveEvaluationResult {
   activeTriggers: ProactiveTrigger[];
   evaluationTimestamp: string;
 }
+
+// ============================================================================
+// 6. ACTIONABLE COMPLETENESS & NEXT-BEST-ACTION (Sprint 9.1)
+// ============================================================================
+
+export type ActionPriorityCategory =
+  | 'DATA_INTEGRITY'
+  | 'MISSING_FOUNDATION'
+  | 'INTELLIGENCE_ENRICHMENT'
+  | 'ROUTINE_HYGIENE';
+
+export type ActionImpactLevel = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface NextBestAction {
+  actionId: string;
+  title: string;
+  description: string;
+  category: ActionPriorityCategory;
+  impactLevel: ActionImpactLevel;
+  whyItMatters: string;
+  affectedCapabilities: string[];
+  targetRoute: string;
+  targetDomain: string;
+}
+
+export interface DomainReadinessItem {
+  isReady: boolean;
+  status: 'COMPLETE' | 'PARTIAL' | 'INSUFFICIENT_DATA' | 'INCOMPLETE' | 'DEFERRED';
+  missingSummary?: string;
+}
+
+export interface ActionableCompletenessResponse {
+  familyId: number;
+  overallCompleteness: number; // 0..1
+  completenessScore: number; // 0..100
+  status: 'COMPLETE' | 'PARTIAL' | 'INSUFFICIENT_DATA';
+  rankedActions: NextBestAction[];
+  domainReadiness: {
+    lineage: DomainReadinessItem;
+    balanceSheet: DomainReadinessItem;
+    protection: DomainReadinessItem;
+    liquidity: DomainReadinessItem;
+    tax: DomainReadinessItem;
+    estate: DomainReadinessItem;
+    goals: DomainReadinessItem;
+  };
+  calculatedAt: string;
+}
+
